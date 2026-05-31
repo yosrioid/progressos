@@ -1,7 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
 
-const today = new Date().toISOString().slice(0, 10);
-
 async function login(page: Page) {
   await page.goto('/login');
   await page.locator('input[type="email"]').fill('e2e@example.com');
@@ -11,8 +9,18 @@ async function login(page: Page) {
   await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
 }
 
+async function pastePlainText(page: Page, selector: string, text: string) {
+  await page.locator(selector).evaluate((node, value) => {
+    const event = new Event('paste', { bubbles: true, cancelable: true });
+    Object.defineProperty(event, 'clipboardData', {
+      value: { getData: (type: string) => type === 'text/plain' ? value : '' },
+    });
+    node.dispatchEvent(event);
+  }, text);
+}
+
 test('dashboard supports quick work logging into project ABC', async ({ page }) => {
-  test.skip((page.viewportSize()?.width ?? 999) < 768, 'covered on desktop; mobile has dedicated layout coverage');
+  test.skip((page.viewportSize()?.width ?? 999) < 768, 'covered by the mobile quick-add check');
   const title = `E2E ABC work ${Date.now()}`;
 
   await login(page);
@@ -21,71 +29,116 @@ test('dashboard supports quick work logging into project ABC', async ({ page }) 
   await page.locator('select').first().selectOption('work_log');
   await page.locator('input[placeholder="Title"]').fill(title);
   await page.locator('input[placeholder="Project"]').fill('ABC');
-  await page.locator('input[placeholder="Minutes"]').fill('35');
+  await page.locator('input[type="number"]').fill('35');
   await page.locator('textarea[placeholder="Notes"]').fill('Completed today work for ABC.');
   await page.getByRole('button', { name: 'Capture' }).click();
-  await expect(page.getByText('Captured.')).toBeVisible();
 
-  await page.goto(`/work-logs?search=${encodeURIComponent(title)}&project=ABC`);
-  await expect(page.getByRole('link', { name: new RegExp(title) }).first()).toBeVisible();
-  await expect(page.locator('body')).toContainText('ABC');
+  await expect(page).toHaveURL(/\/dashboard/);
+  await page.goto('/work-logs');
+  await expect(page.getByRole('heading', { name: 'Work Logs' })).toBeVisible();
+  await expect(page.locator('article').filter({ hasText: title })).toBeVisible();
+  await expect(page.locator('article').filter({ hasText: 'ABC' }).first()).toBeVisible();
 });
 
-test('creates a daily progress entry and renders smart links safely', async ({ page }) => {
-  const title = `E2E progress ${Date.now()}`;
+test('records pages render API data without raw ISO date noise', async ({ page }) => {
+  await login(page);
+  await page.goto('/daily-progress');
+
+  await expect(page.getByRole('heading', { name: 'Daily Progress' })).toBeVisible();
+  await expect(page.locator('article').first()).toBeVisible();
+  await expect(page.getByText(/00000z/i)).toHaveCount(0);
+
+  await page.goto('/learning');
+  await expect(page.getByRole('heading', { name: 'Learning', exact: true })).toBeVisible();
+  await expect(page.locator('article').first()).toBeVisible();
+});
+
+test('global search and record filters are navigable', async ({ page }) => {
+  await login(page);
+  await page.locator('input[placeholder="Search everything"]').fill('baseline');
+  await page.keyboard.press('Enter');
+  await expect(page).toHaveURL(/\/search\?q=baseline/);
+  await expect(page.getByRole('heading', { name: 'Search ProgressOS' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Daily Progress' })).toBeVisible();
+
+  await page.goto('/work-logs?search=baseline&category=feature');
+  await expect(page.getByRole('heading', { name: 'Work Logs' })).toBeVisible();
+  await expect(page.locator('article').first()).toBeVisible();
+  await expect(page.getByText(/1 records/)).toBeVisible();
+});
+
+test('pasting a URL over selected textarea text preserves label as markdown link', async ({ page }) => {
+  test.skip((page.viewportSize()?.width ?? 999) < 768, 'desktop paste flow');
+  const title = `E2E link paste ${Date.now()}`;
+  const textarea = page.locator('textarea').nth(4);
 
   await login(page);
   await page.goto('/daily-progress/create');
-  const form = page.locator('form').filter({ has: page.getByRole('button', { name: 'Save entry' }) });
-  await form.locator('input[type="date"]').fill(today);
-  await form.locator('input').nth(1).fill(title);
-  await form.locator('input').nth(2).fill('focused');
-  await form.locator('input').nth(3).fill('e2e, abc');
-  await form.locator('textarea').nth(0).fill('Implementing ProgressOS tests');
-  await form.locator('textarea').nth(1).fill('Review Playwright traces');
-  await form.locator('textarea').nth(3).fill('Created E2E coverage');
-  await form.locator('textarea').nth(4).fill('[Spec](https://example.com/spec)');
-  await form.getByRole('button', { name: 'Save entry' }).click();
+  await page.locator('input[type="date"]').fill(new Date().toISOString().slice(0, 10));
+  await page.getByRole('textbox', { name: 'Title' }).fill(title);
+  await textarea.fill('Spec');
+  await textarea.focus();
+  await textarea.evaluate((node: HTMLTextAreaElement) => node.select());
+  await pastePlainText(page, 'textarea >> nth=4', 'https://example.com/spec');
+  await expect(textarea).toHaveValue('[Spec](https://example.com/spec)');
+  await page.getByRole('button', { name: 'Save' }).click();
 
   await expect(page.getByRole('heading', { name: title })).toBeVisible();
-  const link = page.getByRole('link', { name: 'Spec' });
-  await expect(link).toBeVisible();
-  await expect(link).toHaveAttribute('href', 'https://example.com/spec');
-  await expect(page.getByText(/00000z/i)).toHaveCount(0);
+  await expect(page.getByRole('link', { name: 'Spec' })).toHaveAttribute('href', 'https://example.com/spec');
 });
 
-test('creates a task and updates its status from the operational list', async ({ page }) => {
-  const title = `E2E task ${Date.now()}`;
+test('quick add notes paste URL over selected text preserves label', async ({ page }) => {
+  test.skip((page.viewportSize()?.width ?? 999) < 768, 'desktop paste flow');
 
   await login(page);
-  await page.goto('/tasks/create');
-  const form = page.locator('form').filter({ has: page.getByRole('button', { name: 'Save task' }) });
-  await form.locator('input').first().fill(title);
-  await form.locator('select').nth(0).selectOption({ label: 'ABC' });
-  await form.locator('select').nth(2).selectOption('in_progress');
-  await form.locator('select').nth(3).selectOption('high');
-  await form.locator('input[type="date"]').fill(today);
-  await form.locator('textarea').fill('[Ticket](https://example.com/ticket)');
-  await form.getByRole('button', { name: 'Save task' }).click();
-  await expect(page.getByRole('heading', { name: title })).toBeVisible();
-
-  await page.goto(`/tasks?search=${encodeURIComponent(title)}`);
-  const card = page.locator('article').filter({ hasText: title });
-  await expect(card).toBeVisible();
-  await card.getByRole('button', { name: 'done' }).click();
-  await expect(card.getByRole('button', { name: 'done' })).toHaveClass(/bg-teal-700/);
+  await page.getByRole('button', { name: /quick add/i }).click();
+  const notes = page.locator('textarea[placeholder="Notes"]');
+  await notes.fill('Ticket');
+  await notes.focus();
+  await notes.evaluate((node: HTMLTextAreaElement) => node.select());
+  await pastePlainText(page, 'textarea[placeholder="Notes"]', 'https://example.com/ticket');
+  await expect(notes).toHaveValue('[Ticket](https://example.com/ticket)');
 });
 
-test('mobile layout uses compact navigation and card lists', async ({ page }) => {
+test('creates, edits, and opens a daily progress record through Vue forms', async ({ page }) => {
+  test.skip((page.viewportSize()?.width ?? 999) < 768, 'desktop form flow');
+  const title = `E2E progress form ${Date.now()}`;
+  const updated = `${title} updated`;
+
+  await login(page);
+  await page.goto('/daily-progress/create');
+  await expect(page.getByRole('heading', { name: 'New Daily Progress' })).toBeVisible();
+  await page.locator('input[type="date"]').fill(new Date().toISOString().slice(0, 10));
+  await page.getByRole('textbox', { name: 'Title' }).fill(title);
+  await page.locator('textarea').nth(0).fill('Created from Vue form');
+  await page.locator('textarea').last().fill('e2e, vue');
+  await page.getByRole('button', { name: 'Save' }).click();
+
+  await expect(page.getByRole('heading', { name: title })).toBeVisible();
+  await page.getByRole('link', { name: 'Edit' }).click();
+  await page.getByRole('textbox', { name: 'Title' }).fill(updated);
+  await page.getByRole('button', { name: 'Save' }).click();
+
+  await expect(page.getByRole('heading', { name: updated })).toBeVisible();
+  await page.getByRole('link', { name: /Back to Daily Progress/ }).click();
+  await expect(page.locator('article').filter({ hasText: updated })).toBeVisible();
+});
+
+test('mobile layout exposes compact navigation and usable quick capture', async ({ page }) => {
   test.skip((page.viewportSize()?.width ?? 999) >= 768, 'mobile-only responsive check');
+  const title = `E2E mobile task ${Date.now()}`;
 
   await login(page);
-  await expect(page.getByRole('link', { name: /Home/ })).toBeVisible();
-  await expect(page.getByRole('link', { name: /Logs/ })).toBeVisible();
-  await page.locator('button[title="Quick add"]').first().click();
+  await expect(page.getByRole('link', { name: 'Dashboard' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Work', exact: true })).toBeVisible();
+
+  await page.getByRole('button', { name: /quick add/i }).click();
   await expect(page.getByRole('heading', { name: 'Quick Add' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Capture' })).toBeVisible();
-  await page.goto('/work-logs');
-  await expect(page.locator('table')).toBeHidden();
-  await expect(page.locator('.mobile-record').first()).toBeVisible();
+  await page.locator('select').first().selectOption('task');
+  await page.locator('input[placeholder="Title"]').fill(title);
+  await page.getByRole('button', { name: 'Capture' }).click();
+
+  await page.goto('/tasks');
+  await expect(page.getByRole('heading', { name: 'Tasks' })).toBeVisible();
+  await expect(page.locator('article').filter({ hasText: title })).toBeVisible();
 });

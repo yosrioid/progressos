@@ -3,174 +3,205 @@
 use App\Models\DailyProgressEntry;
 use App\Models\LearningEntry;
 use App\Models\Milestone;
-use App\Models\Task;
 use App\Models\Project;
-use App\Models\ReviewEntry;
+use App\Models\Reference;
+use App\Models\SavedView;
+use App\Models\Task;
 use App\Models\User;
 use App\Models\WorkLog;
 
-it('supports daily progress CRUD', function () {
+it('supports daily progress creation and listing through the API', function () {
     $user = User::factory()->create();
-    $this->actingAs($user)->post('/daily-progress', [
-        'date' => '2026-05-30',
-        'title' => 'Ship progress dashboard',
-        'completed_items' => ['Built dashboard'],
-        'tags' => ['shipping', 'focus'],
-    ])->assertSessionHasNoErrors();
 
-    $entry = DailyProgressEntry::first();
-    expect($entry)->not->toBeNull();
-
-    $this->actingAs($user)->put("/daily-progress/{$entry->id}", [
+    $this->actingAs($user)->postJson('/api/v1/daily-progress', [
         'date' => '2026-05-30',
         'title' => 'Ship ProgressOS dashboard',
         'completed_items' => ['Built dashboard'],
-        'tags' => ['shipping'],
-    ])->assertSessionHasNoErrors();
+        'tags' => ['shipping', 'focus'],
+    ])->assertCreated()->assertJsonPath('entry.title', 'Ship ProgressOS dashboard');
 
-    $this->actingAs($user)->get('/daily-progress?search=ProgressOS')->assertOk();
-    $this->actingAs($user)->delete("/daily-progress/{$entry->id}")->assertRedirect('/daily-progress');
+    expect(DailyProgressEntry::query()->where('title', 'Ship ProgressOS dashboard')->exists())->toBeTrue();
+
+    $this->actingAs($user)->getJson('/api/v1/daily-progress')
+        ->assertOk()
+        ->assertJsonPath('entries.data.0.title', 'Ship ProgressOS dashboard');
 });
 
-it('supports work log CRUD and bulk status updates', function () {
+it('supports work log creation, listing, and project resolution through the API', function () {
     $user = User::factory()->create();
-    $payload = WorkLog::factory()->make(['user_id' => $user->id])->toArray() + ['tags' => ['backend']];
 
-    $this->actingAs($user)->post('/work-logs', $payload)->assertSessionHasNoErrors();
-    $log = WorkLog::first();
+    $this->actingAs($user)->postJson('/api/v1/work-logs', [
+        'date' => '2026-05-30',
+        'project_name' => 'ProgressOS',
+        'title' => 'Build Vue REST shell',
+        'category' => 'feature',
+        'status' => 'done',
+        'priority' => 'high',
+        'description' => 'Replaced the previous UI with a Vue client.',
+        'actual_duration' => 90,
+        'tags' => ['frontend'],
+    ])->assertCreated()->assertJsonPath('log.project_name', 'ProgressOS');
 
-    $this->actingAs($user)->patch('/work-logs/bulk-status', ['ids' => [$log->id], 'status' => 'done'])->assertSessionHasNoErrors();
-    expect($log->fresh()->status)->toBe('done');
+    expect(Project::query()->where('name', 'ProgressOS')->exists())->toBeTrue();
 
-    $this->actingAs($user)->get('/work-logs?status=done')->assertOk();
-    $this->actingAs($user)->delete("/work-logs/{$log->id}")->assertRedirect('/work-logs');
+    $this->actingAs($user)->getJson('/api/v1/work-logs')
+        ->assertOk()
+        ->assertJsonPath('logs.data.0.title', 'Build Vue REST shell');
 });
 
-it('supports learning and milestone CRUD', function () {
+it('supports learning entries and milestones through the API', function () {
     $user = User::factory()->create();
 
-    $learning = LearningEntry::factory()->make(['user_id' => $user->id])->toArray();
-    $this->actingAs($user)->post('/learning', $learning)->assertSessionHasNoErrors();
-    $this->actingAs($user)->get('/learning')->assertOk();
-    $this->actingAs($user)->delete('/learning/'.LearningEntry::first()->id)->assertRedirect('/learning');
+    $this->actingAs($user)->postJson('/api/v1/learning', [
+        'date' => '2026-05-30',
+        'topic' => 'Vue Composition API',
+        'category' => 'programming',
+        'source_type' => 'practice',
+        'duration_minutes' => 45,
+        'progress_notes' => 'Converted pages to Vue.',
+    ])->assertCreated()->assertJsonPath('entry.topic', 'Vue Composition API');
 
-    $milestone = Milestone::factory()->make(['user_id' => $user->id])->toArray();
-    $this->actingAs($user)->post('/milestones', $milestone)->assertSessionHasNoErrors();
-    $this->actingAs($user)->get('/milestones')->assertOk();
-    $this->actingAs($user)->delete('/milestones/'.Milestone::first()->id)->assertRedirect('/milestones');
+    $this->actingAs($user)->postJson('/api/v1/milestones', [
+        'title' => 'Ship v1 API client',
+        'category' => 'product',
+        'target_type' => 'count',
+        'target_value' => 10,
+        'current_value' => 2,
+        'start_date' => '2026-05-01',
+        'end_date' => '2026-06-30',
+        'status' => 'active',
+    ])->assertCreated()->assertJsonPath('milestone.title', 'Ship v1 API client');
+
+    $this->actingAs($user)->getJson('/api/v1/learning')->assertOk();
+    $this->actingAs($user)->getJson('/api/v1/milestones')->assertOk();
 });
 
-it('renders dashboard and generated reports from real records', function () {
+it('renders dashboard, reports, CSV export, and search from real records', function () {
     $user = User::factory()->create();
-    WorkLog::factory()->for($user)->create(['status' => 'done', 'date' => now()->toDateString(), 'actual_duration' => 90]);
+    WorkLog::factory()->for($user)->create(['status' => 'done', 'date' => now()->toDateString(), 'actual_duration' => 90, 'title' => 'MVP implementation']);
     LearningEntry::factory()->for($user)->create(['date' => now()->toDateString(), 'duration_minutes' => 45]);
-    DailyProgressEntry::factory()->for($user)->create(['date' => now()->toDateString(), 'completed_items' => ['Completed MVP slice']]);
-    Milestone::factory()->for($user)->create(['current_value' => 5, 'target_value' => 10]);
+    DailyProgressEntry::factory()->for($user)->create(['date' => now()->toDateString(), 'title' => 'MVP daily note', 'completed_items' => ['Completed MVP slice']]);
+    Milestone::factory()->for($user)->create(['title' => 'MVP target', 'current_value' => 5, 'target_value' => 10]);
 
-    $this->actingAs($user)->get('/dashboard')->assertOk();
-    $this->actingAs($user)->get('/reports/weekly')->assertOk();
-    $this->actingAs($user)->get('/reports/weekly/export')->assertOk();
-    $this->actingAs($user)->get('/search?q=MVP')->assertOk();
+    $this->actingAs($user)->getJson('/api/v1/dashboard')->assertOk()->assertJsonStructure(['today', 'summary']);
+    $this->actingAs($user)->getJson('/api/v1/reports/weekly')->assertOk()->assertJsonStructure(['report']);
+    $this->actingAs($user)->get('/api/v1/reports/weekly/export')->assertOk();
+    $this->actingAs($user)->getJson('/api/v1/search?q=MVP')->assertOk()->assertJsonPath('query', 'MVP');
 });
 
-it('supports tasks, quick capture, and review pages', function () {
+it('supports tasks, quick capture, and project detail data through the API', function () {
     $user = User::factory()->create();
+    $project = Project::create(['user_id' => $user->id, 'name' => 'ABC', 'color' => 'teal']);
 
-    $this->actingAs($user)->post('/tasks', [
+    $this->actingAs($user)->postJson('/api/v1/tasks', [
         'title' => 'Review product flow',
+        'project_id' => $project->id,
         'status' => 'todo',
         'priority' => 'high',
         'due_date' => now()->toDateString(),
-    ])->assertSessionHasNoErrors();
+    ])->assertCreated();
 
-    $task = Task::first();
-    expect($task)->not->toBeNull();
+    $task = Task::query()->firstOrFail();
 
-    $this->actingAs($user)->patch("/tasks/{$task->id}/status", ['status' => 'done'])
-        ->assertSessionHasNoErrors();
-    expect($task->fresh()->status)->toBe('done');
+    $this->actingAs($user)->patchJson("/api/v1/tasks/{$task->id}/status", ['status' => 'done'])
+        ->assertOk()
+        ->assertJsonPath('task.status', 'done');
+    expect($task->fresh()->completed_at)->not->toBeNull();
 
-    $this->actingAs($user)->post('/quick-capture', [
-        'type' => 'blocker',
-        'title' => 'Waiting for API credentials',
+    $this->actingAs($user)->postJson('/api/v1/quick-capture', [
+        'type' => 'work_log',
+        'title' => 'Log today for ABC',
+        'project_name' => 'ABC',
         'date' => now()->toDateString(),
-    ])->assertSessionHasNoErrors();
+        'duration_minutes' => 35,
+    ])->assertCreated();
 
-    $this->actingAs($user)->get('/tasks')->assertOk();
-    $this->actingAs($user)->get('/reviews/daily')->assertOk();
-    $this->actingAs($user)->get('/reviews/weekly')->assertOk();
+    $this->actingAs($user)->getJson('/api/v1/tasks')->assertOk();
+    $this->actingAs($user)->getJson('/api/v1/projects')->assertOk();
+    $this->actingAs($user)->getJson("/api/v1/projects/{$project->id}")->assertOk()->assertJsonPath('project.name', 'ABC');
 });
 
-it('supports persisted reviews references saved views and project pages', function () {
+it('supports full API update and delete flows for core records', function () {
     $user = User::factory()->create();
-    $project = Project::create(['user_id' => $user->id, 'name' => 'ProgressOS', 'color' => 'teal']);
-    $task = Task::factory()->for($user)->create(['project_id' => $project->id, 'status' => 'todo']);
 
-    $this->actingAs($user)->post('/reviews', [
-        'period_type' => 'daily',
-        'period_start' => now()->toDateString(),
-        'period_end' => now()->toDateString(),
-        'answers' => ['moved' => 'Shipped flow'],
-        'summary' => 'Good day',
-    ])->assertSessionHasNoErrors();
-    expect(ReviewEntry::first()->summary)->toBe('Good day');
+    $daily = DailyProgressEntry::factory()->for($user)->create(['title' => 'Old daily']);
+    $this->actingAs($user)->patchJson("/api/v1/daily-progress/{$daily->id}", [
+        'date' => now()->toDateString(),
+        'title' => 'Updated daily',
+        'completed_items' => ['Done'],
+        'tags' => ['review'],
+    ])->assertOk()->assertJsonPath('entry.title', 'Updated daily');
+    $this->actingAs($user)->deleteJson("/api/v1/daily-progress/{$daily->id}")->assertNoContent();
+    expect(DailyProgressEntry::query()->find($daily->id))->toBeNull();
 
-    $this->actingAs($user)->post('/reviews/plan-task', [
-        'title' => 'Prepare tomorrow review',
-        'project_id' => $project->id,
-        'priority' => 'high',
-        'due_date' => now()->addDay()->toDateString(),
-        'notes' => 'Created from daily review planning.',
-    ])->assertSessionHasNoErrors();
-    expect($project->tasks()->where('title', 'Prepare tomorrow review')->exists())->toBeTrue();
+    $log = WorkLog::factory()->for($user)->create(['title' => 'Old log']);
+    $this->actingAs($user)->patchJson("/api/v1/work-logs/{$log->id}", [
+        'date' => now()->toDateString(),
+        'project_name' => 'ABC',
+        'title' => 'Updated log',
+        'category' => 'feature',
+        'status' => 'done',
+        'priority' => 'medium',
+        'actual_duration' => 25,
+        'tags' => ['ship'],
+    ])->assertOk()->assertJsonPath('log.title', 'Updated log');
+    $this->actingAs($user)->deleteJson("/api/v1/work-logs/{$log->id}")->assertNoContent();
+    expect(WorkLog::query()->find($log->id))->toBeNull();
 
-    $this->actingAs($user)->patch("/reviews/tasks/{$task->id}/carry", [
-        'due_date' => now()->addDay()->toDateString(),
-    ])->assertSessionHasNoErrors();
+    $learning = LearningEntry::factory()->for($user)->create(['topic' => 'Old topic']);
+    $this->actingAs($user)->patchJson("/api/v1/learning/{$learning->id}", [
+        'date' => now()->toDateString(),
+        'topic' => 'Updated topic',
+        'category' => 'programming',
+        'source_type' => 'practice',
+        'duration_minutes' => 20,
+    ])->assertOk()->assertJsonPath('entry.topic', 'Updated topic');
+    $this->actingAs($user)->deleteJson("/api/v1/learning/{$learning->id}")->assertNoContent();
+    expect(LearningEntry::query()->find($learning->id))->toBeNull();
 
-    $this->actingAs($user)->post("/reviews/tasks/{$task->id}/work-log")
-        ->assertSessionHasNoErrors();
-    expect($task->fresh()->work_log_id)->not->toBeNull();
+    $milestone = Milestone::factory()->for($user)->create(['title' => 'Old milestone']);
+    $this->actingAs($user)->patchJson("/api/v1/milestones/{$milestone->id}", [
+        'title' => 'Updated milestone',
+        'category' => 'product',
+        'target_type' => 'count',
+        'source_type' => 'manual',
+        'target_value' => 5,
+        'current_value' => 3,
+        'status' => 'active',
+    ])->assertOk()->assertJsonPath('milestone.title', 'Updated milestone');
+    $this->actingAs($user)->deleteJson("/api/v1/milestones/{$milestone->id}")->assertNoContent();
+    expect(Milestone::query()->find($milestone->id))->toBeNull();
+});
 
-    $this->actingAs($user)->post('/references', [
+it('supports saved views and persisted references through the API', function () {
+    $user = User::factory()->create();
+    $task = Task::factory()->for($user)->create();
+
+    $this->actingAs($user)->postJson('/api/v1/saved-views', [
+        'module' => 'tasks',
+        'name' => 'Blocked tasks',
+        'filters' => ['status' => 'blocked'],
+        'pinned' => true,
+    ])->assertCreated()->assertJsonPath('saved_view.name', 'Blocked tasks');
+
+    $this->actingAs($user)->getJson('/api/v1/saved-views?module=tasks')
+        ->assertOk()
+        ->assertJsonPath('saved_views.0.name', 'Blocked tasks');
+    expect(SavedView::query()->where('name', 'Blocked tasks')->exists())->toBeTrue();
+
+    $this->actingAs($user)->postJson('/api/v1/references', [
         'referenceable_type' => 'task',
         'referenceable_id' => $task->id,
         'label' => 'Spec',
         'url' => 'https://example.com/spec',
         'type' => 'doc',
-    ])->assertSessionHasNoErrors();
-    expect($task->fresh()->references()->count())->toBe(1);
+    ])->assertCreated()->assertJsonPath('reference.label', 'Spec');
 
-    $this->actingAs($user)->post('/saved-views', [
-        'module' => 'tasks',
-        'name' => 'Blocked',
-        'filters' => ['status' => 'blocked'],
-        'pinned' => true,
-    ])->assertSessionHasNoErrors();
+    $this->actingAs($user)->getJson("/api/v1/tasks/{$task->id}")
+        ->assertOk()
+        ->assertJsonPath('task.references.0.label', 'Spec');
 
-    $this->actingAs($user)->get('/projects')->assertOk();
-    $this->actingAs($user)->get("/projects/{$project->id}")->assertOk();
-
-    $this->actingAs($user)->post("/projects/{$project->id}/tasks", [
-        'title' => 'Project scoped task',
-        'status' => 'todo',
-        'priority' => 'medium',
-        'due_date' => now()->toDateString(),
-    ])->assertSessionHasNoErrors();
-    expect($project->tasks()->where('title', 'Project scoped task')->exists())->toBeTrue();
-
-    $this->actingAs($user)->post("/projects/{$project->id}/work-logs", [
-        'date' => now()->toDateString(),
-        'title' => 'Project scoped log',
-        'category' => 'feature',
-        'actual_duration' => 30,
-        'description' => 'Logged from project workspace.',
-    ])->assertSessionHasNoErrors();
-    expect($project->workLogs()->where('title', 'Project scoped log')->exists())->toBeTrue();
-
-    $this->actingAs($user)->patch("/projects/{$project->id}", [
-        'name' => 'ProgressOS Core',
-        'archived' => false,
-    ])->assertSessionHasNoErrors();
-    expect($project->fresh()->name)->toBe('ProgressOS Core');
+    $reference = Reference::query()->firstOrFail();
+    $this->actingAs($user)->deleteJson("/api/v1/references/{$reference->id}")->assertNoContent();
+    expect(Reference::query()->find($reference->id))->toBeNull();
 });

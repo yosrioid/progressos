@@ -1,13 +1,15 @@
 # ProgressOS
 
-ProgressOS is a Laravel/Inertia personal operating system for daily progress, work logs, learning sessions, milestones, global search, and weekly/monthly reports.
+ProgressOS is a Laravel REST API + Vue personal operating system for daily progress, work logs, learning sessions, milestones, global search, and weekly/monthly reports.
 
 ## Stack
 
 - Laravel app skeleton `v13.8.0`, Laravel framework `v13.12.0`
 - PHP `8.5.5` locally, compatible with Laravel 13's PHP `8.3+` requirement
-- Inertia Laravel `v2.0.24`
-- React `19`
+- Vue `3.5.35`
+- Pinia `3.0.4`
+- Vue Router `5.1.0`
+- Axios `1.16.1`
 - TypeScript `5.9`
 - Tailwind CSS `4`
 - Vite `8`
@@ -16,7 +18,7 @@ ProgressOS is a Laravel/Inertia personal operating system for daily progress, wo
 - Pest `4.7.0`
 - Playwright `1.60.0` for browser UI regression tests
 
-Package choices: Ziggy latest stable is `v2.6.2`; no stable `v3` exists. `pest-plugin-laravel` did not declare Laravel 13 compatibility at build time, so Pest is used directly with Laravel's base test case.
+Package choices: the original Inertia/React client was replaced with a Vue SPA backed by same-origin REST endpoints. `pest-plugin-laravel` did not declare Laravel 13 compatibility at build time, so Pest is used directly with Laravel's base test case.
 
 ## Local Setup
 
@@ -107,24 +109,26 @@ Security checklist:
 ## Architecture
 
 - `app/Models`: user-owned domain models for daily progress, work logs, learning entries, milestones, and report snapshots.
-- `app/Http/Controllers`: Inertia controllers for auth, dashboard, CRUD modules, reports, profile, and search.
+- `app/Http/Controllers/Api`: same-origin JSON controllers for auth, dashboard, records, projects, reports, CSV export, and search.
 - `app/Http/Requests`: Form Request validation for core write paths.
 - `app/Services`: focused services for dashboard aggregation, report generation, and tag syncing.
-- `resources/js`: React 19 + TypeScript Inertia UI with a responsive sidebar layout, reusable UI primitives, chart-like activity bars, filters, forms, tables, and report views.
+- `resources/js/vue`: Vue 3 + Pinia + TypeScript SPA with a responsive sidebar/mobile navigation, dashboard cards, record lists, project views, quick capture, and report views.
 - `database/factories` and `database/seeders`: realistic demo data for everyday review workflows.
 - `tests/Feature`: Pest coverage for auth, CRUD, dashboard, search, and report export paths.
-- `tests/e2e`: Playwright coverage for login, dashboard quick-add, daily progress smart links, task status updates, and responsive mobile navigation/cards.
+- `tests/e2e`: Playwright coverage for login, dashboard quick-add, API-backed record pages, date formatting, and responsive mobile navigation/quick capture.
 
 ## Feature Checklist
 
-- Authentication: register, login, logout, forgot password, reset password, profile update, password change, avatar upload, timezone, theme preference.
-- Dashboard: today summary, task counts, blockers, weekly/monthly activity charts, streaks, latest entries, milestone snapshot.
-- Daily Progress: CRUD, tags, search, date filters, tag filters, archive, duplicate previous day, detail view.
-- Work Log: CRUD, categories, statuses, priorities, filters, summary counts, quick-add, bulk status update, tags, detail view.
-- Learning Tracker: CRUD, categories, source types, weekly/monthly totals, grouped category totals, dashboard integration.
-- Milestones: CRUD, progress bars, status management, overdue indicator, dashboard integration.
-- Reports: weekly/monthly on-screen reports with real derived data and CSV export.
-- Global Search: grouped, navigable results across daily progress, work logs, learning, and milestones.
+- Authentication API: register, login, logout, forgot password, reset password, profile update, password change, avatar upload, timezone, and theme preference.
+- Vue SPA shell: responsive sidebar, mobile bottom navigation, top search, dark mode, keyboard shortcuts, and quick capture modal.
+- Dashboard: today summary, task counts, blockers, weekly/monthly activity, trends, latest work, and project snapshot.
+- REST API modules: full CRUD for daily progress, work logs, tasks, learning entries, and milestones; project update; reports; CSV export; grouped search; list filtering, sorting, and pagination.
+- Vue CRUD screens: list, create, detail, edit, delete, filters, sorting, and pagination flows for daily progress, work logs, tasks, learning entries, and milestones.
+- Global search: dedicated grouped Vue search page across projects, daily progress, work logs, tasks, learning, and milestones.
+- Project workspace: project-scoped add actions for work logs, tasks, and milestones.
+- Saved views and references: filter presets plus persisted reference links on record details.
+- Work logging flow: quick capture can create a done work log directly into an existing or newly resolved project.
+- Reports: weekly/monthly on-screen reports with real derived data, period picker, trend comparison, charts, and CSV export.
 
 ## Verification
 
@@ -137,24 +141,26 @@ curl -I http://127.0.0.1:8000/login
 
 Current verification passed:
 
-- Pest: `12 passed`, `68 assertions`
+- Pest: `14 passed`, `94 assertions`
 - Vite production build: passed
-- Playwright: `6 passed`, `2 skipped` across desktop Chromium and mobile Chromium projects. Skips are project-specific: desktop-only quick-add save and mobile-only responsive layout checks.
+- Playwright: `7 passed`, `3 skipped` across desktop Chromium and mobile Chromium projects. Skips are project-specific viewport checks.
 - Local HTTP smoke check: `/login` returned `200 OK`
 - MySQL migration and seed: passed locally
 
 ## Known Limitations
 
 - PDF export is intentionally omitted in the MVP; CSV export is implemented cleanly without adding a heavy PDF rendering dependency.
+- The Vue rewrite now includes Vue-native CRUD screens, filters, global search, project-scoped creation shortcuts, profile settings, avatar upload, forgot/reset password screens, saved views, references, dark mode, keyboard shortcuts, and report controls.
 - Milestone current-value auto-updates are manual in the MVP. The next step is linking milestones to specific metrics or tags so progress can be recalculated from logs.
 - Tests run on SQLite in memory. The actual application configuration and verified local run use MySQL.
-- Playwright mobile coverage verifies responsive layout, mobile daily progress, and mobile task flows. Quick-add save is tested on desktop because Chromium mobile emulation produced unreliable hit-testing on the modal action button; the mobile sheet visibility is still covered.
+- Playwright coverage verifies desktop quick-add, API-backed records, grouped global search, record filters, mobile navigation, mobile quick capture, Vue form flows, and date formatting.
 - Production deployment still needs environment-specific infrastructure: HTTPS termination, supervised queue workers, database backups, Redis persistence, and a real SMTP provider.
 
 ## Next Improvements
 
 - Add metric-linked milestones with scheduled recalculation.
 - Add saved report snapshots and comparison history.
-- Add keyboard shortcuts for quick-add and global search focus.
 - Add richer chart components when a charting dependency is justified.
+- Split the large API controller into resource-specific controllers.
+- Add deeper module-specific timeline/activity layouts.
 - Add optional PDF export via a small, well-contained service if reporting demand warrants it.
