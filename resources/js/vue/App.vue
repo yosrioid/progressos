@@ -2,6 +2,7 @@
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { RouterLink, RouterView, useRouter } from 'vue-router';
 import { api } from './api';
+import { pasteLinkOverSelection } from './linkPaste';
 import { useAuthStore } from './stores/auth';
 
 const auth = useAuthStore();
@@ -38,6 +39,10 @@ async function logout() {
 
 function search() {
   if (query.value.trim()) router.push(`/search?q=${encodeURIComponent(query.value.trim())}`);
+}
+
+function handleQuickNotesPaste(event: ClipboardEvent) {
+  pasteLinkOverSelection(event, quickForm, 'notes');
 }
 
 function applyTheme(theme?: string) {
@@ -102,7 +107,7 @@ onUnmounted(() => window.removeEventListener('keydown', shortcuts));
           <input v-model="quickForm.title" class="field sm:col-span-2" placeholder="Title" required />
           <input v-model="quickForm.project_name" class="field" placeholder="Project" />
           <input v-model="quickForm.duration_minutes" class="field" type="number" min="1" />
-          <textarea v-model="quickForm.notes" class="field min-h-28 sm:col-span-2" placeholder="Notes" />
+          <textarea v-model="quickForm.notes" class="field min-h-28 sm:col-span-2" placeholder="Notes" @paste="handleQuickNotesPaste" />
         </div>
         <div class="mt-4 flex justify-end"><button class="btn btn-primary">Capture</button></div>
       </form>

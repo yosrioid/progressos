@@ -9,6 +9,16 @@ async function login(page: Page) {
   await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
 }
 
+async function pastePlainText(page: Page, selector: string, text: string) {
+  await page.locator(selector).evaluate((node, value) => {
+    const event = new Event('paste', { bubbles: true, cancelable: true });
+    Object.defineProperty(event, 'clipboardData', {
+      value: { getData: (type: string) => type === 'text/plain' ? value : '' },
+    });
+    node.dispatchEvent(event);
+  }, text);
+}
+
 test('dashboard supports quick work logging into project ABC', async ({ page }) => {
   test.skip((page.viewportSize()?.width ?? 999) < 768, 'covered by the mobile quick-add check');
   const title = `E2E ABC work ${Date.now()}`;
@@ -55,6 +65,39 @@ test('global search and record filters are navigable', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Work Logs' })).toBeVisible();
   await expect(page.locator('article').first()).toBeVisible();
   await expect(page.getByText(/1 records/)).toBeVisible();
+});
+
+test('pasting a URL over selected textarea text preserves label as markdown link', async ({ page }) => {
+  test.skip((page.viewportSize()?.width ?? 999) < 768, 'desktop paste flow');
+  const title = `E2E link paste ${Date.now()}`;
+  const textarea = page.locator('textarea').nth(4);
+
+  await login(page);
+  await page.goto('/daily-progress/create');
+  await page.locator('input[type="date"]').fill(new Date().toISOString().slice(0, 10));
+  await page.getByRole('textbox', { name: 'Title' }).fill(title);
+  await textarea.fill('Spec');
+  await textarea.focus();
+  await textarea.evaluate((node: HTMLTextAreaElement) => node.select());
+  await pastePlainText(page, 'textarea >> nth=4', 'https://example.com/spec');
+  await expect(textarea).toHaveValue('[Spec](https://example.com/spec)');
+  await page.getByRole('button', { name: 'Save' }).click();
+
+  await expect(page.getByRole('heading', { name: title })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Spec' })).toHaveAttribute('href', 'https://example.com/spec');
+});
+
+test('quick add notes paste URL over selected text preserves label', async ({ page }) => {
+  test.skip((page.viewportSize()?.width ?? 999) < 768, 'desktop paste flow');
+
+  await login(page);
+  await page.getByRole('button', { name: /quick add/i }).click();
+  const notes = page.locator('textarea[placeholder="Notes"]');
+  await notes.fill('Ticket');
+  await notes.focus();
+  await notes.evaluate((node: HTMLTextAreaElement) => node.select());
+  await pastePlainText(page, 'textarea[placeholder="Notes"]', 'https://example.com/ticket');
+  await expect(notes).toHaveValue('[Ticket](https://example.com/ticket)');
 });
 
 test('creates, edits, and opens a daily progress record through Vue forms', async ({ page }) => {

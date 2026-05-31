@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from 'vue';
 import { RouterLink, useRoute, useRouter } from 'vue-router';
 import { api, unwrap } from '../api';
+import { pasteLinkOverSelection } from '../linkPaste';
 import { configs, normalizeForForm, serialize, type Field } from '../records';
 
 const props = defineProps<{ type: string; id?: string }>();
@@ -17,6 +18,10 @@ const isEdit = computed(() => Boolean(props.id));
 
 function inputType(field: Field) {
   return field.type === 'number' ? 'number' : field.type === 'date' ? 'date' : 'text';
+}
+
+function handleTextareaPaste(event: ClipboardEvent, key: string) {
+  pasteLinkOverSelection(event, form, key);
 }
 
 async function load() {
@@ -74,7 +79,7 @@ onMounted(load);
     <div class="grid gap-4 md:grid-cols-2">
       <label v-for="field in config.fields" :key="field.key" class="block" :class="field.span === 'full' ? 'md:col-span-2' : ''">
         <span class="label mb-1">{{ field.label }}</span>
-        <textarea v-if="field.type === 'textarea' || field.type === 'tags'" v-model="form[field.key]" class="field min-h-28" :placeholder="field.type === 'tags' ? 'comma, separated, tags' : ''" />
+        <textarea v-if="field.type === 'textarea' || field.type === 'tags'" v-model="form[field.key]" class="field min-h-28" :placeholder="field.type === 'tags' ? 'comma, separated, tags' : ''" @paste="handleTextareaPaste($event, field.key)" />
         <select v-else-if="field.type === 'select'" v-model="form[field.key]" class="field">
           <option v-for="option in field.options" :key="option" :value="option">{{ option.replaceAll('_', ' ') }}</option>
         </select>
