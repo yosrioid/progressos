@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue';
+import { toast } from '../feedback';
 import { useAuthStore } from '../stores/auth';
 
 const auth = useAuthStore();
@@ -15,6 +16,7 @@ async function saveProfile() {
   try {
     await auth.updateProfile(profile.value);
     message.value = 'Profile saved.';
+    toast({ tone: 'success', title: 'Profile saved', message: 'Your account details were updated.' });
   } catch (e: any) {
     error.value = e.response?.data?.message || 'Could not save profile.';
   }
@@ -27,6 +29,7 @@ async function savePassword() {
     await auth.updatePassword(password.value);
     password.value = { current_password: '', password: '', password_confirmation: '' };
     message.value = 'Password changed.';
+    toast({ tone: 'success', title: 'Password changed', message: 'Use the new password next time you sign in.' });
   } catch (e: any) {
     error.value = e.response?.data?.message || 'Could not change password.';
   }
@@ -42,6 +45,7 @@ async function saveAvatar() {
     await auth.updateAvatar(payload);
     avatar.value = null;
     message.value = 'Avatar updated.';
+    toast({ tone: 'success', title: 'Avatar updated', message: 'Your profile image has been saved.' });
   } catch (e: any) {
     error.value = e.response?.data?.message || 'Could not update avatar.';
   }

@@ -2,6 +2,7 @@
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { RouterLink, RouterView, useRouter } from 'vue-router';
 import { api } from './api';
+import { dismissToast, feedback, resolveConfirm, toast } from './feedback';
 import { pasteLinkOverSelection } from './linkPaste';
 import { useAuthStore } from './stores/auth';
 
@@ -27,6 +28,7 @@ const nav = [
 async function submitQuick() {
   await api.post('/api/v1/quick-capture', quickForm.value);
   quick.value = false;
+  toast({ tone: 'success', title: 'Captured', message: 'Your quick entry has been saved.' });
   quickForm.value.title = '';
   quickForm.value.notes = '';
   await router.push('/dashboard');
@@ -111,6 +113,30 @@ onUnmounted(() => window.removeEventListener('keydown', shortcuts));
         </div>
         <div class="mt-4 flex justify-end"><button class="btn btn-primary">Capture</button></div>
       </form>
+    </div>
+    <div class="fixed right-3 top-3 z-50 grid w-[min(24rem,calc(100vw-1.5rem))] gap-2 sm:right-5 sm:top-5">
+      <div v-for="item in feedback.toasts" :key="item.id" class="rounded-xl border bg-white p-4 shadow-xl" :class="item.tone === 'success' ? 'border-teal-200' : item.tone === 'error' ? 'border-red-200' : 'border-slate-200'">
+        <div class="flex items-start justify-between gap-3">
+          <div>
+            <p class="font-semibold" :class="item.tone === 'success' ? 'text-teal-800' : item.tone === 'error' ? 'text-red-700' : 'text-slate-800'">{{ item.title }}</p>
+            <p v-if="item.message" class="mt-1 text-sm text-slate-500">{{ item.message }}</p>
+          </div>
+          <button class="text-sm font-bold text-slate-400 hover:text-slate-700" @click="dismissToast(item.id)">Close</button>
+        </div>
+      </div>
+    </div>
+    <div v-if="feedback.confirm.open" class="fixed inset-0 z-50 grid place-items-center bg-slate-950/45 p-4" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
+      <section class="card w-full max-w-md p-5 shadow-2xl">
+        <div class="mb-4">
+          <p class="text-sm font-semibold" :class="feedback.confirm.danger ? 'text-red-700' : 'text-teal-700'">{{ feedback.confirm.danger ? 'Confirm destructive action' : 'Confirm action' }}</p>
+          <h2 id="confirm-title" class="mt-1 text-xl font-semibold">{{ feedback.confirm.title }}</h2>
+          <p class="mt-2 text-sm leading-6 text-slate-600">{{ feedback.confirm.message }}</p>
+        </div>
+        <div class="flex justify-end gap-2">
+          <button class="btn btn-muted" @click="resolveConfirm(false)">Cancel</button>
+          <button class="btn" :class="feedback.confirm.danger ? 'border border-red-200 bg-red-600 text-white hover:bg-red-700' : 'btn-primary'" @click="resolveConfirm(true)">{{ feedback.confirm.confirmLabel }}</button>
+        </div>
+      </section>
     </div>
   </div>
 </template>

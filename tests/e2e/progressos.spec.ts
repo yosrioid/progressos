@@ -84,6 +84,7 @@ test('pasting a URL over selected textarea text preserves label as markdown link
   await page.getByRole('button', { name: 'Save' }).click();
 
   await expect(page.getByRole('heading', { name: title })).toBeVisible();
+  await expect(page.getByText('Daily Progress created')).toBeVisible();
   await expect(page.getByRole('link', { name: 'Spec' })).toHaveAttribute('href', 'https://example.com/spec');
 });
 
@@ -120,8 +121,31 @@ test('creates, edits, and opens a daily progress record through Vue forms', asyn
   await page.getByRole('button', { name: 'Save' }).click();
 
   await expect(page.getByRole('heading', { name: updated })).toBeVisible();
+  await expect(page.getByText('Daily Progress updated')).toBeVisible();
   await page.getByRole('link', { name: /Back to Daily Progress/ }).click();
   await expect(page.locator('article').filter({ hasText: updated })).toBeVisible();
+});
+
+test('delete uses themed confirmation and success notification', async ({ page }) => {
+  test.skip((page.viewportSize()?.width ?? 999) < 768, 'desktop confirmation flow');
+  const title = `E2E delete confirm ${Date.now()}`;
+
+  await login(page);
+  await page.goto('/daily-progress/create');
+  await page.locator('input[type="date"]').fill(new Date().toISOString().slice(0, 10));
+  await page.getByRole('textbox', { name: 'Title' }).fill(title);
+  await page.getByRole('button', { name: 'Save' }).click();
+  await expect(page.getByRole('heading', { name: title })).toBeVisible();
+
+  await page.getByRole('button', { name: 'Delete' }).click();
+  await expect(page.getByRole('heading', { name: /Delete daily progress/i })).toBeVisible();
+  await page.getByRole('button', { name: 'Cancel' }).click();
+  await expect(page.getByRole('heading', { name: title })).toBeVisible();
+
+  await page.getByRole('button', { name: 'Delete' }).click();
+  await page.getByRole('button', { name: 'Delete', exact: true }).last().click();
+  await expect(page).toHaveURL(/\/daily-progress$/);
+  await expect(page.getByText('Daily Progress deleted')).toBeVisible();
 });
 
 test('mobile layout exposes compact navigation and usable quick capture', async ({ page }) => {

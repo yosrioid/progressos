@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from 'vue';
 import { RouterLink, useRouter } from 'vue-router';
 import { api, unwrap } from '../api';
+import { confirmAction, toast } from '../feedback';
 import { formatDate, minutes } from '../format';
 import { configs } from '../records';
 
@@ -67,9 +68,16 @@ async function load() {
 }
 
 async function destroy() {
-  if (!confirm(`Delete this ${config.value.singular.toLowerCase()}?`)) return;
+  const confirmed = await confirmAction({
+    title: `Delete ${config.value.singular.toLowerCase()}?`,
+    message: 'This record will be moved out of your active workspace. This action cannot be undone from this screen.',
+    confirmLabel: 'Delete',
+    danger: true,
+  });
+  if (!confirmed) return;
   deleting.value = true;
   await api.delete(`${config.value.endpoint}/${props.id}`);
+  toast({ tone: 'success', title: `${config.value.singular} deleted`, message: title.value });
   await router.push(`/${props.type}`);
 }
 
@@ -81,6 +89,7 @@ async function addReference() {
       referenceable_id: props.id,
       ...referenceForm.value,
     });
+    toast({ tone: 'success', title: 'Reference added', message: referenceForm.value.label });
     referenceForm.value = { label: '', url: '', type: 'link', notes: '' };
     await load();
   } catch (e: any) {
@@ -89,7 +98,15 @@ async function addReference() {
 }
 
 async function removeReference(reference: any) {
+  const confirmed = await confirmAction({
+    title: 'Remove reference?',
+    message: `Remove "${reference.label}" from this record.`,
+    confirmLabel: 'Remove',
+    danger: true,
+  });
+  if (!confirmed) return;
   await api.delete(`/api/v1/references/${reference.id}`);
+  toast({ tone: 'success', title: 'Reference removed', message: reference.label });
   await load();
 }
 
