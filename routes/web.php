@@ -70,6 +70,7 @@ Route::middleware('auth')->group(function () {
     Route::get('reviews/daily', [ReviewController::class, 'daily'])->name('reviews.daily');
     Route::get('reviews/{period}', [ReviewController::class, 'period'])->name('reviews.period');
     Route::post('reviews', [ReviewController::class, 'save'])->name('reviews.save');
+    Route::post('reviews/plan-task', [ReviewController::class, 'planTask'])->name('reviews.plan-task');
     Route::patch('reviews/tasks/{task}/carry', [ReviewController::class, 'carryTask'])->name('reviews.tasks.carry');
     Route::post('reviews/tasks/{task}/work-log', [ReviewController::class, 'taskToWorkLog'])->name('reviews.tasks.work-log');
 });
