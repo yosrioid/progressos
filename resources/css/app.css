@@ -1,0 +1,58 @@
+@import 'tailwindcss';
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+
+@theme {
+    --font-sans: ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
+        'Segoe UI Symbol', 'Noto Color Emoji';
+}
+
+@layer base {
+    * { border-color: color-mix(in oklab, currentColor 14%, transparent); }
+    body { min-height: 100vh; background: rgb(247 248 250); }
+    input, textarea, select { color-scheme: light dark; }
+    a { text-underline-offset: 3px; }
+}
+
+@layer components {
+    .field { width: 100%; border-radius: 10px; border-width: 1px; border-color: rgb(226 232 240); background: rgb(248 250 252); padding: 0.72rem 0.85rem; font-size: 0.875rem; outline: none; transition: all 150ms ease; }
+    .dark .field { border-color: rgb(39 39 42); background: rgb(24 24 27); }
+    .field:hover { background: white; }
+    .dark .field:hover { background: rgb(39 39 42); }
+    .field:focus { border-color: rgb(13 148 136); background: white; box-shadow: 0 0 0 4px rgb(20 184 166 / 0.14); }
+    .dark .field:focus { background: rgb(24 24 27); }
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; border-radius: 10px; padding: 0.625rem 0.875rem; font-size: 0.875rem; font-weight: 700; transition: all 150ms ease; white-space: nowrap; }
+    .btn-primary { background: rgb(15 118 110); color: white; box-shadow: 0 8px 18px rgb(15 118 110 / 0.16); }
+    .btn-primary:hover { background: rgb(17 94 89); transform: translateY(-1px); }
+    .btn-muted { border-width: 1px; border-color: rgb(226 232 240); background: white; color: rgb(39 39 42); }
+    .btn-muted:hover { border-color: rgb(20 184 166); color: rgb(15 118 110); }
+    .dark .btn-muted { border-color: rgb(63 63 70); background: rgb(24 24 27); color: rgb(244 244 245); }
+    .card { border-radius: 12px; border-width: 1px; border-color: rgb(226 232 240); background: white; box-shadow: 0 1px 2px rgb(15 23 42 / 0.04), 0 14px 34px rgb(15 23 42 / 0.035); }
+    .dark .card { border-color: rgb(39 39 42); background: rgb(24 24 27); }
+    .label { display: block; font-size: 0.72rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0; color: rgb(82 82 91); }
+    .dark .label { color: rgb(161 161 170); }
+    .table-wrap { overflow: hidden; border-radius: 12px; border-width: 1px; border-color: rgb(226 232 240); background: white; box-shadow: 0 14px 34px rgb(15 23 42 / 0.035); }
+    .dark .table-wrap { border-color: rgb(39 39 42); background: rgb(24 24 27); }
+    .data-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 0.875rem; }
+    .data-table thead { background: rgb(250 250 250); color: rgb(113 113 122); font-size: 0.72rem; text-transform: uppercase; }
+    .dark .data-table thead { background: rgb(39 39 42); color: rgb(161 161 170); }
+    .data-table th, .data-table td { padding: 0.85rem 1rem; }
+    .data-table tbody tr { border-top-width: 1px; }
+    .data-table tbody tr:hover { background: rgb(250 250 250); }
+    .dark .data-table tbody tr:hover { background: rgb(39 39 42); }
+    .density-compact .data-table th, .density-compact .data-table td { padding: 0.55rem 0.75rem; }
+    .density-compact .card { box-shadow: 0 1px 2px rgb(0 0 0 / 0.03); }
+    .mobile-card-list { display: grid; gap: 0.75rem; }
+    .mobile-record { border-radius: 12px; border-width: 1px; border-color: rgb(226 232 240); background: white; padding: 1rem; box-shadow: 0 8px 24px rgb(15 23 42 / 0.035); }
+    .bottom-nav-safe { padding-bottom: calc(5.5rem + env(safe-area-inset-bottom)); }
+    @media (min-width: 1024px) {
+        .bottom-nav-safe { padding-bottom: 1.5rem; }
+    }
+    @media (max-width: 640px) {
+        .btn { min-height: 2.6rem; padding-inline: 0.75rem; }
+        .card { border-radius: 12px; }
+        .field { min-height: 2.75rem; }
+        .data-table th, .data-table td { padding: 0.75rem; }
+    }
+}
