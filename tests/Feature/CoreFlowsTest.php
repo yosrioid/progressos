@@ -141,27 +141,4 @@ it('supports persisted reviews references saved views and project pages', functi
 
     $this->actingAs($user)->get('/projects')->assertOk();
     $this->actingAs($user)->get("/projects/{$project->id}")->assertOk();
-
-    $this->actingAs($user)->post("/projects/{$project->id}/tasks", [
-        'title' => 'Project scoped task',
-        'status' => 'todo',
-        'priority' => 'medium',
-        'due_date' => now()->toDateString(),
-    ])->assertSessionHasNoErrors();
-    expect($project->tasks()->where('title', 'Project scoped task')->exists())->toBeTrue();
-
-    $this->actingAs($user)->post("/projects/{$project->id}/work-logs", [
-        'date' => now()->toDateString(),
-        'title' => 'Project scoped log',
-        'category' => 'feature',
-        'actual_duration' => 30,
-        'description' => 'Logged from project workspace.',
-    ])->assertSessionHasNoErrors();
-    expect($project->workLogs()->where('title', 'Project scoped log')->exists())->toBeTrue();
-
-    $this->actingAs($user)->patch("/projects/{$project->id}", [
-        'name' => 'ProgressOS Core',
-        'archived' => false,
-    ])->assertSessionHasNoErrors();
-    expect($project->fresh()->name)->toBe('ProgressOS Core');
 });

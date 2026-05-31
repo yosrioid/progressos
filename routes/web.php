@@ -54,9 +54,6 @@ Route::middleware('auth')->group(function () {
     Route::resource('work-logs', WorkLogController::class)->parameters(['work-logs' => 'workLog']);
     Route::patch('tasks/{task}/status', [TaskController::class, 'status'])->name('tasks.status');
     Route::resource('tasks', TaskController::class);
-    Route::patch('projects/{project}', [ProjectController::class, 'update'])->name('projects.update');
-    Route::post('projects/{project}/tasks', [ProjectController::class, 'storeTask'])->name('projects.tasks.store');
-    Route::post('projects/{project}/work-logs', [ProjectController::class, 'storeWorkLog'])->name('projects.work-logs.store');
     Route::resource('projects', ProjectController::class)->only(['index', 'show']);
     Route::resource('learning', LearningEntryController::class);
     Route::resource('milestones', MilestoneController::class);
