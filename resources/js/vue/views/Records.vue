@@ -2,6 +2,7 @@
 import { computed, onMounted, ref, watch } from 'vue';
 import { RouterLink, useRoute, useRouter } from 'vue-router';
 import { api, unwrap } from '../api';
+import { confirmAction, toast } from '../feedback';
 import { formatDate, minutes } from '../format';
 import { configs } from '../records';
 
@@ -83,8 +84,22 @@ async function saveCurrentView() {
   if (!viewName.value.trim()) return;
   savingView.value = true;
   await api.post('/api/v1/saved-views', { module: props.type, name: viewName.value.trim(), filters: filters.value, pinned: true });
+  toast({ tone: 'success', title: 'View saved', message: viewName.value.trim() });
   viewName.value = '';
   savingView.value = false;
+  await loadSavedViews();
+}
+
+async function removeSavedView(view: any) {
+  const confirmed = await confirmAction({
+    title: 'Delete saved view?',
+    message: `Remove "${view.name}" from your saved filters.`,
+    confirmLabel: 'Delete view',
+    danger: true,
+  });
+  if (!confirmed) return;
+  await api.delete(`/api/v1/saved-views/${view.id}`);
+  toast({ tone: 'success', title: 'Saved view deleted', message: view.name });
   await loadSavedViews();
 }
 
@@ -120,7 +135,10 @@ onMounted(() => { syncFromRoute(); load(); loadSavedViews(); });
     <div class="mt-4 border-t border-slate-100 pt-4">
       <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div class="flex flex-wrap gap-2">
-          <button v-for="view in savedViews" :key="view.id" type="button" class="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-600 hover:border-teal-200 hover:text-teal-700" @click="applySavedView(view)">{{ view.name }}</button>
+          <span v-for="view in savedViews" :key="view.id" class="inline-flex overflow-hidden rounded-lg border border-slate-200 bg-white text-sm font-semibold">
+            <button type="button" class="px-3 py-2 text-slate-600 hover:text-teal-700" @click="applySavedView(view)">{{ view.name }}</button>
+            <button type="button" class="border-l border-slate-200 px-2 text-slate-400 hover:bg-red-50 hover:text-red-700" :aria-label="`Delete ${view.name}`" @click="removeSavedView(view)">x</button>
+          </span>
         </div>
         <div class="flex gap-2">
           <input v-model="viewName" class="field max-w-56" placeholder="Save view name" />

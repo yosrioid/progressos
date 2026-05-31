@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from 'vue';
 import { RouterLink, useRoute, useRouter } from 'vue-router';
 import { api, unwrap } from '../api';
+import { toast } from '../feedback';
 import { pasteLinkOverSelection } from '../linkPaste';
 import { configs, normalizeForForm, serialize, type Field } from '../records';
 
@@ -52,6 +53,11 @@ async function submit() {
       ? await api.patch(`${config.value.endpoint}/${props.id}`, payload).then(unwrap)
       : await api.post(config.value.endpoint, payload).then(unwrap);
     const saved = response[config.value.payloadKey];
+    toast({
+      tone: 'success',
+      title: isEdit.value ? `${config.value.singular} updated` : `${config.value.singular} created`,
+      message: saved[config.value.titleKey] || 'Changes saved.',
+    });
     await router.push(`/${props.type}/${saved.id}`);
   } catch (e: any) {
     error.value = e.response?.data?.message || 'Could not save this record.';
