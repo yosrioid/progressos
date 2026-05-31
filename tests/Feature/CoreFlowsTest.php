@@ -115,6 +115,15 @@ it('supports persisted reviews references saved views and project pages', functi
     ])->assertSessionHasNoErrors();
     expect(ReviewEntry::first()->summary)->toBe('Good day');
 
+    $this->actingAs($user)->post('/reviews/plan-task', [
+        'title' => 'Prepare tomorrow review',
+        'project_id' => $project->id,
+        'priority' => 'high',
+        'due_date' => now()->addDay()->toDateString(),
+        'notes' => 'Created from daily review planning.',
+    ])->assertSessionHasNoErrors();
+    expect($project->tasks()->where('title', 'Prepare tomorrow review')->exists())->toBeTrue();
+
     $this->actingAs($user)->patch("/reviews/tasks/{$task->id}/carry", [
         'due_date' => now()->addDay()->toDateString(),
     ])->assertSessionHasNoErrors();
