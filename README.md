@@ -122,10 +122,12 @@ Security checklist:
 - Authentication API: register, login, logout, profile update, password change, timezone, and theme preference.
 - Vue SPA shell: responsive sidebar, mobile bottom navigation, top search, and quick capture modal.
 - Dashboard: today summary, task counts, blockers, weekly activity chart, latest work, and project snapshot.
-- REST API modules: full CRUD for daily progress, work logs, tasks, learning entries, and milestones; project update; reports; CSV export; and grouped search.
-- Vue CRUD screens: list, create, detail, edit, and delete flows for daily progress, work logs, tasks, learning entries, and milestones.
+- REST API modules: full CRUD for daily progress, work logs, tasks, learning entries, and milestones; project update; reports; CSV export; grouped search; list filtering, sorting, and pagination.
+- Vue CRUD screens: list, create, detail, edit, delete, filters, sorting, and pagination flows for daily progress, work logs, tasks, learning entries, and milestones.
+- Global search: dedicated grouped Vue search page across projects, daily progress, work logs, tasks, learning, and milestones.
+- Project workspace: project-scoped add actions for work logs, tasks, and milestones.
 - Work logging flow: quick capture can create a done work log directly into an existing or newly resolved project.
-- Reports: weekly/monthly on-screen reports with real derived data and CSV export.
+- Reports: weekly/monthly on-screen reports with real derived data, period picker, charts, and CSV export.
 
 ## Verification
 
@@ -140,24 +142,24 @@ Current verification passed:
 
 - Pest: `12 passed`, `77 assertions`
 - Vite production build: passed
-- Playwright: `5 passed`, `3 skipped` across desktop Chromium and mobile Chromium projects. Skips are project-specific viewport checks.
+- Playwright: `7 passed`, `3 skipped` across desktop Chromium and mobile Chromium projects. Skips are project-specific viewport checks.
 - Local HTTP smoke check: `/login` returned `200 OK`
 - MySQL migration and seed: passed locally
 
 ## Known Limitations
 
 - PDF export is intentionally omitted in the MVP; CSV export is implemented cleanly without adding a heavy PDF rendering dependency.
-- The Vue rewrite now includes Vue-native CRUD screens for the core modules. Remaining gaps are advanced filters, richer project-specific creation flows, avatar upload, and forgot/reset password screens.
+- The Vue rewrite now includes Vue-native CRUD screens, filters, global search, project-scoped creation shortcuts, profile settings, and report controls. Remaining gaps are avatar upload, forgot/reset password screens, saved views, and deeper module-specific detail layouts.
 - Milestone current-value auto-updates are manual in the MVP. The next step is linking milestones to specific metrics or tags so progress can be recalculated from logs.
 - Tests run on SQLite in memory. The actual application configuration and verified local run use MySQL.
-- Playwright coverage verifies desktop quick-add, API-backed records, mobile navigation, mobile quick capture, and date formatting.
+- Playwright coverage verifies desktop quick-add, API-backed records, grouped global search, record filters, mobile navigation, mobile quick capture, Vue form flows, and date formatting.
 - Production deployment still needs environment-specific infrastructure: HTTPS termination, supervised queue workers, database backups, Redis persistence, and a real SMTP provider.
 
 ## Next Improvements
 
-- Add advanced filtering, sorting, and pagination controls to the Vue record lists.
 - Add metric-linked milestones with scheduled recalculation.
 - Add saved report snapshots and comparison history.
 - Add keyboard shortcuts for quick-add and global search focus.
 - Add richer chart components when a charting dependency is justified.
+- Add forgot/reset password and avatar upload screens.
 - Add optional PDF export via a small, well-contained service if reporting demand warrants it.

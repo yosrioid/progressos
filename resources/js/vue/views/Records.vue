@@ -1,13 +1,17 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue';
-import { RouterLink } from 'vue-router';
+import { RouterLink, useRoute, useRouter } from 'vue-router';
 import { api, unwrap } from '../api';
 import { formatDate, minutes } from '../format';
 import { configs } from '../records';
 
 const props = defineProps<{ type: string }>();
+const route = useRoute();
+const router = useRouter();
 const rows = ref<any[]>([]);
+const meta = ref<any>(null);
 const loading = ref(true);
+const filters = ref({ search: '', status: '', category: '', priority: '', project_name: '', project_id: '', from: '', to: '', sort: 'date', direction: 'desc', page: 1 });
 const endpoint = computed(() => `/api/v1/${props.type}`);
 const config = computed(() => configs[props.type]);
 const title = computed(() => ({
@@ -17,16 +21,58 @@ const title = computed(() => ({
   learning: 'Learning',
   milestones: 'Milestones',
 } as any)[props.type] || props.type);
+const statusOptions = computed(() => props.type === 'milestones' ? ['active', 'paused', 'completed', 'cancelled'] : ['todo', 'in_progress', 'done', 'blocked']);
+const categoryOptions = computed(() => ({
+  'work-logs': ['bug', 'feature', 'research', 'testing', 'setup', 'meeting', 'documentation', 'refactor', 'other'],
+  learning: ['programming', 'english', 'japanese', 'german', 'books', 'career', 'other'],
+} as any)[props.type] || []);
+const sortOptions = computed(() => props.type === 'tasks'
+  ? [{ value: 'created_at', label: 'Created' }, { value: 'due_date', label: 'Due date' }, { value: 'priority', label: 'Priority' }, { value: 'status', label: 'Status' }]
+  : props.type === 'milestones'
+    ? [{ value: 'created_at', label: 'Created' }, { value: 'end_date', label: 'End date' }, { value: 'status', label: 'Status' }, { value: 'category', label: 'Category' }]
+    : props.type === 'daily-progress'
+      ? [{ value: 'date', label: 'Date' }, { value: 'created_at', label: 'Created' }, { value: 'title', label: 'Title' }]
+      : [{ value: 'date', label: 'Date' }, { value: 'created_at', label: 'Created' }, { value: props.type === 'learning' ? 'topic' : 'title', label: 'Title' }, { value: 'category', label: 'Category' }]
+);
 
 async function load() {
   loading.value = true;
-  const data = await api.get(endpoint.value).then(unwrap);
-  rows.value = (data[config.value.listKey] || {}).data || [];
+  const params = Object.fromEntries(Object.entries(filters.value).filter(([, value]) => value !== '' && value !== null));
+  const data = await api.get(endpoint.value, { params }).then(unwrap);
+  const page = data[config.value.listKey] || {};
+  rows.value = page.data || [];
+  meta.value = page;
   loading.value = false;
 }
 
-watch(() => props.type, load);
-onMounted(load);
+function syncFromRoute() {
+  filters.value = {
+    search: String(route.query.search || ''),
+    status: String(route.query.status || ''),
+    category: String(route.query.category || ''),
+    priority: String(route.query.priority || ''),
+    project_name: String(route.query.project_name || ''),
+    project_id: String(route.query.project_id || ''),
+    from: String(route.query.from || ''),
+    to: String(route.query.to || ''),
+    sort: String(route.query.sort || (props.type === 'tasks' || props.type === 'milestones' ? 'created_at' : 'date')),
+    direction: String(route.query.direction || 'desc'),
+    page: Number(route.query.page || 1),
+  };
+}
+
+async function applyFilters(page = 1) {
+  filters.value.page = page;
+  await router.push({ path: `/${props.type}`, query: Object.fromEntries(Object.entries(filters.value).filter(([, value]) => value !== '' && value !== null && value !== 1)) });
+}
+
+function clearFilters() {
+  filters.value = { search: '', status: '', category: '', priority: '', project_name: '', project_id: '', from: '', to: '', sort: props.type === 'tasks' || props.type === 'milestones' ? 'created_at' : 'date', direction: 'desc', page: 1 };
+  applyFilters();
+}
+
+watch(() => [props.type, route.fullPath], () => { syncFromRoute(); load(); });
+onMounted(() => { syncFromRoute(); load(); });
 </script>
 
 <template>
@@ -34,6 +80,22 @@ onMounted(load);
     <div><h1 class="text-2xl font-semibold">{{ title }}</h1><p class="mt-1 text-sm text-slate-500">Create, review, and maintain your records from one clean workspace.</p></div>
     <RouterLink class="btn btn-primary" :to="`/${type}/create`">New {{ config.singular }}</RouterLink>
   </div>
+  <form class="card mb-4 p-4" @submit.prevent="applyFilters()">
+    <div class="grid gap-3 md:grid-cols-6">
+      <input v-model="filters.search" class="field md:col-span-2" placeholder="Search records" />
+      <select v-if="type === 'tasks' || type === 'work-logs' || type === 'milestones'" v-model="filters.status" class="field"><option value="">Any status</option><option v-for="option in statusOptions" :key="option" :value="option">{{ option.replaceAll('_', ' ') }}</option></select>
+      <select v-if="categoryOptions.length" v-model="filters.category" class="field"><option value="">Any category</option><option v-for="option in categoryOptions" :key="option" :value="option">{{ option }}</option></select>
+      <select v-if="type === 'tasks' || type === 'work-logs'" v-model="filters.priority" class="field"><option value="">Any priority</option><option v-for="option in ['low', 'medium', 'high', 'urgent']" :key="option" :value="option">{{ option }}</option></select>
+      <input v-model="filters.from" class="field" type="date" />
+      <input v-model="filters.to" class="field" type="date" />
+      <select v-model="filters.sort" class="field"><option v-for="option in sortOptions" :key="option.value" :value="option.value">Sort: {{ option.label }}</option></select>
+      <select v-model="filters.direction" class="field"><option value="desc">Newest first</option><option value="asc">Oldest first</option></select>
+    </div>
+    <div class="mt-3 flex flex-wrap justify-between gap-2">
+      <p class="text-sm text-slate-500">{{ meta?.total ?? 0 }} records</p>
+      <div class="flex gap-2"><button type="button" class="btn btn-muted" @click="clearFilters">Reset</button><button class="btn btn-primary">Apply</button></div>
+    </div>
+  </form>
   <div v-if="loading" class="card p-8 text-center text-sm text-slate-500">Loading...</div>
   <div v-else-if="rows.length === 0" class="card p-8 text-center text-sm text-slate-500">
     <p>No records yet.</p>
@@ -49,5 +111,12 @@ onMounted(load);
         <p v-if="row.project_name || row.project?.name" class="mt-2 text-sm text-slate-500">{{ row.project_name || row.project?.name }}</p>
       </article>
     </RouterLink>
+  </div>
+  <div v-if="meta && meta.last_page > 1" class="mt-4 flex flex-wrap items-center justify-between gap-3">
+    <p class="text-sm text-slate-500">Page {{ meta.current_page }} of {{ meta.last_page }}</p>
+    <div class="flex gap-2">
+      <button class="btn btn-muted" :disabled="meta.current_page <= 1" @click="applyFilters(meta.current_page - 1)">Previous</button>
+      <button class="btn btn-muted" :disabled="meta.current_page >= meta.last_page" @click="applyFilters(meta.current_page + 1)">Next</button>
+    </div>
   </div>
 </template>

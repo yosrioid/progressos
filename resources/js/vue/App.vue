@@ -19,6 +19,7 @@ const nav = [
   ['Learning', '/learning'],
   ['Milestones', '/milestones'],
   ['Weekly Report', '/reports/weekly'],
+  ['Profile', '/profile'],
 ];
 
 async function submitQuick() {
@@ -35,7 +36,7 @@ async function logout() {
 }
 
 function search() {
-  if (query.value.trim()) router.push(`/work-logs?search=${encodeURIComponent(query.value.trim())}`);
+  if (query.value.trim()) router.push(`/search?q=${encodeURIComponent(query.value.trim())}`);
 }
 </script>
 
@@ -52,8 +53,9 @@ function search() {
       <header class="sticky top-0 z-20 border-b border-slate-200 bg-slate-50/95 px-3 py-3 backdrop-blur sm:px-4">
         <div class="mx-auto flex max-w-7xl flex-wrap items-center gap-2 sm:flex-nowrap">
           <RouterLink to="/dashboard" class="mr-auto text-base font-semibold lg:hidden">ProgressOS</RouterLink>
-          <form class="relative min-w-0 flex-1" @submit.prevent="search"><input v-model="query" class="field" placeholder="Search work logs" /></form>
+          <form class="relative min-w-0 flex-1" @submit.prevent="search"><input v-model="query" class="field" placeholder="Search everything" /></form>
           <button class="btn btn-primary" @click="quick = true">Quick Add</button>
+          <RouterLink class="btn btn-muted hidden sm:inline-flex" to="/profile">{{ auth.user?.name || 'Profile' }}</RouterLink>
           <button class="btn btn-muted" @click="logout">Logout</button>
         </div>
       </header>

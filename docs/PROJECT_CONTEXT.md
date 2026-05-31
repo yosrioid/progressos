@@ -67,7 +67,7 @@ The app was originally built with React/Inertia, then rewritten to Vue SPA + sam
 - Inertia/Ziggy backend packages removed.
 - Dashboard page.
 - Project list and project detail.
-- Reports page.
+- Reports page with period picker and CSV export action.
 - Quick capture modal.
 - Core REST CRUD:
   - daily progress
@@ -81,11 +81,16 @@ The app was originally built with React/Inertia, then rewritten to Vue SPA + sam
   - detail
   - edit
   - delete
+- Record filtering, sorting, and pagination UI.
+- Dedicated grouped global search page.
+- Profile/settings page for profile and password updates.
+- Project-scoped add actions for tasks, work logs, and milestones.
+- Markdown-style link rendering in record details for `[label](url)` and raw public URLs.
 - CSV report export.
 - Security headers.
 - Safe URL validation test.
 - Pest tests for auth, CRUD, dashboard/report/search paths, update/delete flows, CSV hardening.
-- Playwright tests for login, quick capture, record pages, date formatting, mobile nav, and Vue daily progress form flow.
+- Playwright tests for login, quick capture, record pages, grouped search, filters, date formatting, mobile nav, and Vue daily progress form flow.
 
 ## Verification Commands
 
@@ -102,7 +107,7 @@ Last known passing state:
 
 - `php artisan test`: 12 passed, 77 assertions
 - `npm run build`: passed
-- `npm run test:e2e`: 5 passed, 3 skipped
+- `npm run test:e2e`: 7 passed, 3 skipped
 - `php artisan route:list --path=api/v1`: 34 routes
 
 If Node is not on PATH under Laravel Herd:
@@ -115,37 +120,25 @@ export PATH="/Users/oirsoy/Library/Application Support/Herd/config/nvm/versions/
 
 - Forgot password and reset password screens have not been rebuilt in Vue yet.
 - Avatar upload API/UI still needs to be rebuilt.
-- Global search endpoint exists, but the Vue search UI is not yet a serious grouped results page.
-- Record list UX is usable, but still needs:
-  - filters
-  - sorting
-  - pagination controls
-  - saved views
-  - better empty states per module
-- Project-scoped creation flows should be improved.
-- Reports are functional but visually basic.
+- Saved views still need to be rebuilt in Vue.
+- Record lists have filtering/sorting/pagination, but module-specific filter presets can still improve.
+- Reports are improved but still use lightweight inline charting instead of a dedicated chart library.
 - `ProgressApiController` should eventually be split into resource controllers.
-- Rich linked-reference UX is not yet rebuilt in Vue.
+- Rich linked-reference persistence UX is not yet rebuilt in Vue.
 
 ## Recommended Next Work
 
-1. Build a dedicated Vue global search page with grouped navigable results.
-2. Add filter/sort/pagination UI to `Records.vue`.
-3. Rebuild forgot/reset password in Vue + JSON endpoints.
-4. Rebuild avatar upload in Vue + API endpoint.
-5. Improve project-scoped flows:
-   - add task from project page
-   - add work log from project page
-   - auto-fill project context
-6. Split `ProgressApiController` into resource-specific controllers after behavior settles.
-7. Improve reports UI:
-   - period picker
+1. Rebuild forgot/reset password in Vue + JSON endpoints.
+2. Rebuild avatar upload in Vue + API endpoint.
+3. Add saved views and per-module filter presets.
+4. Split `ProgressApiController` into resource-specific controllers after behavior settles.
+5. Improve reports UI further:
    - previous-period comparison
    - better chart presentation
-8. Improve linked references:
-   - markdown-style `[label](url)` rendering
+6. Improve linked references:
+   - persisted references UI
    - safe public URL validation
-   - compact link chips instead of long URLs
+   - compact link chips for saved references
 
 ## PR Description Template
 
@@ -176,7 +169,7 @@ Mention limitations, follow-up work, or migration notes.
 ```md
 ## Summary
 
-Rewrite ProgressOS from React/Inertia to a Vue SPA backed by same-origin REST API endpoints, then add Vue-native core CRUD flows.
+Rewrite ProgressOS from React/Inertia to a Vue SPA backed by same-origin REST API endpoints, then revamp core frontend flows with CRUD screens, filters, grouped search, profile settings, project-scoped actions, and report controls.
 
 ## Changes
 
@@ -185,10 +178,15 @@ Rewrite ProgressOS from React/Inertia to a Vue SPA backed by same-origin REST AP
 - Remove Inertia/Ziggy/React dependencies
 - Add REST API controllers for auth, dashboard, projects, quick capture, records, reports, CSV export, and search
 - Add full CRUD REST endpoints for daily progress, work logs, tasks, learning entries, and milestones
-- Add Vue list, create, detail, edit, and delete screens for core modules
+- Add Vue list, create, detail, edit, delete, filter, sort, and pagination screens for core modules
+- Add grouped global search page across projects, progress, work logs, tasks, learning, and milestones
+- Add profile/settings page for profile and password updates
+- Add project-scoped add actions for work logs, tasks, and milestones
+- Add markdown-style link rendering in record details
+- Improve report UI with period picker, CSV action, category bars, blockers, and active project summaries
 - Add Vue dashboard, projects, project detail, records, reports, login, and register screens
 - Update Pest feature tests to validate REST API flows and update/delete behavior
-- Update Playwright tests for Vue UI, quick capture, mobile navigation, date formatting, and daily progress form flow
+- Update Playwright tests for Vue UI, quick capture, global search, filters, mobile navigation, date formatting, and daily progress form flow
 - Update README with new stack, architecture, verification, and known limitations
 
 ## Verification
@@ -200,5 +198,5 @@ Rewrite ProgressOS from React/Inertia to a Vue SPA backed by same-origin REST AP
 
 ## Notes
 
-Remaining work is mostly UX depth: advanced filters/sorting/pagination controls, grouped global search UI, richer project-scoped creation flows, forgot/reset password Vue screens, avatar upload, and controller splitting.
+Remaining work: forgot/reset password Vue screens, avatar upload, saved views/filter presets, persisted references UI, richer report comparisons, and controller splitting.
 ```

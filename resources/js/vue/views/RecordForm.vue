@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
-import { RouterLink, useRouter } from 'vue-router';
+import { RouterLink, useRoute, useRouter } from 'vue-router';
 import { api, unwrap } from '../api';
 import { configs, normalizeForForm, serialize, type Field } from '../records';
 
 const props = defineProps<{ type: string; id?: string }>();
 const router = useRouter();
+const route = useRoute();
 const config = computed(() => configs[props.type]);
 const form = ref<Record<string, any>>({});
 const loading = ref(true);
@@ -26,6 +27,9 @@ async function load() {
       form.value = normalizeForForm(config.value, data[config.value.payloadKey]);
     } else {
       form.value = normalizeForForm(config.value);
+      if (route.query.project_name && 'project_name' in form.value) form.value.project_name = String(route.query.project_name);
+      if (route.query.project_id && 'project_id' in form.value) form.value.project_id = Number(route.query.project_id);
+      if (route.query.category && 'category' in form.value) form.value.category = String(route.query.category);
     }
   } finally {
     loading.value = false;

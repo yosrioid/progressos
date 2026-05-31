@@ -29,5 +29,12 @@ export const useAuthStore = defineStore('auth', {
       await api.post('/api/logout');
       this.user = null;
     },
+    async updateProfile(payload: { name: string; email: string; timezone: string; theme: string }) {
+      const data = await api.patch('/api/profile', payload).then(unwrap);
+      this.user = data.user;
+    },
+    async updatePassword(payload: { current_password: string; password: string; password_confirmation: string }) {
+      await api.put('/api/profile/password', payload);
+    },
   },
 });

@@ -43,6 +43,20 @@ test('records pages render API data without raw ISO date noise', async ({ page }
   await expect(page.locator('article').first()).toBeVisible();
 });
 
+test('global search and record filters are navigable', async ({ page }) => {
+  await login(page);
+  await page.locator('input[placeholder="Search everything"]').fill('baseline');
+  await page.keyboard.press('Enter');
+  await expect(page).toHaveURL(/\/search\?q=baseline/);
+  await expect(page.getByRole('heading', { name: 'Search ProgressOS' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Daily Progress' })).toBeVisible();
+
+  await page.goto('/work-logs?search=baseline&category=feature');
+  await expect(page.getByRole('heading', { name: 'Work Logs' })).toBeVisible();
+  await expect(page.locator('article').first()).toBeVisible();
+  await expect(page.getByText(/1 records/)).toBeVisible();
+});
+
 test('creates, edits, and opens a daily progress record through Vue forms', async ({ page }) => {
   test.skip((page.viewportSize()?.width ?? 999) < 768, 'desktop form flow');
   const title = `E2E progress form ${Date.now()}`;

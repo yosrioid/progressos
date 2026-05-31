@@ -125,7 +125,25 @@ class ProgressApiController extends Controller
 
     public function dailyProgress(Request $request)
     {
-        return response()->json(['entries' => DailyProgressEntry::ownedBy($request->user())->with('tags')->latest('date')->paginate(12)]);
+        $query = DailyProgressEntry::ownedBy($request->user())->with('tags');
+        $this->applyTextSearch($query, $request, ['title', 'notes', 'in_progress', 'todo', 'blockers']);
+        if ($request->filled('from')) {
+            $query->whereDate('date', '>=', $request->query('from'));
+        }
+        if ($request->filled('to')) {
+            $query->whereDate('date', '<=', $request->query('to'));
+        }
+        if ($request->filled('status')) {
+            $query->where('mood', $request->query('status'));
+        }
+        if ($request->filled('tag')) {
+            $query->whereHas('tags', fn ($tags) => $tags->where('name', $request->query('tag')));
+        }
+        if (! $request->boolean('archived')) {
+            $query->where('archived', false);
+        }
+
+        return response()->json(['entries' => $this->paginateSorted($query, $request, 'date', 12, ['date', 'created_at', 'updated_at', 'title'])]);
     }
 
     public function showDailyProgress(Request $request, DailyProgressEntry $dailyProgress)
@@ -178,7 +196,24 @@ class ProgressApiController extends Controller
 
     public function workLogs(Request $request)
     {
-        return response()->json(['logs' => WorkLog::ownedBy($request->user())->with('tags')->latest('date')->paginate(12)]);
+        $query = WorkLog::ownedBy($request->user())->with('tags');
+        $this->applyTextSearch($query, $request, ['title', 'project_name', 'ticket_code', 'description', 'resolution_or_outcome']);
+        foreach (['status', 'category', 'priority', 'project_name'] as $filter) {
+            if ($request->filled($filter)) {
+                $query->where($filter, $request->query($filter));
+            }
+        }
+        if ($request->filled('from')) {
+            $query->whereDate('date', '>=', $request->query('from'));
+        }
+        if ($request->filled('to')) {
+            $query->whereDate('date', '<=', $request->query('to'));
+        }
+        if ($request->filled('tag')) {
+            $query->whereHas('tags', fn ($tags) => $tags->where('name', $request->query('tag')));
+        }
+
+        return response()->json(['logs' => $this->paginateSorted($query, $request, 'date', 12, ['date', 'created_at', 'updated_at', 'title', 'status', 'priority', 'category'])]);
     }
 
     public function showWorkLog(Request $request, WorkLog $workLog)
@@ -233,7 +268,21 @@ class ProgressApiController extends Controller
 
     public function tasks(Request $request)
     {
-        return response()->json(['tasks' => Task::ownedBy($request->user())->with('project')->latest()->paginate(20)]);
+        $query = Task::ownedBy($request->user())->with('project');
+        $this->applyTextSearch($query, $request, ['title', 'notes']);
+        foreach (['status', 'priority', 'project_id'] as $filter) {
+            if ($request->filled($filter)) {
+                $query->where($filter, $request->query($filter));
+            }
+        }
+        if ($request->filled('from')) {
+            $query->whereDate('due_date', '>=', $request->query('from'));
+        }
+        if ($request->filled('to')) {
+            $query->whereDate('due_date', '<=', $request->query('to'));
+        }
+
+        return response()->json(['tasks' => $this->paginateSorted($query, $request, 'created_at', 20, ['created_at', 'updated_at', 'due_date', 'title', 'status', 'priority'])]);
     }
 
     public function showTask(Request $request, Task $task)
@@ -287,7 +336,21 @@ class ProgressApiController extends Controller
 
     public function learning(Request $request)
     {
-        return response()->json(['entries' => LearningEntry::ownedBy($request->user())->latest('date')->paginate(12)]);
+        $query = LearningEntry::ownedBy($request->user());
+        $this->applyTextSearch($query, $request, ['topic', 'progress_notes', 'takeaway', 'next_action']);
+        foreach (['category', 'source_type'] as $filter) {
+            if ($request->filled($filter)) {
+                $query->where($filter, $request->query($filter));
+            }
+        }
+        if ($request->filled('from')) {
+            $query->whereDate('date', '>=', $request->query('from'));
+        }
+        if ($request->filled('to')) {
+            $query->whereDate('date', '<=', $request->query('to'));
+        }
+
+        return response()->json(['entries' => $this->paginateSorted($query, $request, 'date', 12, ['date', 'created_at', 'updated_at', 'topic', 'category'])]);
     }
 
     public function showLearning(Request $request, LearningEntry $learning)
@@ -332,7 +395,15 @@ class ProgressApiController extends Controller
 
     public function milestones(Request $request)
     {
-        return response()->json(['milestones' => Milestone::ownedBy($request->user())->latest()->paginate(20)]);
+        $query = Milestone::ownedBy($request->user());
+        $this->applyTextSearch($query, $request, ['title', 'category', 'notes']);
+        foreach (['status', 'target_type', 'category'] as $filter) {
+            if ($request->filled($filter)) {
+                $query->where($filter, $request->query($filter));
+            }
+        }
+
+        return response()->json(['milestones' => $this->paginateSorted($query, $request, 'created_at', 20, ['created_at', 'updated_at', 'end_date', 'title', 'status', 'category'])]);
     }
 
     public function showMilestone(Request $request, Milestone $milestone)
@@ -421,8 +492,10 @@ class ProgressApiController extends Controller
             'results' => [
                 'daily_progress' => $request->user()->dailyProgressEntries()->where('title', 'like', "%{$q}%")->take(8)->get(),
                 'work_logs' => $request->user()->workLogs()->where('title', 'like', "%{$q}%")->take(8)->get(),
+                'tasks' => $request->user()->tasks()->where('title', 'like', "%{$q}%")->take(8)->get(),
                 'learning' => $request->user()->learningEntries()->where('topic', 'like', "%{$q}%")->take(8)->get(),
                 'milestones' => $request->user()->milestones()->where('title', 'like', "%{$q}%")->take(8)->get(),
+                'projects' => $request->user()->projects()->where('name', 'like', "%{$q}%")->take(8)->get(),
             ],
         ]);
     }
@@ -434,6 +507,30 @@ class ProgressApiController extends Controller
         }
 
         return preg_match('/^[=+\-@]/', $value) ? "'".$value : $value;
+    }
+
+    private function applyTextSearch($query, Request $request, array $columns): void
+    {
+        $search = trim((string) $request->query('search'));
+        if ($search === '') {
+            return;
+        }
+
+        $query->where(function ($where) use ($columns, $search) {
+            foreach ($columns as $column) {
+                $where->orWhere($column, 'like', "%{$search}%");
+            }
+        });
+    }
+
+    private function paginateSorted($query, Request $request, string $defaultSort, int $perPage = 12, array $allowed = [])
+    {
+        $sort = in_array($request->query('sort'), $allowed, true) ? $request->query('sort') : $defaultSort;
+        $direction = $request->query('direction') === 'asc' ? 'asc' : 'desc';
+
+        return $query->orderBy($sort, $direction)
+            ->paginate((int) min(max((int) $request->query('per_page', $perPage), 6), 50))
+            ->withQueryString();
     }
 
     private function dailyProgressRules(): array

@@ -39,6 +39,20 @@ function renderValue(key: string, value: any) {
   return String(value).replaceAll('_', ' ');
 }
 
+function linkParts(text: string) {
+  const parts: Array<{ text: string; href?: string }> = [];
+  const pattern = /\[([^\]]+)\]\((https?:\/\/[^)]+)\)|(https?:\/\/\S+)/g;
+  let cursor = 0;
+  let match;
+  while ((match = pattern.exec(text)) !== null) {
+    if (match.index > cursor) parts.push({ text: text.slice(cursor, match.index) });
+    parts.push({ text: match[1] || match[3], href: match[2] || match[3] });
+    cursor = match.index + match[0].length;
+  }
+  if (cursor < text.length) parts.push({ text: text.slice(cursor) });
+  return parts;
+}
+
 async function load() {
   loading.value = true;
   const data = await api.get(`${config.value.endpoint}/${props.id}`).then(unwrap);
@@ -71,10 +85,20 @@ onMounted(load);
 
   <div v-if="loading" class="card p-8 text-center text-sm text-slate-500">Loading record...</div>
   <section v-else class="card p-5">
+    <div v-if="type === 'milestones'" class="mb-5 rounded-xl border border-teal-100 bg-teal-50/50 p-4">
+      <div class="mb-2 flex items-center justify-between text-sm font-semibold"><span>Progress</span><span>{{ record.progress_percent ?? Math.min(100, Math.round((Number(record.current_value || 0) / Number(record.target_value || 1)) * 100)) }}%</span></div>
+      <div class="h-3 overflow-hidden rounded-full bg-white"><div class="h-full rounded-full bg-teal-700" :style="{ width: `${record.progress_percent ?? Math.min(100, Math.round((Number(record.current_value || 0) / Number(record.target_value || 1)) * 100))}%` }" /></div>
+      <p class="mt-2 text-sm text-slate-600">{{ record.current_value }} / {{ record.target_value }} {{ record.target_type }}</p>
+    </div>
     <div class="grid gap-4 md:grid-cols-2">
       <div v-for="[key, value] in visibleEntries(record)" :key="key" class="rounded-xl border border-slate-200 bg-white p-4" :class="String(value).length > 120 ? 'md:col-span-2' : ''">
         <p class="label mb-2">{{ key.replaceAll('_', ' ') }}</p>
-        <p class="whitespace-pre-wrap text-sm leading-6 text-slate-700">{{ renderValue(key, value) }}</p>
+        <p class="whitespace-pre-wrap text-sm leading-6 text-slate-700">
+          <template v-for="(part, index) in linkParts(renderValue(key, value))" :key="index">
+            <a v-if="part.href" class="font-semibold text-teal-700 underline" :href="part.href" target="_blank" rel="noreferrer">{{ part.text }}</a>
+            <span v-else>{{ part.text }}</span>
+          </template>
+        </p>
       </div>
     </div>
   </section>
