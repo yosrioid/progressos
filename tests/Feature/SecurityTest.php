@@ -31,8 +31,9 @@ it('soft deletes tasks through the API', function () {
 
 it('escapes csv formula cells in report exports', function () {
     $user = User::factory()->create();
+    $date = now()->startOfWeek()->toDateString();
     $user->workLogs()->create([
-        'date' => now()->toDateString(),
+        'date' => $date,
         'project_name' => '=cmd',
         'title' => 'CSV hardening',
         'category' => '=danger',
@@ -41,7 +42,7 @@ it('escapes csv formula cells in report exports', function () {
         'actual_duration' => 30,
     ]);
 
-    $response = $this->actingAs($user)->get('/api/v1/reports/weekly/export')
+    $response = $this->actingAs($user)->get("/api/v1/reports/weekly/export?date={$date}")
         ->assertOk();
 
     expect($response->streamedContent())->toContain("'=danger");

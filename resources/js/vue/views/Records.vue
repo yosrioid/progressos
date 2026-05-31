@@ -11,6 +11,9 @@ const router = useRouter();
 const rows = ref<any[]>([]);
 const meta = ref<any>(null);
 const loading = ref(true);
+const savedViews = ref<any[]>([]);
+const viewName = ref('');
+const savingView = ref(false);
 const filters = ref({ search: '', status: '', category: '', priority: '', project_name: '', project_id: '', from: '', to: '', sort: 'date', direction: 'desc', page: 1 });
 const endpoint = computed(() => `/api/v1/${props.type}`);
 const config = computed(() => configs[props.type]);
@@ -45,6 +48,11 @@ async function load() {
   loading.value = false;
 }
 
+async function loadSavedViews() {
+  const data = await api.get('/api/v1/saved-views', { params: { module: props.type } }).then(unwrap);
+  savedViews.value = data.saved_views || [];
+}
+
 function syncFromRoute() {
   filters.value = {
     search: String(route.query.search || ''),
@@ -71,8 +79,22 @@ function clearFilters() {
   applyFilters();
 }
 
-watch(() => [props.type, route.fullPath], () => { syncFromRoute(); load(); });
-onMounted(() => { syncFromRoute(); load(); });
+async function saveCurrentView() {
+  if (!viewName.value.trim()) return;
+  savingView.value = true;
+  await api.post('/api/v1/saved-views', { module: props.type, name: viewName.value.trim(), filters: filters.value, pinned: true });
+  viewName.value = '';
+  savingView.value = false;
+  await loadSavedViews();
+}
+
+async function applySavedView(view: any) {
+  filters.value = { ...filters.value, ...(view.filters || {}), page: 1 };
+  await applyFilters();
+}
+
+watch(() => [props.type, route.fullPath], () => { syncFromRoute(); load(); loadSavedViews(); });
+onMounted(() => { syncFromRoute(); load(); loadSavedViews(); });
 </script>
 
 <template>
@@ -94,6 +116,17 @@ onMounted(() => { syncFromRoute(); load(); });
     <div class="mt-3 flex flex-wrap justify-between gap-2">
       <p class="text-sm text-slate-500">{{ meta?.total ?? 0 }} records</p>
       <div class="flex gap-2"><button type="button" class="btn btn-muted" @click="clearFilters">Reset</button><button class="btn btn-primary">Apply</button></div>
+    </div>
+    <div class="mt-4 border-t border-slate-100 pt-4">
+      <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div class="flex flex-wrap gap-2">
+          <button v-for="view in savedViews" :key="view.id" type="button" class="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-600 hover:border-teal-200 hover:text-teal-700" @click="applySavedView(view)">{{ view.name }}</button>
+        </div>
+        <div class="flex gap-2">
+          <input v-model="viewName" class="field max-w-56" placeholder="Save view name" />
+          <button type="button" class="btn btn-muted" :disabled="savingView" @click="saveCurrentView">{{ savingView ? 'Saving...' : 'Save view' }}</button>
+        </div>
+      </div>
     </div>
   </form>
   <div v-if="loading" class="card p-8 text-center text-sm text-slate-500">Loading...</div>

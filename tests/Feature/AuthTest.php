@@ -2,6 +2,8 @@
 
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 
 it('registers, authenticates, and logs out through the REST API', function () {
     $this->postJson('/api/register', [
@@ -39,4 +41,16 @@ it('updates profile and password through the REST API', function () {
     ])->assertOk();
 
     expect(Hash::check('new-password', $user->fresh()->password))->toBeTrue();
+});
+
+it('uploads avatar through the REST API', function () {
+    Storage::fake('public');
+    $user = User::factory()->create();
+
+    $this->actingAs($user)->post('/api/profile/avatar', [
+        'avatar' => UploadedFile::fake()->image('avatar.jpg', 240, 240),
+    ])->assertOk()->assertJsonStructure(['user' => ['avatar_url']]);
+
+    expect($user->fresh()->avatar_path)->not->toBeNull();
+    Storage::disk('public')->assertExists($user->fresh()->avatar_path);
 });

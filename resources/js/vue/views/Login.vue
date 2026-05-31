@@ -30,7 +30,10 @@ async function submit() {
         <label><span class="label mb-1">Password</span><input v-model="form.password" class="field" type="password" required /></label>
         <label class="flex items-center gap-2 text-sm"><input v-model="form.remember" type="checkbox" /> Remember this device</label>
         <button class="btn btn-primary w-full">Log in</button>
-        <RouterLink to="/register" class="block text-center text-sm font-semibold text-teal-700">Create account</RouterLink>
+        <div class="flex justify-between gap-3 text-sm font-semibold text-teal-700">
+          <RouterLink to="/forgot-password">Forgot password</RouterLink>
+          <RouterLink to="/register">Create account</RouterLink>
+        </div>
       </form>
     </section>
   </main>

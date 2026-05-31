@@ -8,11 +8,14 @@ Route::prefix('api')->group(function () {
     Route::middleware('guest')->group(function () {
         Route::post('login', [AuthController::class, 'login']);
         Route::post('register', [AuthController::class, 'register']);
+        Route::post('forgot-password', [AuthController::class, 'forgotPassword']);
+        Route::post('reset-password', [AuthController::class, 'resetPassword']);
     });
 
     Route::middleware('auth')->group(function () {
         Route::get('me', [AuthController::class, 'me']);
         Route::patch('profile', [AuthController::class, 'updateProfile']);
+        Route::post('profile/avatar', [AuthController::class, 'updateAvatar']);
         Route::put('profile/password', [AuthController::class, 'updatePassword']);
         Route::post('logout', [AuthController::class, 'logout']);
 
@@ -51,6 +54,11 @@ Route::prefix('api')->group(function () {
             Route::get('reports/{period}', [ProgressApiController::class, 'report']);
             Route::get('reports/{period}/export', [ProgressApiController::class, 'exportReport']);
             Route::get('search', [ProgressApiController::class, 'search']);
+            Route::get('saved-views', [ProgressApiController::class, 'savedViews']);
+            Route::post('saved-views', [ProgressApiController::class, 'storeSavedView']);
+            Route::delete('saved-views/{savedView}', [ProgressApiController::class, 'deleteSavedView']);
+            Route::post('references', [ProgressApiController::class, 'storeReference']);
+            Route::delete('references/{reference}', [ProgressApiController::class, 'deleteReference']);
         });
     });
 });

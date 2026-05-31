@@ -36,5 +36,9 @@ export const useAuthStore = defineStore('auth', {
     async updatePassword(payload: { current_password: string; password: string; password_confirmation: string }) {
       await api.put('/api/profile/password', payload);
     },
+    async updateAvatar(payload: FormData) {
+      const data = await api.post('/api/profile/avatar', payload, { headers: { 'Content-Type': 'multipart/form-data' } }).then(unwrap);
+      this.user = data.user;
+    },
   },
 });

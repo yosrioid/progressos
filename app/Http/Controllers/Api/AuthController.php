@@ -7,14 +7,17 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
-use Illuminate\Validation\Rules\Password;
+use Illuminate\Validation\Rules\Password as PasswordRule;
 
 class AuthController extends Controller
 {
     public function me(Request $request)
     {
-        return response()->json(['user' => $request->user()]);
+        return response()->json(['user' => $this->userPayload($request->user())]);
     }
 
     public function login(Request $request)
@@ -31,7 +34,7 @@ class AuthController extends Controller
 
         $request->session()->regenerate();
 
-        return response()->json(['user' => $request->user()]);
+        return response()->json(['user' => $this->userPayload($request->user())]);
     }
 
     public function register(Request $request)
@@ -39,7 +42,7 @@ class AuthController extends Controller
         $data = $request->validate([
             'name' => ['required', 'string', 'max:120'],
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
-            'password' => ['required', 'confirmed', Password::defaults()],
+            'password' => ['required', 'confirmed', PasswordRule::defaults()],
             'timezone' => ['nullable', 'timezone'],
         ]);
 
@@ -54,7 +57,7 @@ class AuthController extends Controller
         Auth::login($user);
         $request->session()->regenerate();
 
-        return response()->json(['user' => $user], 201);
+        return response()->json(['user' => $this->userPayload($user)], 201);
     }
 
     public function updateProfile(Request $request)
@@ -68,19 +71,66 @@ class AuthController extends Controller
 
         $request->user()->update($data);
 
-        return response()->json(['user' => $request->user()->fresh()]);
+        return response()->json(['user' => $this->userPayload($request->user()->fresh())]);
+    }
+
+    public function updateAvatar(Request $request)
+    {
+        $data = $request->validate([
+            'avatar' => ['required', 'image', 'max:2048'],
+        ]);
+
+        $user = $request->user();
+        if ($user->avatar_path) {
+            Storage::disk('public')->delete($user->avatar_path);
+        }
+
+        $path = $data['avatar']->store('avatars', 'public');
+        $user->update(['avatar_path' => $path]);
+
+        return response()->json(['user' => $this->userPayload($user->fresh())]);
     }
 
     public function updatePassword(Request $request)
     {
         $data = $request->validate([
             'current_password' => ['required', 'current_password'],
-            'password' => ['required', 'confirmed', Password::defaults()],
+            'password' => ['required', 'confirmed', PasswordRule::defaults()],
         ]);
 
         $request->user()->update(['password' => Hash::make($data['password'])]);
 
         return response()->json(['ok' => true]);
+    }
+
+    public function forgotPassword(Request $request)
+    {
+        $request->validate(['email' => ['required', 'email']]);
+        $status = Password::sendResetLink($request->only('email'));
+
+        return $status === Password::RESET_LINK_SENT
+            ? response()->json(['message' => __($status)])
+            : response()->json(['message' => __($status)], 422);
+    }
+
+    public function resetPassword(Request $request)
+    {
+        $data = $request->validate([
+            'token' => ['required', 'string'],
+            'email' => ['required', 'email'],
+            'password' => ['required', 'confirmed', PasswordRule::defaults()],
+        ]);
+
+        $status = Password::reset($data, function (User $user, string $password) {
+            $user->forceFill([
+                'password' => Hash::make($password),
+                'remember_token' => Str::random(60),
+            ])->save();
+        });
+
+        return $status === Password::PASSWORD_RESET
+            ? response()->json(['message' => __($status)])
+            : response()->json(['message' => __($status)], 422);
     }
 
     public function logout(Request $request)
@@ -90,5 +140,12 @@ class AuthController extends Controller
         $request->session()->regenerateToken();
 
         return response()->json(['ok' => true]);
+    }
+
+    private function userPayload(User $user): array
+    {
+        return $user->toArray() + [
+            'avatar_url' => $user->avatar_path ? Storage::disk('public')->url($user->avatar_path) : null,
+        ];
     }
 }

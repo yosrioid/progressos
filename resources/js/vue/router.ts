@@ -3,6 +3,7 @@ import { useAuthStore } from './stores/auth';
 import Login from './views/Login.vue';
 import Register from './views/Register.vue';
 import Dashboard from './views/Dashboard.vue';
+import ForgotPassword from './views/ForgotPassword.vue';
 import Projects from './views/Projects.vue';
 import ProjectShow from './views/ProjectShow.vue';
 import Profile from './views/Profile.vue';
@@ -10,6 +11,7 @@ import RecordDetail from './views/RecordDetail.vue';
 import RecordForm from './views/RecordForm.vue';
 import Records from './views/Records.vue';
 import Reports from './views/Reports.vue';
+import ResetPassword from './views/ResetPassword.vue';
 import Search from './views/Search.vue';
 
 export const router = createRouter({
@@ -17,6 +19,8 @@ export const router = createRouter({
   routes: [
     { path: '/login', component: Login, meta: { guest: true } },
     { path: '/register', component: Register, meta: { guest: true } },
+    { path: '/forgot-password', component: ForgotPassword, meta: { guest: true } },
+    { path: '/reset-password/:token', component: ResetPassword, meta: { guest: true } },
     { path: '/', redirect: '/dashboard' },
     { path: '/dashboard', component: Dashboard },
     { path: '/search', component: Search },

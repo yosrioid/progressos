@@ -11,6 +11,7 @@
 @layer base {
     * { border-color: color-mix(in oklab, currentColor 14%, transparent); }
     body { min-height: 100vh; background: rgb(247 248 250); }
+    .dark body { background: rgb(9 9 11); color: rgb(244 244 245); }
     input, textarea, select { color-scheme: light dark; }
     a { text-underline-offset: 3px; }
 }
@@ -23,6 +24,7 @@
     .field:focus { border-color: rgb(13 148 136); background: white; box-shadow: 0 0 0 4px rgb(20 184 166 / 0.14); }
     .dark .field:focus { background: rgb(24 24 27); }
     .btn { display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; border-radius: 10px; padding: 0.625rem 0.875rem; font-size: 0.875rem; font-weight: 700; transition: all 150ms ease; white-space: nowrap; }
+    .btn:focus-visible, .field:focus-visible, a:focus-visible { outline: 3px solid rgb(20 184 166 / 0.35); outline-offset: 2px; }
     .btn-primary { background: rgb(15 118 110); color: white; box-shadow: 0 8px 18px rgb(15 118 110 / 0.16); }
     .btn-primary:hover { background: rgb(17 94 89); transform: translateY(-1px); }
     .btn-muted { border-width: 1px; border-color: rgb(226 232 240); background: white; color: rgb(39 39 42); }
@@ -30,6 +32,12 @@
     .dark .btn-muted { border-color: rgb(63 63 70); background: rgb(24 24 27); color: rgb(244 244 245); }
     .card { border-radius: 12px; border-width: 1px; border-color: rgb(226 232 240); background: white; box-shadow: 0 1px 2px rgb(15 23 42 / 0.04), 0 14px 34px rgb(15 23 42 / 0.035); }
     .dark .card { border-color: rgb(39 39 42); background: rgb(24 24 27); }
+    .dark .bg-white { background-color: rgb(24 24 27); }
+    .dark .bg-slate-50, .dark .bg-stone-100 { background-color: rgb(9 9 11); }
+    .dark .text-slate-950, .dark .text-zinc-900 { color: rgb(244 244 245); }
+    .dark .text-slate-700, .dark .text-zinc-700 { color: rgb(212 212 216); }
+    .dark .text-slate-600, .dark .text-zinc-600, .dark .text-slate-500 { color: rgb(161 161 170); }
+    .dark .border-slate-200, .dark .border-slate-100 { border-color: rgb(39 39 42); }
     .label { display: block; font-size: 0.72rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0; color: rgb(82 82 91); }
     .dark .label { color: rgb(161 161 170); }
     .table-wrap { overflow: hidden; border-radius: 12px; border-width: 1px; border-color: rgb(226 232 240); background: white; box-shadow: 0 14px 34px rgb(15 23 42 / 0.035); }

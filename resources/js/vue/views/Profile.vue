@@ -5,6 +5,7 @@ import { useAuthStore } from '../stores/auth';
 const auth = useAuthStore();
 const profile = ref({ name: auth.user?.name || '', email: auth.user?.email || '', timezone: auth.user?.timezone || 'Asia/Jakarta', theme: auth.user?.theme || 'system' });
 const password = ref({ current_password: '', password: '', password_confirmation: '' });
+const avatar = ref<File | null>(null);
 const message = ref('');
 const error = ref('');
 
@@ -30,6 +31,21 @@ async function savePassword() {
     error.value = e.response?.data?.message || 'Could not change password.';
   }
 }
+
+async function saveAvatar() {
+  if (!avatar.value) return;
+  message.value = '';
+  error.value = '';
+  const payload = new FormData();
+  payload.append('avatar', avatar.value);
+  try {
+    await auth.updateAvatar(payload);
+    avatar.value = null;
+    message.value = 'Avatar updated.';
+  } catch (e: any) {
+    error.value = e.response?.data?.message || 'Could not update avatar.';
+  }
+}
 </script>
 
 <template>
@@ -49,6 +65,15 @@ async function savePassword() {
         <label><span class="label mb-1">Theme</span><select v-model="profile.theme" class="field"><option value="light">Light</option><option value="dark">Dark</option><option value="system">System</option></select></label>
       </div>
       <div class="mt-5 flex justify-end"><button class="btn btn-primary">Save profile</button></div>
+    </form>
+    <form class="card p-5" @submit.prevent="saveAvatar">
+      <h2 class="mb-4 font-semibold">Avatar</h2>
+      <div class="flex items-center gap-4">
+        <img v-if="auth.user?.avatar_url" :src="auth.user.avatar_url" class="h-16 w-16 rounded-full object-cover" alt="Current avatar" />
+        <div v-else class="grid h-16 w-16 place-items-center rounded-full bg-teal-100 text-xl font-bold text-teal-800">{{ auth.user?.name?.slice(0, 1) || 'P' }}</div>
+        <label class="block flex-1"><span class="label mb-1">Upload image</span><input class="field" type="file" accept="image/*" @change="avatar = ($event.target as HTMLInputElement).files?.[0] || null" /></label>
+      </div>
+      <div class="mt-5 flex justify-end"><button class="btn btn-primary" :disabled="!avatar">Save avatar</button></div>
     </form>
     <form class="card p-5" @submit.prevent="savePassword">
       <h2 class="mb-4 font-semibold">Password</h2>

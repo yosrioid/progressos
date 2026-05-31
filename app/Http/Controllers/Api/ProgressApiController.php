@@ -7,8 +7,11 @@ use App\Models\DailyProgressEntry;
 use App\Models\LearningEntry;
 use App\Models\Milestone;
 use App\Models\Project;
+use App\Models\Reference;
+use App\Models\SavedView;
 use App\Models\Task;
 use App\Models\WorkLog;
+use App\Rules\SafeHttpUrl;
 use App\Services\DashboardData;
 use App\Services\MilestoneProgressSync;
 use App\Services\ProjectResolver;
@@ -20,6 +23,14 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ProgressApiController extends Controller
 {
+    private const REFERENCE_TYPES = [
+        'task' => Task::class,
+        'work_log' => WorkLog::class,
+        'learning' => LearningEntry::class,
+        'milestone' => Milestone::class,
+        'daily_progress' => DailyProgressEntry::class,
+    ];
+
     public function dashboard(Request $request, DashboardData $dashboard, MilestoneProgressSync $milestones)
     {
         return response()->json($dashboard->for($request->user(), $milestones));
@@ -150,7 +161,7 @@ class ProgressApiController extends Controller
     {
         abort_unless($dailyProgress->user_id === $request->user()->id, 403);
 
-        return response()->json(['entry' => $dailyProgress->load('tags')]);
+        return response()->json(['entry' => $dailyProgress->load(['tags', 'references'])]);
     }
 
     public function storeDailyProgress(Request $request, TagSyncer $tags)
@@ -183,7 +194,7 @@ class ProgressApiController extends Controller
         $dailyProgress->update($data);
         $tags->daily($dailyProgress, $request->user(), $tagNames);
 
-        return response()->json(['entry' => $dailyProgress->fresh()->load('tags')]);
+        return response()->json(['entry' => $dailyProgress->fresh()->load(['tags', 'references'])]);
     }
 
     public function deleteDailyProgress(Request $request, DailyProgressEntry $dailyProgress)
@@ -220,7 +231,7 @@ class ProgressApiController extends Controller
     {
         abort_unless($workLog->user_id === $request->user()->id, 403);
 
-        return response()->json(['log' => $workLog->load('tags')]);
+        return response()->json(['log' => $workLog->load(['tags', 'references'])]);
     }
 
     public function storeWorkLog(Request $request, ProjectResolver $projects, TagSyncer $tags)
@@ -255,7 +266,7 @@ class ProgressApiController extends Controller
         $workLog->update($data);
         $tags->workLog($workLog, $request->user(), $tagNames);
 
-        return response()->json(['log' => $workLog->fresh()->load('tags')]);
+        return response()->json(['log' => $workLog->fresh()->load(['tags', 'references'])]);
     }
 
     public function deleteWorkLog(Request $request, WorkLog $workLog)
@@ -289,7 +300,7 @@ class ProgressApiController extends Controller
     {
         abort_unless($task->user_id === $request->user()->id, 403);
 
-        return response()->json(['task' => $task->load('project')]);
+        return response()->json(['task' => $task->load(['project', 'references'])]);
     }
 
     public function storeTask(Request $request)
@@ -314,7 +325,7 @@ class ProgressApiController extends Controller
         $data['completed_at'] = $data['status'] === 'done' ? ($task->completed_at ?? now()) : null;
         $task->update($data);
 
-        return response()->json(['task' => $task->fresh()->load('project')]);
+        return response()->json(['task' => $task->fresh()->load(['project', 'references'])]);
     }
 
     public function updateTaskStatus(Request $request, Task $task)
@@ -357,7 +368,7 @@ class ProgressApiController extends Controller
     {
         abort_unless($learning->user_id === $request->user()->id, 403);
 
-        return response()->json(['entry' => $learning]);
+        return response()->json(['entry' => $learning->load('references')]);
     }
 
     public function storeLearning(Request $request)
@@ -382,7 +393,7 @@ class ProgressApiController extends Controller
         abort_unless($learning->user_id === $request->user()->id, 403);
         $learning->update($request->validate($this->learningRules()));
 
-        return response()->json(['entry' => $learning->fresh()]);
+        return response()->json(['entry' => $learning->fresh()->load('references')]);
     }
 
     public function deleteLearning(Request $request, LearningEntry $learning)
@@ -410,7 +421,7 @@ class ProgressApiController extends Controller
     {
         abort_unless($milestone->user_id === $request->user()->id, 403);
 
-        return response()->json(['milestone' => $milestone->setAttribute('progress_percent', $milestone->progressPercent())]);
+        return response()->json(['milestone' => $milestone->load('references')->setAttribute('progress_percent', $milestone->progressPercent())]);
     }
 
     public function storeMilestone(Request $request)
@@ -442,7 +453,7 @@ class ProgressApiController extends Controller
         $data['current_value'] ??= 0;
         $milestone->update($data);
 
-        return response()->json(['milestone' => $milestone->fresh()->setAttribute('progress_percent', $milestone->progressPercent())]);
+        return response()->json(['milestone' => $milestone->fresh()->load('references')->setAttribute('progress_percent', $milestone->progressPercent())]);
     }
 
     public function deleteMilestone(Request $request, Milestone $milestone)
@@ -498,6 +509,75 @@ class ProgressApiController extends Controller
                 'projects' => $request->user()->projects()->where('name', 'like', "%{$q}%")->take(8)->get(),
             ],
         ]);
+    }
+
+    public function savedViews(Request $request)
+    {
+        $module = (string) $request->query('module');
+        $query = $request->user()->savedViews()->latest('pinned')->latest();
+        if ($module !== '') {
+            $query->where('module', $module);
+        }
+
+        return response()->json(['saved_views' => $query->get()]);
+    }
+
+    public function storeSavedView(Request $request)
+    {
+        $data = $request->validate([
+            'module' => ['required', 'in:tasks,work-logs,daily-progress,learning,milestones'],
+            'name' => ['required', 'string', 'max:80'],
+            'filters' => ['required', 'array'],
+            'pinned' => ['boolean'],
+        ]);
+
+        $view = SavedView::updateOrCreate(
+            ['user_id' => $request->user()->id, 'module' => $data['module'], 'name' => $data['name']],
+            ['filters' => $data['filters'], 'pinned' => (bool) ($data['pinned'] ?? false)]
+        );
+
+        return response()->json(['saved_view' => $view], 201);
+    }
+
+    public function deleteSavedView(Request $request, SavedView $savedView)
+    {
+        abort_unless($savedView->user_id === $request->user()->id, 403);
+        $savedView->delete();
+
+        return response()->noContent();
+    }
+
+    public function storeReference(Request $request)
+    {
+        $data = $request->validate([
+            'referenceable_type' => ['required', 'in:task,work_log,learning,milestone,daily_progress'],
+            'referenceable_id' => ['required', 'integer'],
+            'label' => ['required', 'string', 'max:160'],
+            'url' => ['required', 'max:2000', new SafeHttpUrl],
+            'type' => ['required', 'in:link,doc,ticket,pr,article,course,other'],
+            'notes' => ['nullable', 'string'],
+        ]);
+
+        $target = self::REFERENCE_TYPES[$data['referenceable_type']]::query()->findOrFail($data['referenceable_id']);
+        abort_unless($target->user_id === $request->user()->id, 403);
+
+        $reference = $target->references()->create([
+            'user_id' => $request->user()->id,
+            'label' => $data['label'],
+            'url' => $data['url'],
+            'type' => $data['type'],
+            'notes' => $data['notes'] ?? null,
+        ]);
+
+        return response()->json(['reference' => $reference], 201);
+    }
+
+    public function deleteReference(Request $request, Reference $reference)
+    {
+        abort_unless($reference->user_id === $request->user()->id, 403);
+        $reference->delete();
+
+        return response()->noContent();
     }
 
     private function csvSafe(mixed $value): mixed

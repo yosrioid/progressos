@@ -5,7 +5,11 @@ import { api, unwrap } from '../api';
 import { formatDate, minutes } from '../format';
 
 const data = ref<any>(null);
-onMounted(async () => data.value = await api.get('/api/v1/dashboard').then(unwrap));
+const report = ref<any>(null);
+onMounted(async () => {
+  data.value = await api.get('/api/v1/dashboard').then(unwrap);
+  report.value = (await api.get('/api/v1/reports/weekly').then(unwrap)).report;
+});
 </script>
 
 <template>
@@ -22,6 +26,10 @@ onMounted(async () => data.value = await api.get('/api/v1/dashboard').then(unwra
       <section class="card p-5 xl:col-span-1"><h2 class="mb-4 font-semibold">Weekly activity</h2><div class="flex h-44 items-end gap-1 rounded-xl bg-slate-50 p-3"><div v-for="item in data.weekly_activity" :key="item.date" class="flex flex-1 flex-col items-center gap-2"><div class="w-full rounded-t-md bg-gradient-to-t from-teal-700 to-sky-400" :style="{ height: `${Math.max(6, (item.work + item.learning + item.progress) * 24)}px` }" /><span class="text-[10px] text-slate-500">{{ item.date.slice(8) }}</span></div></div></section>
       <section class="card p-5"><h2 class="mb-4 font-semibold">Latest work</h2><div class="space-y-3"><RouterLink v-for="log in data.latest_work_logs" :key="log.id" :to="`/work-logs`" class="block rounded-lg border p-3 hover:bg-teal-50/40"><b>{{ log.title }}</b><p class="text-sm text-slate-500">{{ log.project_name }} · {{ minutes(log.actual_duration) }}</p></RouterLink></div></section>
       <section class="card p-5"><h2 class="mb-4 font-semibold">Projects</h2><div class="space-y-2"><RouterLink v-for="project in data.projects" :key="project.id" :to="`/projects/${project.id}`" class="block rounded-lg border p-3 hover:bg-teal-50/40"><b>{{ project.name }}</b><p class="text-sm text-slate-500">{{ project.open_tasks_count }} open tasks</p></RouterLink></div></section>
+    </div>
+    <div class="mt-5 grid gap-5 xl:grid-cols-3">
+      <section class="card p-5 xl:col-span-2"><h2 class="mb-4 font-semibold">Monthly rhythm</h2><div class="grid grid-cols-7 gap-1 rounded-xl bg-slate-50 p-3"><div v-for="item in data.monthly_activity" :key="item.date" class="h-8 rounded-md" :class="(item.work + item.learning + item.progress) > 2 ? 'bg-teal-700' : (item.work + item.learning + item.progress) > 0 ? 'bg-teal-300' : 'bg-white border border-slate-200'" :title="item.date" /></div></section>
+      <section class="card p-5"><h2 class="mb-4 font-semibold">Weekly review</h2><div v-if="report" class="space-y-3 text-sm"><div class="rounded-lg border p-3"><b>Work delta</b><p class="text-slate-500">{{ report.trends.completed_work_delta }} completed logs vs previous period</p></div><div class="rounded-lg border p-3"><b>Learning delta</b><p class="text-slate-500">{{ minutes(report.trends.learning_minutes_delta) }} vs previous period</p></div><RouterLink class="btn btn-primary w-full" to="/reports/weekly">Open report</RouterLink></div></section>
     </div>
   </template>
 </template>

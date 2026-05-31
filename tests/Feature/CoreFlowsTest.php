@@ -4,6 +4,8 @@ use App\Models\DailyProgressEntry;
 use App\Models\LearningEntry;
 use App\Models\Milestone;
 use App\Models\Project;
+use App\Models\Reference;
+use App\Models\SavedView;
 use App\Models\Task;
 use App\Models\User;
 use App\Models\WorkLog;
@@ -169,4 +171,37 @@ it('supports full API update and delete flows for core records', function () {
     ])->assertOk()->assertJsonPath('milestone.title', 'Updated milestone');
     $this->actingAs($user)->deleteJson("/api/v1/milestones/{$milestone->id}")->assertNoContent();
     expect(Milestone::query()->find($milestone->id))->toBeNull();
+});
+
+it('supports saved views and persisted references through the API', function () {
+    $user = User::factory()->create();
+    $task = Task::factory()->for($user)->create();
+
+    $this->actingAs($user)->postJson('/api/v1/saved-views', [
+        'module' => 'tasks',
+        'name' => 'Blocked tasks',
+        'filters' => ['status' => 'blocked'],
+        'pinned' => true,
+    ])->assertCreated()->assertJsonPath('saved_view.name', 'Blocked tasks');
+
+    $this->actingAs($user)->getJson('/api/v1/saved-views?module=tasks')
+        ->assertOk()
+        ->assertJsonPath('saved_views.0.name', 'Blocked tasks');
+    expect(SavedView::query()->where('name', 'Blocked tasks')->exists())->toBeTrue();
+
+    $this->actingAs($user)->postJson('/api/v1/references', [
+        'referenceable_type' => 'task',
+        'referenceable_id' => $task->id,
+        'label' => 'Spec',
+        'url' => 'https://example.com/spec',
+        'type' => 'doc',
+    ])->assertCreated()->assertJsonPath('reference.label', 'Spec');
+
+    $this->actingAs($user)->getJson("/api/v1/tasks/{$task->id}")
+        ->assertOk()
+        ->assertJsonPath('task.references.0.label', 'Spec');
+
+    $reference = Reference::query()->firstOrFail();
+    $this->actingAs($user)->deleteJson("/api/v1/references/{$reference->id}")->assertNoContent();
+    expect(Reference::query()->find($reference->id))->toBeNull();
 });

@@ -66,6 +66,7 @@ The app was originally built with React/Inertia, then rewritten to Vue SPA + sam
 - React/Inertia UI removed.
 - Inertia/Ziggy backend packages removed.
 - Dashboard page.
+- Dashboard monthly rhythm and weekly trend cards.
 - Project list and project detail.
 - Reports page with period picker and CSV export action.
 - Quick capture modal.
@@ -84,12 +85,22 @@ The app was originally built with React/Inertia, then rewritten to Vue SPA + sam
 - Record filtering, sorting, and pagination UI.
 - Dedicated grouped global search page.
 - Profile/settings page for profile and password updates.
+- Forgot/reset password Vue pages and API endpoints.
+- Avatar upload from profile.
+- Dark mode application from theme preference.
+- Keyboard shortcuts:
+  - `/` focuses global search
+  - `n` opens quick add
+  - `Esc` closes quick add
 - Project-scoped add actions for tasks, work logs, and milestones.
 - Markdown-style link rendering in record details for `[label](url)` and raw public URLs.
+- Saved views/filter presets API and UI.
+- Persisted references API and UI on record details.
+- Report trend cards and dashboard trend summary.
 - CSV report export.
 - Security headers.
 - Safe URL validation test.
-- Pest tests for auth, CRUD, dashboard/report/search paths, update/delete flows, CSV hardening.
+- Pest tests for auth, avatar upload, CRUD, dashboard/report/search paths, update/delete flows, saved views, references, CSV hardening.
 - Playwright tests for login, quick capture, record pages, grouped search, filters, date formatting, mobile nav, and Vue daily progress form flow.
 
 ## Verification Commands
@@ -105,10 +116,10 @@ php artisan route:list --path=api/v1
 
 Last known passing state:
 
-- `php artisan test`: 12 passed, 77 assertions
+- `php artisan test`: 14 passed, 94 assertions
 - `npm run build`: passed
 - `npm run test:e2e`: 7 passed, 3 skipped
-- `php artisan route:list --path=api/v1`: 34 routes
+- `php artisan route:list --path=api`: 48 routes
 
 If Node is not on PATH under Laravel Herd:
 
@@ -118,27 +129,20 @@ export PATH="/Users/oirsoy/Library/Application Support/Herd/config/nvm/versions/
 
 ## Known Gaps
 
-- Forgot password and reset password screens have not been rebuilt in Vue yet.
-- Avatar upload API/UI still needs to be rebuilt.
-- Saved views still need to be rebuilt in Vue.
-- Record lists have filtering/sorting/pagination, but module-specific filter presets can still improve.
+- Record lists have filtering/sorting/pagination and saved views, but module-specific default presets can still improve.
 - Reports are improved but still use lightweight inline charting instead of a dedicated chart library.
 - `ProgressApiController` should eventually be split into resource controllers.
-- Rich linked-reference persistence UX is not yet rebuilt in Vue.
+- References can be saved and removed, but richer reference type-specific presentation can still improve.
 
 ## Recommended Next Work
 
-1. Rebuild forgot/reset password in Vue + JSON endpoints.
-2. Rebuild avatar upload in Vue + API endpoint.
-3. Add saved views and per-module filter presets.
-4. Split `ProgressApiController` into resource-specific controllers after behavior settles.
-5. Improve reports UI further:
+1. Split `ProgressApiController` into resource-specific controllers after behavior settles.
+2. Add per-module default filter presets.
+3. Improve reports UI further:
    - previous-period comparison
    - better chart presentation
-6. Improve linked references:
-   - persisted references UI
-   - safe public URL validation
-   - compact link chips for saved references
+4. Improve linked references with richer type-specific presentation.
+5. Add saved report snapshots and comparison history.
 
 ## PR Description Template
 
@@ -169,7 +173,7 @@ Mention limitations, follow-up work, or migration notes.
 ```md
 ## Summary
 
-Rewrite ProgressOS from React/Inertia to a Vue SPA backed by same-origin REST API endpoints, then revamp core frontend flows with CRUD screens, filters, grouped search, profile settings, project-scoped actions, and report controls.
+Rewrite ProgressOS from React/Inertia to a Vue SPA backed by same-origin REST API endpoints, then revamp core frontend flows with CRUD screens, filters, grouped search, auth/profile completion, saved views, references, shortcuts, dark mode, project-scoped actions, and report controls.
 
 ## Changes
 
@@ -180,10 +184,13 @@ Rewrite ProgressOS from React/Inertia to a Vue SPA backed by same-origin REST AP
 - Add full CRUD REST endpoints for daily progress, work logs, tasks, learning entries, and milestones
 - Add Vue list, create, detail, edit, delete, filter, sort, and pagination screens for core modules
 - Add grouped global search page across projects, progress, work logs, tasks, learning, and milestones
-- Add profile/settings page for profile and password updates
+- Add forgot/reset password, profile/settings, password update, and avatar upload flows
 - Add project-scoped add actions for work logs, tasks, and milestones
+- Add saved views/filter presets for record lists
+- Add persisted references API/UI on record details
+- Add dark mode application and keyboard shortcuts for search/quick-add
 - Add markdown-style link rendering in record details
-- Improve report UI with period picker, CSV action, category bars, blockers, and active project summaries
+- Improve dashboard/report UI with monthly rhythm, trends, period picker, CSV action, category bars, blockers, and active project summaries
 - Add Vue dashboard, projects, project detail, records, reports, login, and register screens
 - Update Pest feature tests to validate REST API flows and update/delete behavior
 - Update Playwright tests for Vue UI, quick capture, global search, filters, mobile navigation, date formatting, and daily progress form flow
@@ -194,9 +201,9 @@ Rewrite ProgressOS from React/Inertia to a Vue SPA backed by same-origin REST AP
 - `php artisan test`
 - `npm run build`
 - `npm run test:e2e`
-- `php artisan route:list --path=api/v1`
+- `php artisan route:list --path=api`
 
 ## Notes
 
-Remaining work: forgot/reset password Vue screens, avatar upload, saved views/filter presets, persisted references UI, richer report comparisons, and controller splitting.
+Remaining work: split the large API controller, add per-module default filter presets, richer reference presentation, saved report snapshots, and deeper module-specific timelines.
 ```

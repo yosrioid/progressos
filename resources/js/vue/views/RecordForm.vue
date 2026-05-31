@@ -12,6 +12,7 @@ const form = ref<Record<string, any>>({});
 const loading = ref(true);
 const saving = ref(false);
 const error = ref('');
+const errors = ref<Record<string, string[]>>({});
 const isEdit = computed(() => Boolean(props.id));
 
 function inputType(field: Field) {
@@ -39,6 +40,7 @@ async function load() {
 async function submit() {
   saving.value = true;
   error.value = '';
+  errors.value = {};
   try {
     const payload = serialize(config.value, form.value);
     const response = isEdit.value
@@ -48,6 +50,7 @@ async function submit() {
     await router.push(`/${props.type}/${saved.id}`);
   } catch (e: any) {
     error.value = e.response?.data?.message || 'Could not save this record.';
+    errors.value = e.response?.data?.errors || {};
   } finally {
     saving.value = false;
   }
@@ -80,6 +83,7 @@ onMounted(load);
           <span>Yes</span>
         </label>
         <input v-else v-model="form[field.key]" class="field" :type="inputType(field)" :required="field.required" />
+        <span v-if="errors[field.key]?.[0]" class="mt-1 block text-sm text-red-700">{{ errors[field.key][0] }}</span>
       </label>
     </div>
     <div class="mt-5 flex justify-end gap-2">
