@@ -5,6 +5,8 @@ import Register from './views/Register.vue';
 import Dashboard from './views/Dashboard.vue';
 import Projects from './views/Projects.vue';
 import ProjectShow from './views/ProjectShow.vue';
+import RecordDetail from './views/RecordDetail.vue';
+import RecordForm from './views/RecordForm.vue';
 import Records from './views/Records.vue';
 import Reports from './views/Reports.vue';
 
@@ -18,10 +20,25 @@ export const router = createRouter({
     { path: '/projects', component: Projects },
     { path: '/projects/:id', component: ProjectShow },
     { path: '/daily-progress', component: Records, props: { type: 'daily-progress' } },
+    { path: '/daily-progress/create', component: RecordForm, props: { type: 'daily-progress' } },
+    { path: '/daily-progress/:id', component: RecordDetail, props: (route) => ({ type: 'daily-progress', id: route.params.id }) },
+    { path: '/daily-progress/:id/edit', component: RecordForm, props: (route) => ({ type: 'daily-progress', id: route.params.id }) },
     { path: '/work-logs', component: Records, props: { type: 'work-logs' } },
+    { path: '/work-logs/create', component: RecordForm, props: { type: 'work-logs' } },
+    { path: '/work-logs/:id', component: RecordDetail, props: (route) => ({ type: 'work-logs', id: route.params.id }) },
+    { path: '/work-logs/:id/edit', component: RecordForm, props: (route) => ({ type: 'work-logs', id: route.params.id }) },
     { path: '/tasks', component: Records, props: { type: 'tasks' } },
+    { path: '/tasks/create', component: RecordForm, props: { type: 'tasks' } },
+    { path: '/tasks/:id', component: RecordDetail, props: (route) => ({ type: 'tasks', id: route.params.id }) },
+    { path: '/tasks/:id/edit', component: RecordForm, props: (route) => ({ type: 'tasks', id: route.params.id }) },
     { path: '/learning', component: Records, props: { type: 'learning' } },
+    { path: '/learning/create', component: RecordForm, props: { type: 'learning' } },
+    { path: '/learning/:id', component: RecordDetail, props: (route) => ({ type: 'learning', id: route.params.id }) },
+    { path: '/learning/:id/edit', component: RecordForm, props: (route) => ({ type: 'learning', id: route.params.id }) },
     { path: '/milestones', component: Records, props: { type: 'milestones' } },
+    { path: '/milestones/create', component: RecordForm, props: { type: 'milestones' } },
+    { path: '/milestones/:id', component: RecordDetail, props: (route) => ({ type: 'milestones', id: route.params.id }) },
+    { path: '/milestones/:id/edit', component: RecordForm, props: (route) => ({ type: 'milestones', id: route.params.id }) },
     { path: '/reports/:period', component: Reports },
   ],
 });

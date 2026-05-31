@@ -39,8 +39,32 @@ test('records pages render API data without raw ISO date noise', async ({ page }
   await expect(page.getByText(/00000z/i)).toHaveCount(0);
 
   await page.goto('/learning');
-  await expect(page.getByRole('heading', { name: 'Learning' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Learning', exact: true })).toBeVisible();
   await expect(page.locator('article').first()).toBeVisible();
+});
+
+test('creates, edits, and opens a daily progress record through Vue forms', async ({ page }) => {
+  test.skip((page.viewportSize()?.width ?? 999) < 768, 'desktop form flow');
+  const title = `E2E progress form ${Date.now()}`;
+  const updated = `${title} updated`;
+
+  await login(page);
+  await page.goto('/daily-progress/create');
+  await expect(page.getByRole('heading', { name: 'New Daily Progress' })).toBeVisible();
+  await page.locator('input[type="date"]').fill(new Date().toISOString().slice(0, 10));
+  await page.getByRole('textbox', { name: 'Title' }).fill(title);
+  await page.locator('textarea').nth(0).fill('Created from Vue form');
+  await page.locator('textarea').last().fill('e2e, vue');
+  await page.getByRole('button', { name: 'Save' }).click();
+
+  await expect(page.getByRole('heading', { name: title })).toBeVisible();
+  await page.getByRole('link', { name: 'Edit' }).click();
+  await page.getByRole('textbox', { name: 'Title' }).fill(updated);
+  await page.getByRole('button', { name: 'Save' }).click();
+
+  await expect(page.getByRole('heading', { name: updated })).toBeVisible();
+  await page.getByRole('link', { name: /Back to Daily Progress/ }).click();
+  await expect(page.locator('article').filter({ hasText: updated })).toBeVisible();
 });
 
 test('mobile layout exposes compact navigation and usable quick capture', async ({ page }) => {

@@ -57,6 +57,19 @@ class ProgressApiController extends Controller
         ]);
     }
 
+    public function updateProject(Request $request, Project $project)
+    {
+        abort_unless($project->user_id === $request->user()->id, 403);
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:120'],
+            'color' => ['nullable', 'string', 'max:32'],
+            'archived' => ['boolean'],
+        ]);
+        $project->update($data);
+
+        return response()->json(['project' => $project->fresh()]);
+    }
+
     public function quickCapture(Request $request, ProjectResolver $projects)
     {
         $data = $request->validate([
@@ -115,6 +128,13 @@ class ProgressApiController extends Controller
         return response()->json(['entries' => DailyProgressEntry::ownedBy($request->user())->with('tags')->latest('date')->paginate(12)]);
     }
 
+    public function showDailyProgress(Request $request, DailyProgressEntry $dailyProgress)
+    {
+        abort_unless($dailyProgress->user_id === $request->user()->id, 403);
+
+        return response()->json(['entry' => $dailyProgress->load('tags')]);
+    }
+
     public function storeDailyProgress(Request $request, TagSyncer $tags)
     {
         $data = $request->validate([
@@ -136,9 +156,36 @@ class ProgressApiController extends Controller
         return response()->json(['entry' => $entry->load('tags')], 201);
     }
 
+    public function updateDailyProgress(Request $request, DailyProgressEntry $dailyProgress, TagSyncer $tags)
+    {
+        abort_unless($dailyProgress->user_id === $request->user()->id, 403);
+        $data = $request->validate($this->dailyProgressRules());
+        $tagNames = $data['tags'] ?? [];
+        unset($data['tags']);
+        $dailyProgress->update($data);
+        $tags->daily($dailyProgress, $request->user(), $tagNames);
+
+        return response()->json(['entry' => $dailyProgress->fresh()->load('tags')]);
+    }
+
+    public function deleteDailyProgress(Request $request, DailyProgressEntry $dailyProgress)
+    {
+        abort_unless($dailyProgress->user_id === $request->user()->id, 403);
+        $dailyProgress->delete();
+
+        return response()->noContent();
+    }
+
     public function workLogs(Request $request)
     {
         return response()->json(['logs' => WorkLog::ownedBy($request->user())->with('tags')->latest('date')->paginate(12)]);
+    }
+
+    public function showWorkLog(Request $request, WorkLog $workLog)
+    {
+        abort_unless($workLog->user_id === $request->user()->id, 403);
+
+        return response()->json(['log' => $workLog->load('tags')]);
     }
 
     public function storeWorkLog(Request $request, ProjectResolver $projects, TagSyncer $tags)
@@ -163,9 +210,37 @@ class ProgressApiController extends Controller
         return response()->json(['log' => $log->load('tags')], 201);
     }
 
+    public function updateWorkLog(Request $request, WorkLog $workLog, ProjectResolver $projects, TagSyncer $tags)
+    {
+        abort_unless($workLog->user_id === $request->user()->id, 403);
+        $data = $request->validate($this->workLogRules());
+        $tagNames = $data['tags'] ?? [];
+        unset($data['tags']);
+        $data['project_id'] = $projects->resolve($request->user(), $data['project_name'])?->id;
+        $workLog->update($data);
+        $tags->workLog($workLog, $request->user(), $tagNames);
+
+        return response()->json(['log' => $workLog->fresh()->load('tags')]);
+    }
+
+    public function deleteWorkLog(Request $request, WorkLog $workLog)
+    {
+        abort_unless($workLog->user_id === $request->user()->id, 403);
+        $workLog->delete();
+
+        return response()->noContent();
+    }
+
     public function tasks(Request $request)
     {
         return response()->json(['tasks' => Task::ownedBy($request->user())->with('project')->latest()->paginate(20)]);
+    }
+
+    public function showTask(Request $request, Task $task)
+    {
+        abort_unless($task->user_id === $request->user()->id, 403);
+
+        return response()->json(['task' => $task->load('project')]);
     }
 
     public function storeTask(Request $request)
@@ -181,6 +256,16 @@ class ProgressApiController extends Controller
         $data['completed_at'] = $data['status'] === 'done' ? now() : null;
 
         return response()->json(['task' => $request->user()->tasks()->create($data)], 201);
+    }
+
+    public function updateTask(Request $request, Task $task)
+    {
+        abort_unless($task->user_id === $request->user()->id, 403);
+        $data = $request->validate($this->taskRules($request));
+        $data['completed_at'] = $data['status'] === 'done' ? ($task->completed_at ?? now()) : null;
+        $task->update($data);
+
+        return response()->json(['task' => $task->fresh()->load('project')]);
     }
 
     public function updateTaskStatus(Request $request, Task $task)
@@ -205,6 +290,13 @@ class ProgressApiController extends Controller
         return response()->json(['entries' => LearningEntry::ownedBy($request->user())->latest('date')->paginate(12)]);
     }
 
+    public function showLearning(Request $request, LearningEntry $learning)
+    {
+        abort_unless($learning->user_id === $request->user()->id, 403);
+
+        return response()->json(['entry' => $learning]);
+    }
+
     public function storeLearning(Request $request)
     {
         $data = $request->validate([
@@ -222,9 +314,32 @@ class ProgressApiController extends Controller
         return response()->json(['entry' => $request->user()->learningEntries()->create($data)], 201);
     }
 
+    public function updateLearning(Request $request, LearningEntry $learning)
+    {
+        abort_unless($learning->user_id === $request->user()->id, 403);
+        $learning->update($request->validate($this->learningRules()));
+
+        return response()->json(['entry' => $learning->fresh()]);
+    }
+
+    public function deleteLearning(Request $request, LearningEntry $learning)
+    {
+        abort_unless($learning->user_id === $request->user()->id, 403);
+        $learning->delete();
+
+        return response()->noContent();
+    }
+
     public function milestones(Request $request)
     {
         return response()->json(['milestones' => Milestone::ownedBy($request->user())->latest()->paginate(20)]);
+    }
+
+    public function showMilestone(Request $request, Milestone $milestone)
+    {
+        abort_unless($milestone->user_id === $request->user()->id, 403);
+
+        return response()->json(['milestone' => $milestone->setAttribute('progress_percent', $milestone->progressPercent())]);
     }
 
     public function storeMilestone(Request $request)
@@ -246,6 +361,25 @@ class ProgressApiController extends Controller
         $data['current_value'] ??= 0;
 
         return response()->json(['milestone' => $request->user()->milestones()->create($data)], 201);
+    }
+
+    public function updateMilestone(Request $request, Milestone $milestone)
+    {
+        abort_unless($milestone->user_id === $request->user()->id, 403);
+        $data = $request->validate($this->milestoneRules());
+        $data['source_type'] ??= 'manual';
+        $data['current_value'] ??= 0;
+        $milestone->update($data);
+
+        return response()->json(['milestone' => $milestone->fresh()->setAttribute('progress_percent', $milestone->progressPercent())]);
+    }
+
+    public function deleteMilestone(Request $request, Milestone $milestone)
+    {
+        abort_unless($milestone->user_id === $request->user()->id, 403);
+        $milestone->delete();
+
+        return response()->noContent();
     }
 
     public function report(Request $request, ReportBuilder $builder, string $period)
@@ -300,5 +434,83 @@ class ProgressApiController extends Controller
         }
 
         return preg_match('/^[=+\-@]/', $value) ? "'".$value : $value;
+    }
+
+    private function dailyProgressRules(): array
+    {
+        return [
+            'date' => ['required', 'date'],
+            'title' => ['required', 'string', 'max:180'],
+            'in_progress' => ['nullable', 'string'],
+            'todo' => ['nullable', 'string'],
+            'blockers' => ['nullable', 'string'],
+            'notes' => ['nullable', 'string'],
+            'mood' => ['nullable', 'string', 'max:80'],
+            'completed_items' => ['nullable', 'array'],
+            'tags' => ['nullable', 'array'],
+            'archived' => ['boolean'],
+        ];
+    }
+
+    private function workLogRules(): array
+    {
+        return [
+            'date' => ['required', 'date'],
+            'project_name' => ['required', 'string', 'max:120'],
+            'ticket_code' => ['nullable', 'string', 'max:80'],
+            'title' => ['required', 'string', 'max:180'],
+            'category' => ['required', Rule::in(WorkLog::CATEGORIES)],
+            'status' => ['required', Rule::in(WorkLog::STATUSES)],
+            'priority' => ['required', Rule::in(WorkLog::PRIORITIES)],
+            'description' => ['nullable', 'string'],
+            'resolution_or_outcome' => ['nullable', 'string'],
+            'estimated_duration' => ['nullable', 'integer', 'min:1'],
+            'actual_duration' => ['nullable', 'integer', 'min:1'],
+            'tags' => ['nullable', 'array'],
+        ];
+    }
+
+    private function taskRules(Request $request): array
+    {
+        return [
+            'title' => ['required', 'string', 'max:180'],
+            'project_id' => ['nullable', 'integer', Rule::exists('projects', 'id')->where('user_id', $request->user()->id)],
+            'notes' => ['nullable', 'string'],
+            'status' => ['required', Rule::in(Task::STATUSES)],
+            'priority' => ['required', Rule::in(Task::PRIORITIES)],
+            'due_date' => ['nullable', 'date'],
+        ];
+    }
+
+    private function learningRules(): array
+    {
+        return [
+            'date' => ['required', 'date'],
+            'topic' => ['required', 'string', 'max:180'],
+            'category' => ['required', Rule::in(LearningEntry::CATEGORIES)],
+            'source_type' => ['required', Rule::in(LearningEntry::SOURCE_TYPES)],
+            'duration_minutes' => ['required', 'integer', 'min:1'],
+            'progress_notes' => ['nullable', 'string'],
+            'takeaway' => ['nullable', 'string'],
+            'next_action' => ['nullable', 'string'],
+            'rating' => ['nullable', 'integer', 'min:1', 'max:5'],
+        ];
+    }
+
+    private function milestoneRules(): array
+    {
+        return [
+            'title' => ['required', 'string', 'max:180'],
+            'category' => ['required', 'string', 'max:120'],
+            'target_type' => ['required', Rule::in(Milestone::TARGET_TYPES)],
+            'source_type' => ['nullable', Rule::in(Milestone::SOURCE_TYPES)],
+            'source_filter' => ['nullable', 'string', 'max:180'],
+            'target_value' => ['required', 'numeric', 'min:0'],
+            'current_value' => ['nullable', 'numeric', 'min:0'],
+            'start_date' => ['nullable', 'date'],
+            'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
+            'status' => ['required', Rule::in(Milestone::STATUSES)],
+            'notes' => ['nullable', 'string'],
+        ];
     }
 }

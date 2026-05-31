@@ -118,3 +118,55 @@ it('supports tasks, quick capture, and project detail data through the API', fun
     $this->actingAs($user)->getJson('/api/v1/projects')->assertOk();
     $this->actingAs($user)->getJson("/api/v1/projects/{$project->id}")->assertOk()->assertJsonPath('project.name', 'ABC');
 });
+
+it('supports full API update and delete flows for core records', function () {
+    $user = User::factory()->create();
+
+    $daily = DailyProgressEntry::factory()->for($user)->create(['title' => 'Old daily']);
+    $this->actingAs($user)->patchJson("/api/v1/daily-progress/{$daily->id}", [
+        'date' => now()->toDateString(),
+        'title' => 'Updated daily',
+        'completed_items' => ['Done'],
+        'tags' => ['review'],
+    ])->assertOk()->assertJsonPath('entry.title', 'Updated daily');
+    $this->actingAs($user)->deleteJson("/api/v1/daily-progress/{$daily->id}")->assertNoContent();
+    expect(DailyProgressEntry::query()->find($daily->id))->toBeNull();
+
+    $log = WorkLog::factory()->for($user)->create(['title' => 'Old log']);
+    $this->actingAs($user)->patchJson("/api/v1/work-logs/{$log->id}", [
+        'date' => now()->toDateString(),
+        'project_name' => 'ABC',
+        'title' => 'Updated log',
+        'category' => 'feature',
+        'status' => 'done',
+        'priority' => 'medium',
+        'actual_duration' => 25,
+        'tags' => ['ship'],
+    ])->assertOk()->assertJsonPath('log.title', 'Updated log');
+    $this->actingAs($user)->deleteJson("/api/v1/work-logs/{$log->id}")->assertNoContent();
+    expect(WorkLog::query()->find($log->id))->toBeNull();
+
+    $learning = LearningEntry::factory()->for($user)->create(['topic' => 'Old topic']);
+    $this->actingAs($user)->patchJson("/api/v1/learning/{$learning->id}", [
+        'date' => now()->toDateString(),
+        'topic' => 'Updated topic',
+        'category' => 'programming',
+        'source_type' => 'practice',
+        'duration_minutes' => 20,
+    ])->assertOk()->assertJsonPath('entry.topic', 'Updated topic');
+    $this->actingAs($user)->deleteJson("/api/v1/learning/{$learning->id}")->assertNoContent();
+    expect(LearningEntry::query()->find($learning->id))->toBeNull();
+
+    $milestone = Milestone::factory()->for($user)->create(['title' => 'Old milestone']);
+    $this->actingAs($user)->patchJson("/api/v1/milestones/{$milestone->id}", [
+        'title' => 'Updated milestone',
+        'category' => 'product',
+        'target_type' => 'count',
+        'source_type' => 'manual',
+        'target_value' => 5,
+        'current_value' => 3,
+        'status' => 'active',
+    ])->assertOk()->assertJsonPath('milestone.title', 'Updated milestone');
+    $this->actingAs($user)->deleteJson("/api/v1/milestones/{$milestone->id}")->assertNoContent();
+    expect(Milestone::query()->find($milestone->id))->toBeNull();
+});
