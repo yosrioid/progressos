@@ -82,3 +82,20 @@ it('issues and revokes bearer tokens for REST API access', function () {
         ->getJson('/api/v1/dashboard')
         ->assertUnauthorized();
 });
+
+it('enforces API token abilities for write endpoints', function () {
+    $user = User::factory()->create();
+    $plainTextToken = $user->createToken('Read only', ['read'])->plainTextToken;
+
+    $this->withHeader('Authorization', "Bearer {$plainTextToken}")
+        ->getJson('/api/v1/dashboard')
+        ->assertOk();
+
+    $this->withHeader('Authorization', "Bearer {$plainTextToken}")
+        ->postJson('/api/v1/tasks', [
+            'title' => 'Should not be created',
+            'status' => 'todo',
+            'priority' => 'medium',
+        ])
+        ->assertForbidden();
+});

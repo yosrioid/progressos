@@ -10,14 +10,14 @@ class DailyProgressRequest extends FormRequest
     {
         return [
             'date' => ['required', 'date'],
-            'title' => ['required', 'string', 'max:160'],
+            'title' => ['required', 'string', 'max:180'],
             'in_progress' => ['nullable', 'string'],
             'todo' => ['nullable', 'string'],
             'blockers' => ['nullable', 'string'],
             'notes' => ['nullable', 'string'],
             'completed_items' => ['nullable', 'array'],
             'completed_items.*' => ['nullable', 'string', 'max:255'],
-            'mood' => ['nullable', 'string', 'max:40'],
+            'mood' => ['nullable', 'string', 'max:80'],
             'archived' => ['boolean'],
             'tags' => ['nullable', 'array'],
             'tags.*' => ['string', 'max:40'],

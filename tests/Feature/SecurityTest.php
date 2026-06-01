@@ -2,6 +2,7 @@
 
 use App\Models\Task;
 use App\Models\User;
+use App\Models\WorkLog;
 use App\Rules\SafeHttpUrl;
 use Illuminate\Support\Facades\Validator;
 
@@ -46,4 +47,25 @@ it('escapes csv formula cells in report exports', function () {
         ->assertOk();
 
     expect($response->streamedContent())->toContain("'=danger");
+});
+
+it('prevents cross-user model access through policies', function () {
+    $owner = User::factory()->create();
+    $other = User::factory()->create();
+    $log = WorkLog::factory()->for($owner)->create();
+
+    $this->actingAs($other)
+        ->getJson("/api/v1/work-logs/{$log->id}")
+        ->assertForbidden();
+
+    $this->actingAs($other)
+        ->patchJson("/api/v1/work-logs/{$log->id}", [
+            'date' => now()->toDateString(),
+            'project_name' => 'Hijack',
+            'title' => 'Hijack',
+            'category' => 'feature',
+            'status' => 'done',
+            'priority' => 'medium',
+        ])
+        ->assertForbidden();
 });

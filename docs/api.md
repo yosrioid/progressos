@@ -19,11 +19,15 @@ External tools can use personal API tokens.
 
 ```json
 {
-  "name": "Raycast"
+  "name": "Raycast",
+  "abilities": ["read", "capture"],
+  "expires_at": "2026-12-31T23:59:59+07:00"
 }
 ```
 
 Response includes `plain_text_token` once. Store it securely.
+
+If `abilities` is omitted, new tokens receive `read`, `write`, `capture`, and `reports`. Use `tokens` only for trusted tools that need to manage tokens. Use `*` only for local development or fully trusted automation.
 
 ### Use Token
 
@@ -42,22 +46,11 @@ Revoked tokens stop authenticating immediately.
 
 ## Core Endpoints
 
-- `GET /api/v1/dashboard`
-- `GET /api/v1/activity`
-- `POST /api/v1/quick-capture`
-- `GET /api/v1/daily-progress`
-- `POST /api/v1/daily-progress`
-- `GET /api/v1/work-logs`
-- `POST /api/v1/work-logs`
-- `GET /api/v1/tasks`
-- `POST /api/v1/tasks`
-- `GET /api/v1/learning`
-- `POST /api/v1/learning`
-- `GET /api/v1/milestones`
-- `POST /api/v1/milestones`
-- `GET /api/v1/reports/weekly`
-- `GET /api/v1/reports/monthly`
-- `GET /api/v1/search?q=term`
+- `read`: `GET /api/me`, dashboard, activity, projects, record lists/details, search, saved views
+- `write`: profile updates, project updates, CRUD for daily progress, work logs, tasks, learning, milestones, saved views, references
+- `capture`: `POST /api/v1/quick-capture`
+- `reports`: `GET /api/v1/reports/{weekly|monthly}` and CSV exports
+- `tokens`: `GET|POST|DELETE /api/tokens`
 
 ## Quick Capture
 
@@ -86,4 +79,7 @@ Supported `type` values:
 - API token auth uses Laravel Sanctum personal access tokens.
 - Sanctum stores token secrets hashed in `personal_access_tokens`; the plain token is only returned at creation time.
 - The default token prefix is `pos_` through `SANCTUM_TOKEN_PREFIX` so leaked tokens are easier to identify in secret scanners.
-- Token abilities are stored for future authorization expansion, but current MVP endpoints treat valid tokens as full user API access.
+- Browser session requests are allowed through the same routes without requiring a personal access token.
+- Bearer token requests are checked against route abilities.
+- Auth, token management, read, write, quick-capture, and export routes use separate Laravel rate limiters.
+- `docs/openapi.yaml` contains a starter OpenAPI contract for external clients.
