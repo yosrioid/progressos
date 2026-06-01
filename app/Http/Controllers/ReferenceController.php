@@ -9,7 +9,6 @@ use App\Models\Reference;
 use App\Models\Task;
 use App\Models\WorkLog;
 use App\Rules\SafeHttpUrl;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 
 class ReferenceController extends Controller
@@ -54,7 +53,7 @@ class ReferenceController extends Controller
         return back()->with('success', 'Reference removed.');
     }
 
-    private function target(Request $request, string $type, int $id): Model
+    private function target(Request $request, string $type, int $id): DailyProgressEntry|WorkLog|LearningEntry|Milestone|Task
     {
         $class = self::TYPES[$type];
         $target = $class::query()->findOrFail($id);

@@ -17,6 +17,7 @@ class LearningEntry extends Model
     use Auditable, HasFactory, SoftDeletes;
 
     public const CATEGORIES = ['programming', 'english', 'japanese', 'german', 'books', 'career', 'other'];
+
     public const SOURCE_TYPES = ['book', 'article', 'video', 'course', 'practice', 'podcast', 'other'];
 
     protected $fillable = ['user_id', 'date', 'topic', 'category', 'source_type', 'duration_minutes', 'progress_notes', 'takeaway', 'next_action', 'rating'];

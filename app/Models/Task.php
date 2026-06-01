@@ -17,6 +17,7 @@ class Task extends Model
     use Auditable, HasFactory, SoftDeletes;
 
     public const STATUSES = ['todo', 'in_progress', 'done', 'blocked'];
+
     public const PRIORITIES = ['low', 'medium', 'high', 'urgent'];
 
     protected $fillable = ['user_id', 'project_id', 'milestone_id', 'work_log_id', 'title', 'notes', 'status', 'priority', 'due_date', 'completed_at'];

@@ -11,6 +11,7 @@ class MilestoneFactory extends Factory
     public function definition(): array
     {
         $target = fake()->numberBetween(10, 100);
+
         return [
             'user_id' => User::factory(),
             'title' => fake()->randomElement(['Ship ProgressOS MVP', 'Log 40 focused work sessions', 'Study 30 hours this month']),
