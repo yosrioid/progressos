@@ -73,5 +73,18 @@ onMounted(async () => {
         </RouterLink>
       </div>
     </section>
+    <section class="card mt-5 p-5">
+      <div class="mb-4 flex items-center justify-between"><h2 class="font-extrabold">Recent activity</h2><span class="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-500">audit trail</span></div>
+      <div class="grid gap-2">
+        <div v-for="item in data.recent_activity" :key="item.id" class="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-3">
+          <div>
+            <p class="font-extrabold text-slate-900">{{ item.label }}</p>
+            <p class="text-sm font-medium text-slate-500">{{ item.record_type }} #{{ item.record_id }}</p>
+          </div>
+          <span class="text-xs font-bold text-slate-400">{{ formatDate(item.created_at) }}</span>
+        </div>
+        <div v-if="data.recent_activity.length === 0" class="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center text-sm font-semibold text-slate-500">No activity yet.</div>
+      </div>
+    </section>
   </template>
 </template>

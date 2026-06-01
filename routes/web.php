@@ -54,6 +54,7 @@ Route::prefix('api')->group(function () {
             Route::get('reports/{period}', [ProgressApiController::class, 'report']);
             Route::get('reports/{period}/export', [ProgressApiController::class, 'exportReport']);
             Route::get('search', [ProgressApiController::class, 'search']);
+            Route::get('activity', [ProgressApiController::class, 'activity']);
             Route::get('saved-views', [ProgressApiController::class, 'savedViews']);
             Route::post('saved-views', [ProgressApiController::class, 'storeSavedView']);
             Route::delete('saved-views/{savedView}', [ProgressApiController::class, 'deleteSavedView']);

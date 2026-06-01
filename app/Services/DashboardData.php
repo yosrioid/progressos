@@ -43,6 +43,14 @@ class DashboardData
             'projects' => $user->projects()->withCount(['tasks as open_tasks_count' => fn ($q) => $q->whereIn('status', ['todo', 'in_progress', 'blocked'])])->where('archived', false)->orderBy('name')->take(8)->get(),
             'milestones' => $user->milestones()->whereIn('status', ['active', 'paused'])->orderBy('end_date')->take(6)->get()
                 ->map(fn ($m) => $m->toArray() + ['progress_percent' => $m->progressPercent(), 'overdue' => $m->end_date?->isPast() && $m->status !== 'completed']),
+            'recent_activity' => $user->auditLogs()->latest()->take(8)->get()->map(fn ($log) => [
+                'id' => $log->id,
+                'event' => $log->event,
+                'label' => str($log->event)->replace('.', ' ')->headline()->toString(),
+                'record_type' => class_basename((string) $log->auditable_type),
+                'record_id' => $log->auditable_id,
+                'created_at' => $log->created_at,
+            ]),
             'streaks' => [
                 'daily_progress' => $this->streak($user->dailyProgressEntries()->pluck('date')->map->toDateString()->all()),
                 'learning' => $this->streak($user->learningEntries()->pluck('date')->map->toDateString()->all()),

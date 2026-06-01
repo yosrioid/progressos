@@ -205,3 +205,26 @@ it('supports saved views and persisted references through the API', function () 
     $this->actingAs($user)->deleteJson("/api/v1/references/{$reference->id}")->assertNoContent();
     expect(Reference::query()->find($reference->id))->toBeNull();
 });
+
+it('exposes recent activity from audited record changes', function () {
+    $user = User::factory()->create();
+
+    $this->actingAs($user)
+        ->postJson('/api/v1/tasks', [
+            'title' => 'Audit activity task',
+            'status' => 'todo',
+            'priority' => 'medium',
+        ])
+        ->assertCreated();
+
+    $this->actingAs($user)
+        ->getJson('/api/v1/activity')
+        ->assertOk()
+        ->assertJsonPath('activity.data.0.event', 'Task.created')
+        ->assertJsonPath('activity.data.0.record_type', 'Task');
+
+    $this->actingAs($user)
+        ->getJson('/api/v1/dashboard')
+        ->assertOk()
+        ->assertJsonPath('recent_activity.0.event', 'Task.created');
+});

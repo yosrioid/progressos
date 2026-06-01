@@ -63,6 +63,11 @@ class User extends Authenticatable
         return $this->hasMany(Milestone::class);
     }
 
+    public function auditLogs(): HasMany
+    {
+        return $this->hasMany(AuditLog::class);
+    }
+
     /**
      * Get the attributes that should be cast.
      *
