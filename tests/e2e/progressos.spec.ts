@@ -90,8 +90,17 @@ test('profile avatar crop upload updates the header avatar', async ({ page }) =>
   await page.goto('/profile');
   await expect(page.getByRole('heading', { name: 'Profile & Settings' })).toBeVisible();
   await page.locator('input[type="file"]').setInputFiles({ name: 'avatar.png', mimeType: 'image/png', buffer: png });
+  await expect(page.getByRole('heading', { name: 'Crop photo' })).toBeVisible();
   await expect(page.getByAltText('Avatar crop preview')).toBeVisible();
-  await page.locator('input[type="range"]').first().fill('1.4');
+  const cropBox = page.getByTestId('avatar-crop-box');
+  const bounds = await cropBox.boundingBox();
+  if (bounds) {
+    await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(bounds.x + bounds.width / 2 + 12, bounds.y + bounds.height / 2 + 8);
+    await page.mouse.up();
+  }
+  await page.getByRole('button', { name: 'Use crop' }).click();
   await page.getByRole('button', { name: 'Save avatar' }).click();
   await expect(page.getByText('Avatar updated', { exact: true })).toBeVisible();
   await expect(page.locator('header img').first()).toBeVisible();
