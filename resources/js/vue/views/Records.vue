@@ -15,6 +15,7 @@ const loading = ref(true);
 const savedViews = ref<any[]>([]);
 const viewName = ref('');
 const savingView = ref(false);
+const compact = ref(false);
 const filters = ref({ search: '', status: '', category: '', priority: '', project_name: '', project_id: '', from: '', to: '', sort: 'date', direction: 'desc', page: 1 });
 const endpoint = computed(() => `/api/v1/${props.type}`);
 const config = computed(() => configs[props.type]);
@@ -38,6 +39,16 @@ const sortOptions = computed(() => props.type === 'tasks'
       ? [{ value: 'date', label: 'Date' }, { value: 'created_at', label: 'Created' }, { value: 'title', label: 'Title' }]
       : [{ value: 'date', label: 'Date' }, { value: 'created_at', label: 'Created' }, { value: props.type === 'learning' ? 'topic' : 'title', label: 'Title' }, { value: 'category', label: 'Category' }]
 );
+const emptyState = computed(() => ({
+  'daily-progress': ['Start today’s log', 'Capture what moved, what is blocked, and what should happen next.'],
+  'work-logs': ['Capture your first work item', 'Track project work, tickets, outcomes, and time spent.'],
+  tasks: ['Create a task to focus your day', 'Turn loose work into visible next actions.'],
+  learning: ['Log a study session', 'Track minutes, takeaways, and the next thing to practice.'],
+  milestones: ['Set your first goal', 'Create measurable outcomes and monitor progress over time.'],
+} as any)[props.type] || ['No records yet', 'Create a record to begin.']);
+const activeFilters = computed(() => Object.entries(filters.value)
+  .filter(([key, value]) => !['page', 'sort', 'direction'].includes(key) && value !== '' && value !== null)
+  .map(([key, value]) => ({ key, label: key.replaceAll('_', ' '), value: String(value).replaceAll('_', ' ') })));
 
 async function load() {
   loading.value = true;
@@ -80,6 +91,18 @@ function clearFilters() {
   applyFilters();
 }
 
+function clearFilter(key: string) {
+  (filters.value as any)[key] = '';
+  applyFilters();
+}
+
+function tone(value?: string) {
+  if (['done', 'completed', 'active'].includes(value || '')) return 'pill-green';
+  if (['in_progress', 'medium', 'feature', 'programming'].includes(value || '')) return 'pill-blue';
+  if (['blocked', 'urgent', 'high', 'cancelled'].includes(value || '')) return 'pill-red';
+  return 'pill-slate';
+}
+
 async function saveCurrentView() {
   if (!viewName.value.trim()) return;
   savingView.value = true;
@@ -114,10 +137,21 @@ onMounted(() => { syncFromRoute(); load(); loadSavedViews(); });
 
 <template>
   <div class="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-    <div><h1 class="text-2xl font-semibold">{{ title }}</h1><p class="mt-1 text-sm text-slate-500">Create, review, and maintain your records from one clean workspace.</p></div>
+    <div><h1 class="text-3xl font-extrabold tracking-tight">{{ title }}</h1><p class="mt-1 text-sm font-medium text-slate-500">Create, review, and maintain your records from one clean workspace.</p></div>
     <RouterLink class="btn btn-primary" :to="`/${type}/create`">New {{ config.singular }}</RouterLink>
   </div>
-  <form class="card mb-4 p-4" @submit.prevent="applyFilters()">
+  <form class="card mb-4 overflow-hidden p-0" @submit.prevent="applyFilters()">
+    <div class="flex flex-col gap-3 border-b border-slate-100 bg-slate-50/70 px-4 py-4 lg:flex-row lg:items-center lg:justify-between">
+      <div>
+        <h2 class="font-extrabold">Filters and views</h2>
+        <p class="text-sm font-medium text-slate-500">{{ meta?.total ?? 0 }} records in this workspace</p>
+      </div>
+      <div class="inline-flex w-fit rounded-xl border border-slate-200 bg-white p-1">
+        <button type="button" class="rounded-lg px-3 py-1.5 text-sm font-bold" :class="!compact ? 'bg-slate-900 text-white' : 'text-slate-500'" @click="compact = false">Detailed</button>
+        <button type="button" class="rounded-lg px-3 py-1.5 text-sm font-bold" :class="compact ? 'bg-slate-900 text-white' : 'text-slate-500'" @click="compact = true">Compact</button>
+      </div>
+    </div>
+    <div class="p-4">
     <div class="grid gap-3 md:grid-cols-6">
       <input v-model="filters.search" class="field md:col-span-2" placeholder="Search records" />
       <select v-if="type === 'tasks' || type === 'work-logs' || type === 'milestones'" v-model="filters.status" class="field"><option value="">Any status</option><option v-for="option in statusOptions" :key="option" :value="option">{{ option.replaceAll('_', ' ') }}</option></select>
@@ -129,7 +163,12 @@ onMounted(() => { syncFromRoute(); load(); loadSavedViews(); });
       <select v-model="filters.direction" class="field"><option value="desc">Newest first</option><option value="asc">Oldest first</option></select>
     </div>
     <div class="mt-3 flex flex-wrap justify-between gap-2">
-      <p class="text-sm text-slate-500">{{ meta?.total ?? 0 }} records</p>
+      <div class="flex flex-wrap gap-2">
+        <span v-for="filter in activeFilters" :key="filter.key" class="pill pill-slate">
+          {{ filter.label }}: {{ filter.value }}
+          <button type="button" class="ml-1 text-slate-400 hover:text-red-600" :aria-label="`Clear ${filter.label}`" @click="clearFilter(filter.key)">x</button>
+        </span>
+      </div>
       <div class="flex gap-2"><button type="button" class="btn btn-muted" @click="clearFilters">Reset</button><button class="btn btn-primary">Apply</button></div>
     </div>
     <div class="mt-4 border-t border-slate-100 pt-4">
@@ -146,20 +185,25 @@ onMounted(() => { syncFromRoute(); load(); loadSavedViews(); });
         </div>
       </div>
     </div>
+    </div>
   </form>
-  <div v-if="loading" class="card p-8 text-center text-sm text-slate-500">Loading...</div>
-  <div v-else-if="rows.length === 0" class="card p-8 text-center text-sm text-slate-500">
-    <p>No records yet.</p>
+  <div v-if="loading" class="grid gap-3">
+    <div v-for="item in 4" :key="item" class="skeleton h-28 rounded-2xl"></div>
+  </div>
+  <div v-else-if="rows.length === 0" class="card p-10 text-center">
+    <div class="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-2xl bg-teal-50 text-2xl font-extrabold text-teal-700">+</div>
+    <h2 class="text-xl font-extrabold text-slate-900">{{ emptyState[0] }}</h2>
+    <p class="mx-auto mt-2 max-w-md text-sm font-medium text-slate-500">{{ emptyState[1] }}</p>
     <RouterLink class="btn btn-primary mt-4" :to="`/${type}/create`">Create first record</RouterLink>
   </div>
   <div v-else class="grid gap-3">
     <RouterLink v-for="row in rows" :key="row.id" :to="`/${type}/${row.id}`" class="card block transition hover:-translate-y-0.5 hover:border-teal-200 hover:shadow-md">
-      <article class="p-4">
+      <article :class="compact ? 'p-3' : 'p-4'">
         <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-          <div><h2 class="font-semibold">{{ row.title || row.topic }}</h2><p class="text-sm text-slate-500">{{ formatDate(row.date || row.due_date || row.end_date) }}</p></div>
-          <span class="rounded-lg bg-slate-100 px-2 py-1 text-xs font-bold text-slate-600">{{ row.status || row.category || minutes(row.duration_minutes || row.actual_duration) }}</span>
+          <div><h2 class="font-extrabold text-slate-900">{{ row.title || row.topic }}</h2><p class="text-sm font-medium text-slate-500">{{ formatDate(row.date || row.due_date || row.end_date) }}</p></div>
+          <span class="pill" :class="tone(row.status || row.priority || row.category)">{{ row.status || row.category || minutes(row.duration_minutes || row.actual_duration) }}</span>
         </div>
-        <p v-if="row.project_name || row.project?.name" class="mt-2 text-sm text-slate-500">{{ row.project_name || row.project?.name }}</p>
+        <p v-if="!compact && (row.project_name || row.project?.name)" class="mt-2 text-sm font-medium text-slate-500">{{ row.project_name || row.project?.name }}</p>
       </article>
     </RouterLink>
   </div>

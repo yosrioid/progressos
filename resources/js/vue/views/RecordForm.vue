@@ -16,6 +16,17 @@ const saving = ref(false);
 const error = ref('');
 const errors = ref<Record<string, string[]>>({});
 const isEdit = computed(() => Boolean(props.id));
+const formSections = computed(() => {
+  const fields = config.value.fields;
+  const primary = fields.filter((field) => !['textarea', 'tags', 'checkbox'].includes(field.type || ''));
+  const notes = fields.filter((field) => field.type === 'textarea' || field.type === 'tags');
+  const settings = fields.filter((field) => field.type === 'checkbox');
+  return [
+    { title: 'Core details', description: 'The required structure that makes this record searchable and reportable.', fields: primary },
+    { title: 'Notes and context', description: 'Write outcomes, blockers, references, and next actions. Select text then paste a URL to turn it into a link.', fields: notes },
+    { title: 'Settings', description: 'Optional record state.', fields: settings },
+  ].filter((section) => section.fields.length);
+});
 
 function inputType(field: Field) {
   return field.type === 'number' ? 'number' : field.type === 'date' ? 'date' : 'text';
@@ -73,33 +84,45 @@ onMounted(load);
 <template>
   <div class="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
     <div>
-      <p class="text-sm font-semibold text-teal-700">{{ config.singular }}</p>
-      <h1 class="text-2xl font-semibold">{{ isEdit ? 'Edit' : 'New' }} {{ config.singular }}</h1>
+      <p class="text-sm font-extrabold text-teal-700">{{ config.singular }}</p>
+      <h1 class="mt-1 text-3xl font-extrabold tracking-tight">{{ isEdit ? 'Edit' : 'New' }} {{ config.singular }}</h1>
+      <p class="mt-1 text-sm font-medium text-slate-500">Capture clean data now so dashboard, reports, and search stay useful later.</p>
     </div>
     <RouterLink class="btn btn-muted" :to="`/${type}`">Back</RouterLink>
   </div>
 
-  <div v-if="loading" class="card p-8 text-center text-sm text-slate-500">Loading form...</div>
-  <form v-else class="card p-5" @submit.prevent="submit">
-    <p v-if="error" class="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{{ error }}</p>
-    <div class="grid gap-4 md:grid-cols-2">
-      <label v-for="field in config.fields" :key="field.key" class="block" :class="field.span === 'full' ? 'md:col-span-2' : ''">
-        <span class="label mb-1">{{ field.label }}</span>
-        <textarea v-if="field.type === 'textarea' || field.type === 'tags'" v-model="form[field.key]" class="field min-h-28" :placeholder="field.type === 'tags' ? 'comma, separated, tags' : ''" @paste="handleTextareaPaste($event, field.key)" />
-        <select v-else-if="field.type === 'select'" v-model="form[field.key]" class="field">
-          <option v-for="option in field.options" :key="option" :value="option">{{ option.replaceAll('_', ' ') }}</option>
-        </select>
-        <label v-else-if="field.type === 'checkbox'" class="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm">
-          <input v-model="form[field.key]" type="checkbox" />
-          <span>Yes</span>
+  <div v-if="loading" class="grid gap-4">
+    <div class="skeleton h-28 rounded-2xl"></div>
+    <div class="skeleton h-72 rounded-2xl"></div>
+  </div>
+  <form v-else class="grid gap-5 pb-24" @submit.prevent="submit">
+    <p v-if="error" class="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700">{{ error }}</p>
+    <section v-for="section in formSections" :key="section.title" class="card overflow-hidden p-0">
+      <div class="border-b border-slate-100 bg-slate-50/70 px-5 py-4">
+        <h2 class="font-extrabold text-slate-900">{{ section.title }}</h2>
+        <p class="mt-1 text-sm font-medium text-slate-500">{{ section.description }}</p>
+      </div>
+      <div class="grid gap-4 p-5 md:grid-cols-2">
+        <label v-for="field in section.fields" :key="field.key" class="block" :class="field.span === 'full' || field.type === 'textarea' || field.type === 'tags' ? 'md:col-span-2' : ''">
+          <span class="label mb-1">{{ field.label }}</span>
+          <textarea v-if="field.type === 'textarea' || field.type === 'tags'" v-model="form[field.key]" class="field min-h-32" :placeholder="field.type === 'tags' ? 'comma, separated, tags' : 'Type notes, or select text and paste a URL'" @paste="handleTextareaPaste($event, field.key)" />
+          <select v-else-if="field.type === 'select'" v-model="form[field.key]" class="field">
+            <option v-for="option in field.options" :key="option" :value="option">{{ option.replaceAll('_', ' ') }}</option>
+          </select>
+          <label v-else-if="field.type === 'checkbox'" class="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold">
+            <span>Enable {{ field.label.toLowerCase() }}</span>
+            <input v-model="form[field.key]" type="checkbox" />
+          </label>
+          <input v-else v-model="form[field.key]" class="field" :type="inputType(field)" :required="field.required" />
+          <span v-if="errors[field.key]?.[0]" class="mt-1 block text-sm font-semibold text-red-700">{{ errors[field.key][0] }}</span>
         </label>
-        <input v-else v-model="form[field.key]" class="field" :type="inputType(field)" :required="field.required" />
-        <span v-if="errors[field.key]?.[0]" class="mt-1 block text-sm text-red-700">{{ errors[field.key][0] }}</span>
-      </label>
-    </div>
-    <div class="mt-5 flex justify-end gap-2">
-      <RouterLink class="btn btn-muted" :to="isEdit ? `/${type}/${id}` : `/${type}`">Cancel</RouterLink>
-      <button class="btn btn-primary" :disabled="saving">{{ saving ? 'Saving...' : 'Save' }}</button>
+      </div>
+    </section>
+    <div class="fixed inset-x-0 bottom-0 z-20 border-t border-slate-200 bg-white/90 px-4 py-3 backdrop-blur lg:left-72">
+      <div class="mx-auto flex max-w-7xl justify-end gap-2">
+        <RouterLink class="btn btn-muted" :to="isEdit ? `/${type}/${id}` : `/${type}`">Cancel</RouterLink>
+        <button class="btn btn-primary" :disabled="saving">{{ saving ? 'Saving...' : 'Save' }}</button>
+      </div>
     </div>
   </form>
 </template>

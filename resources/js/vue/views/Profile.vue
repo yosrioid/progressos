@@ -54,39 +54,72 @@ async function saveAvatar() {
 
 <template>
   <div class="mb-5">
-    <p class="text-sm font-semibold text-teal-700">Account</p>
-    <h1 class="mt-1 text-2xl font-semibold">Profile & Settings</h1>
+    <p class="text-sm font-extrabold text-teal-700">Account</p>
+    <h1 class="mt-1 text-3xl font-extrabold tracking-tight">Profile & Settings</h1>
+    <p class="mt-1 text-sm font-medium text-slate-500">Manage identity, preferences, avatar, and password from one place.</p>
   </div>
   <p v-if="message" class="mb-4 rounded-xl border border-teal-200 bg-teal-50 p-3 text-sm font-medium text-teal-800">{{ message }}</p>
   <p v-if="error" class="mb-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700">{{ error }}</p>
-  <div class="grid gap-5 xl:grid-cols-2">
-    <form class="card p-5" @submit.prevent="saveProfile">
-      <h2 class="mb-4 font-semibold">Profile</h2>
-      <div class="grid gap-4">
+  <div class="grid gap-5 xl:grid-cols-[22rem_1fr]">
+    <aside class="card h-fit overflow-hidden p-0">
+      <div class="bg-gradient-to-r from-teal-50 to-sky-50 p-5">
+        <div class="flex items-center gap-4">
+          <img v-if="auth.user?.avatar_url" :src="auth.user.avatar_url" class="h-16 w-16 rounded-2xl object-cover ring-4 ring-white" alt="Current avatar" />
+          <div v-else class="grid h-16 w-16 place-items-center rounded-2xl bg-teal-700 text-2xl font-extrabold text-white">{{ auth.user?.name?.slice(0, 1) || 'P' }}</div>
+          <div class="min-w-0">
+            <p class="truncate font-extrabold text-slate-900">{{ auth.user?.name }}</p>
+            <p class="truncate text-sm font-semibold text-slate-500">{{ auth.user?.email }}</p>
+          </div>
+        </div>
+      </div>
+      <div class="space-y-3 p-5 text-sm font-semibold text-slate-600">
+        <div class="flex justify-between"><span>Timezone</span><span class="text-slate-900">{{ profile.timezone }}</span></div>
+        <div class="flex justify-between"><span>Theme</span><span class="capitalize text-slate-900">{{ profile.theme }}</span></div>
+      </div>
+    </aside>
+    <div class="grid gap-5">
+    <form class="card overflow-hidden p-0" @submit.prevent="saveProfile">
+      <div class="border-b border-slate-100 bg-slate-50/70 px-5 py-4">
+        <h2 class="font-extrabold">Profile</h2>
+        <p class="text-sm font-medium text-slate-500">Keep account details accurate for reports and local preferences.</p>
+      </div>
+      <div class="grid gap-4 p-5 md:grid-cols-2">
         <label><span class="label mb-1">Name</span><input v-model="profile.name" class="field" required /></label>
         <label><span class="label mb-1">Email</span><input v-model="profile.email" class="field" type="email" required /></label>
         <label><span class="label mb-1">Timezone</span><input v-model="profile.timezone" class="field" required /></label>
-        <label><span class="label mb-1">Theme</span><select v-model="profile.theme" class="field"><option value="light">Light</option><option value="dark">Dark</option><option value="system">System</option></select></label>
+        <div>
+          <span class="label mb-1">Theme</span>
+          <div class="inline-flex rounded-xl border border-slate-200 bg-white p-1">
+            <button v-for="option in ['light', 'dark', 'system']" :key="option" type="button" class="rounded-lg px-3 py-2 text-sm font-bold capitalize" :class="profile.theme === option ? 'bg-slate-900 text-white' : 'text-slate-500'" @click="profile.theme = option">{{ option }}</button>
+          </div>
+        </div>
       </div>
-      <div class="mt-5 flex justify-end"><button class="btn btn-primary">Save profile</button></div>
+      <div class="flex justify-end border-t border-slate-100 bg-slate-50/70 px-5 py-4"><button class="btn btn-primary">Save profile</button></div>
     </form>
-    <form class="card p-5" @submit.prevent="saveAvatar">
-      <h2 class="mb-4 font-semibold">Avatar</h2>
-      <div class="flex items-center gap-4">
-        <img v-if="auth.user?.avatar_url" :src="auth.user.avatar_url" class="h-16 w-16 rounded-full object-cover" alt="Current avatar" />
-        <div v-else class="grid h-16 w-16 place-items-center rounded-full bg-teal-100 text-xl font-bold text-teal-800">{{ auth.user?.name?.slice(0, 1) || 'P' }}</div>
-        <label class="block flex-1"><span class="label mb-1">Upload image</span><input class="field" type="file" accept="image/*" @change="avatar = ($event.target as HTMLInputElement).files?.[0] || null" /></label>
+    <form class="card overflow-hidden p-0" @submit.prevent="saveAvatar">
+      <div class="border-b border-slate-100 bg-slate-50/70 px-5 py-4">
+        <h2 class="font-extrabold">Avatar</h2>
+        <p class="text-sm font-medium text-slate-500">Use a square image for the cleanest crop.</p>
       </div>
-      <div class="mt-5 flex justify-end"><button class="btn btn-primary" :disabled="!avatar">Save avatar</button></div>
+      <div class="flex flex-col gap-4 p-5 sm:flex-row sm:items-center">
+        <img v-if="auth.user?.avatar_url" :src="auth.user.avatar_url" class="h-20 w-20 rounded-2xl object-cover" alt="Current avatar" />
+        <div v-else class="grid h-20 w-20 place-items-center rounded-2xl bg-teal-100 text-2xl font-extrabold text-teal-800">{{ auth.user?.name?.slice(0, 1) || 'P' }}</div>
+        <label class="block flex-1 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4"><span class="label mb-1">Upload image</span><input class="field bg-white" type="file" accept="image/*" @change="avatar = ($event.target as HTMLInputElement).files?.[0] || null" /></label>
+      </div>
+      <div class="flex justify-end border-t border-slate-100 bg-slate-50/70 px-5 py-4"><button class="btn btn-primary" :disabled="!avatar">Save avatar</button></div>
     </form>
-    <form class="card p-5" @submit.prevent="savePassword">
-      <h2 class="mb-4 font-semibold">Password</h2>
-      <div class="grid gap-4">
+    <form class="card overflow-hidden p-0" @submit.prevent="savePassword">
+      <div class="border-b border-slate-100 bg-slate-50/70 px-5 py-4">
+        <h2 class="font-extrabold">Password</h2>
+        <p class="text-sm font-medium text-slate-500">Use a strong password and update it when access changes.</p>
+      </div>
+      <div class="grid gap-4 p-5 md:grid-cols-3">
         <label><span class="label mb-1">Current password</span><input v-model="password.current_password" class="field" type="password" required /></label>
         <label><span class="label mb-1">New password</span><input v-model="password.password" class="field" type="password" required /></label>
         <label><span class="label mb-1">Confirm new password</span><input v-model="password.password_confirmation" class="field" type="password" required /></label>
       </div>
-      <div class="mt-5 flex justify-end"><button class="btn btn-primary">Change password</button></div>
+      <div class="flex justify-end border-t border-slate-100 bg-slate-50/70 px-5 py-4"><button class="btn btn-primary">Change password</button></div>
     </form>
+    </div>
   </div>
 </template>

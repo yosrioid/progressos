@@ -53,6 +53,15 @@
     .density-compact .card { box-shadow: 0 1px 2px rgb(0 0 0 / 0.03); }
     .mobile-card-list { display: grid; gap: 0.75rem; }
     .mobile-record { border-radius: 12px; border-width: 1px; border-color: rgb(226 232 240); background: white; padding: 1rem; box-shadow: 0 8px 24px rgb(15 23 42 / 0.035); }
+    .surface-soft { border-radius: 1rem; border-width: 1px; border-color: rgb(226 232 240); background: rgb(248 250 252); }
+    .pill { display: inline-flex; align-items: center; gap: 0.35rem; border-radius: 999px; padding: 0.3rem 0.65rem; font-size: 0.72rem; font-weight: 800; text-transform: capitalize; }
+    .pill-green { background: rgb(220 252 231); color: rgb(22 101 52); }
+    .pill-blue { background: rgb(224 242 254); color: rgb(7 89 133); }
+    .pill-red { background: rgb(254 226 226); color: rgb(185 28 28); }
+    .pill-slate { background: rgb(241 245 249); color: rgb(71 85 105); }
+    .skeleton { position: relative; overflow: hidden; background: rgb(241 245 249); }
+    .skeleton::after { content: ''; position: absolute; inset: 0; transform: translateX(-100%); background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.72), transparent); animation: shimmer 1.4s infinite; }
+    @keyframes shimmer { 100% { transform: translateX(100%); } }
     .bottom-nav-safe { padding-bottom: calc(5.5rem + env(safe-area-inset-bottom)); }
     @media (min-width: 1024px) {
         .bottom-nav-safe { padding-bottom: 1.5rem; }

@@ -41,8 +41,37 @@ onMounted(async () => {
       <section class="card p-5"><h2 class="mb-4 font-extrabold">Projects</h2><div class="space-y-2"><RouterLink v-for="project in data.projects" :key="project.id" :to="`/projects/${project.id}`" class="block rounded-2xl border border-slate-200 p-3.5 transition hover:-translate-y-0.5 hover:border-teal-200 hover:bg-teal-50/40"><b class="text-slate-900">{{ project.name }}</b><p class="mt-1 text-sm font-medium text-slate-500">{{ project.open_tasks_count }} open tasks</p></RouterLink></div></section>
     </div>
     <div class="mt-5 grid gap-5 xl:grid-cols-3">
+      <section class="card p-5 xl:col-span-2">
+        <div class="mb-4 flex items-center justify-between"><h2 class="font-extrabold">Today focus</h2><RouterLink class="text-sm font-extrabold text-teal-700 hover:underline" to="/tasks">Open tasks</RouterLink></div>
+        <div class="grid gap-3 md:grid-cols-2">
+          <RouterLink v-for="task in data.today.tasks" :key="task.id" :to="`/tasks/${task.id}`" class="rounded-2xl border border-slate-200 bg-slate-50 p-3.5 transition hover:border-teal-200 hover:bg-teal-50">
+            <p class="font-extrabold text-slate-900">{{ task.title }}</p>
+            <p class="mt-1 text-sm font-medium text-slate-500">{{ task.project?.name || 'No project' }} · {{ task.status?.replaceAll('_', ' ') }}</p>
+          </RouterLink>
+          <div v-if="data.today.tasks.length === 0" class="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center text-sm font-semibold text-slate-500 md:col-span-2">No urgent tasks for today.</div>
+        </div>
+      </section>
+      <section class="card p-5">
+        <h2 class="mb-4 font-extrabold">Streaks</h2>
+        <div class="grid gap-3">
+          <div class="rounded-2xl border border-teal-100 bg-teal-50 p-4"><p class="label">Daily progress</p><p class="mt-2 text-3xl font-extrabold text-teal-800">{{ data.streaks.daily_progress }}</p><p class="text-xs font-bold text-teal-700">days</p></div>
+          <div class="rounded-2xl border border-sky-100 bg-sky-50 p-4"><p class="label">Learning</p><p class="mt-2 text-3xl font-extrabold text-sky-800">{{ data.streaks.learning }}</p><p class="text-xs font-bold text-sky-700">days</p></div>
+        </div>
+      </section>
+    </div>
+    <div class="mt-5 grid gap-5 xl:grid-cols-3">
       <section class="card p-5 xl:col-span-2"><div class="mb-4 flex items-center justify-between"><h2 class="font-extrabold">Monthly rhythm</h2><span class="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-500">heatmap</span></div><div class="grid grid-cols-7 gap-1 rounded-2xl bg-slate-50 p-3"><div v-for="item in data.monthly_activity" :key="item.date" class="h-8 rounded-lg transition hover:ring-2 hover:ring-teal-200" :class="(item.work + item.learning + item.progress) > 2 ? 'bg-teal-700' : (item.work + item.learning + item.progress) > 0 ? 'bg-teal-300' : 'bg-white border border-slate-200'" :title="item.date" /></div></section>
       <section class="card p-5"><h2 class="mb-4 font-extrabold">Weekly review</h2><div v-if="report" class="space-y-3 text-sm"><div class="rounded-2xl border border-slate-200 bg-slate-50 p-3.5"><b>Work delta</b><p class="mt-1 text-slate-500">{{ report.trends.completed_work_delta }} completed logs vs previous period</p></div><div class="rounded-2xl border border-slate-200 bg-slate-50 p-3.5"><b>Learning delta</b><p class="mt-1 text-slate-500">{{ minutes(report.trends.learning_minutes_delta) }} vs previous period</p></div><RouterLink class="btn btn-primary w-full" to="/reports/weekly">Open report</RouterLink></div></section>
     </div>
+    <section class="card mt-5 p-5">
+      <div class="mb-4 flex items-center justify-between"><h2 class="font-extrabold">Milestone progress</h2><RouterLink class="text-sm font-extrabold text-teal-700 hover:underline" to="/milestones">View all</RouterLink></div>
+      <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+        <RouterLink v-for="milestone in data.milestones" :key="milestone.id" :to="`/milestones/${milestone.id}`" class="rounded-2xl border border-slate-200 bg-white p-4 transition hover:border-teal-200 hover:bg-teal-50/40">
+          <div class="flex items-start justify-between gap-3"><b class="text-slate-900">{{ milestone.title }}</b><span class="pill" :class="milestone.overdue ? 'pill-red' : 'pill-green'">{{ milestone.status }}</span></div>
+          <div class="mt-3 h-2 overflow-hidden rounded-full bg-slate-100"><div class="h-full rounded-full bg-teal-700" :style="{ width: `${milestone.progress_percent}%` }" /></div>
+          <p class="mt-2 text-sm font-semibold text-slate-500">{{ milestone.progress_percent }}% complete</p>
+        </RouterLink>
+      </div>
+    </section>
   </template>
 </template>
