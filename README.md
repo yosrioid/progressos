@@ -5,6 +5,7 @@ ProgressOS is a Laravel REST API + Vue personal operating system for daily progr
 ## Stack
 
 - Laravel app skeleton `v13.8.0`, Laravel framework `v13.12.0`
+- Laravel Sanctum `v4.3.2` for personal API access tokens
 - PHP `8.5.5` locally, compatible with Laravel 13's PHP `8.3+` requirement
 - Vue `3.5.35`
 - Pinia `3.0.4`

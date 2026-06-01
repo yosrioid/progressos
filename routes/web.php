@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\ApiTokenController;
 use App\Http\Controllers\Api\ProgressApiController;
 use Illuminate\Support\Facades\Route;
 
@@ -12,11 +13,14 @@ Route::prefix('api')->group(function () {
         Route::post('reset-password', [AuthController::class, 'resetPassword']);
     });
 
-    Route::middleware('auth')->group(function () {
+    Route::middleware('auth:sanctum')->group(function () {
         Route::get('me', [AuthController::class, 'me']);
         Route::patch('profile', [AuthController::class, 'updateProfile']);
         Route::post('profile/avatar', [AuthController::class, 'updateAvatar']);
         Route::put('profile/password', [AuthController::class, 'updatePassword']);
+        Route::get('tokens', [ApiTokenController::class, 'index']);
+        Route::post('tokens', [ApiTokenController::class, 'store']);
+        Route::delete('tokens/{token}', [ApiTokenController::class, 'destroy']);
         Route::post('logout', [AuthController::class, 'logout']);
 
         Route::prefix('v1')->group(function () {

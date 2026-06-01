@@ -3,6 +3,7 @@
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 
 it('registers, authenticates, and logs out through the REST API', function () {
@@ -53,4 +54,31 @@ it('uploads avatar through the REST API', function () {
 
     expect($user->fresh()->avatar_path)->not->toBeNull();
     Storage::disk('public')->assertExists($user->fresh()->avatar_path);
+});
+
+it('issues and revokes bearer tokens for REST API access', function () {
+    $user = User::factory()->create();
+
+    $response = $this->actingAs($user)
+        ->postJson('/api/tokens', ['name' => 'Raycast'])
+        ->assertCreated()
+        ->assertJsonPath('token.name', 'Raycast');
+
+    $plainTextToken = $response->json('plain_text_token');
+
+    $this->withHeader('Authorization', "Bearer {$plainTextToken}")
+        ->getJson('/api/v1/dashboard')
+        ->assertOk()
+        ->assertJsonStructure(['summary']);
+
+    $this->actingAs($user)
+        ->deleteJson('/api/tokens/'.$response->json('token.id'))
+        ->assertNoContent();
+
+    Auth::guard('web')->logout();
+    Auth::forgetGuards();
+
+    $this->withHeader('Authorization', "Bearer {$plainTextToken}")
+        ->getJson('/api/v1/dashboard')
+        ->assertUnauthorized();
 });
