@@ -112,7 +112,9 @@ Security checklist:
 - `app/Models`: user-owned domain models for daily progress, work logs, learning entries, milestones, and report snapshots.
 - `app/Http/Controllers/Api`: same-origin JSON controllers for auth, dashboard, records, projects, reports, CSV export, and search.
 - `app/Http/Requests`: Form Request validation for core write paths.
+- `app/Http/Middleware/EnsureApiTokenCan.php`: Sanctum token ability enforcement that still allows first-party browser sessions.
 - `app/Services`: focused services for dashboard aggregation, report generation, and tag syncing.
+- `docs/api.md` and `docs/openapi.yaml`: REST API usage notes and starter OpenAPI contract for external clients.
 - `resources/js/vue`: Vue 3 + Pinia + TypeScript SPA with a responsive sidebar/mobile navigation, dashboard cards, record lists, project views, quick capture, and report views.
 - `database/factories` and `database/seeders`: realistic demo data for everyday review workflows.
 - `tests/Feature`: Pest coverage for auth, CRUD, dashboard, search, and report export paths.
@@ -123,7 +125,7 @@ Security checklist:
 - Authentication API: register, login, logout, forgot password, reset password, profile update, password change, avatar upload, timezone, and theme preference.
 - Vue SPA shell: responsive sidebar, mobile bottom navigation, top search, dark mode, keyboard shortcuts, and quick capture modal.
 - Dashboard: today summary, task counts, blockers, weekly/monthly activity, trends, latest work, and project snapshot.
-- REST API modules: full CRUD for daily progress, work logs, tasks, learning entries, and milestones; project update; reports; CSV export; grouped search; list filtering, sorting, and pagination.
+- REST API modules: full CRUD for daily progress, work logs, tasks, learning entries, and milestones; project update; reports; CSV export; grouped search; list filtering, sorting, pagination, Sanctum token abilities, route rate limits, and ownership policies.
 - Vue CRUD screens: list, create, detail, edit, delete, filters, sorting, and pagination flows for daily progress, work logs, tasks, learning entries, and milestones.
 - Global search: dedicated grouped Vue search page across projects, daily progress, work logs, tasks, learning, and milestones.
 - Project workspace: project-scoped add actions for work logs, tasks, and milestones.
@@ -142,7 +144,7 @@ curl -I http://127.0.0.1:8000/login
 
 Current verification passed:
 
-- Pest: `14 passed`, `94 assertions`
+- Pest: `18 passed`, `111 assertions`
 - Vite production build: passed
 - Playwright: `7 passed`, `3 skipped` across desktop Chromium and mobile Chromium projects. Skips are project-specific viewport checks.
 - Local HTTP smoke check: `/login` returned `200 OK`
@@ -162,6 +164,6 @@ Current verification passed:
 - Add metric-linked milestones with scheduled recalculation.
 - Add saved report snapshots and comparison history.
 - Add richer chart components when a charting dependency is justified.
-- Split the large API controller into resource-specific controllers.
+- Split the large API controller into resource-specific controllers once the current API hardening PR is merged.
 - Add deeper module-specific timeline/activity layouts.
 - Add optional PDF export via a small, well-contained service if reporting demand warrants it.

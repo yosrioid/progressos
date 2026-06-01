@@ -1,0 +1,211 @@
+openapi: 3.1.0
+info:
+  title: ProgressOS API
+  version: 1.0.0
+  description: Same-origin REST API for the ProgressOS Vue client and trusted local integrations.
+servers:
+  - url: http://127.0.0.1:8000
+security:
+  - sanctumBearer: []
+paths:
+  /api/login:
+    post:
+      summary: Login with email and password
+      tags: [Auth]
+      security: []
+      responses:
+        "200":
+          description: Authenticated user session
+        "422":
+          description: Invalid credentials or validation error
+  /api/me:
+    get:
+      summary: Current authenticated user
+      tags: [Auth]
+      security:
+        - sanctumBearer: [read]
+      responses:
+        "200":
+          description: User profile payload
+  /api/tokens:
+    get:
+      summary: List personal access tokens
+      tags: [Tokens]
+      security:
+        - sanctumBearer: [tokens]
+      responses:
+        "200":
+          description: Token list
+    post:
+      summary: Create a personal access token
+      tags: [Tokens]
+      security:
+        - sanctumBearer: [tokens]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+                  maxLength: 120
+                abilities:
+                  type: array
+                  items:
+                    type: string
+                    enum: ["*", read, write, capture, reports, tokens]
+                expires_at:
+                  type: string
+                  format: date-time
+      responses:
+        "201":
+          description: Token metadata and one-time plain text token
+  /api/tokens/{token}:
+    delete:
+      summary: Revoke a personal access token
+      tags: [Tokens]
+      security:
+        - sanctumBearer: [tokens]
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Token revoked
+  /api/v1/dashboard:
+    get:
+      summary: Dashboard metrics, charts, and recent records
+      tags: [Dashboard]
+      security:
+        - sanctumBearer: [read]
+      responses:
+        "200":
+          description: Dashboard payload
+  /api/v1/quick-capture:
+    post:
+      summary: Create a task, blocker, work log, daily progress, or learning entry from a compact payload
+      tags: [Capture]
+      security:
+        - sanctumBearer: [capture]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [type, title]
+              properties:
+                type:
+                  type: string
+                  enum: [task, blocker, work_log, daily_progress, learning]
+                title:
+                  type: string
+                  maxLength: 180
+                date:
+                  type: string
+                  format: date
+                project_name:
+                  type: string
+                  maxLength: 120
+                duration_minutes:
+                  type: integer
+                  minimum: 1
+                  maximum: 10000
+                notes:
+                  type: string
+      responses:
+        "201":
+          description: Created record
+  /api/v1/{resource}:
+    get:
+      summary: List records for a core module
+      tags: [Records]
+      security:
+        - sanctumBearer: [read]
+      parameters:
+        - name: resource
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [daily-progress, work-logs, tasks, learning, milestones]
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: sort
+          in: query
+          schema:
+            type: string
+        - name: direction
+          in: query
+          schema:
+            type: string
+            enum: [asc, desc]
+        - name: per_page
+          in: query
+          schema:
+            type: integer
+            minimum: 6
+            maximum: 50
+      responses:
+        "200":
+          description: Paginated records
+  /api/v1/reports/{period}:
+    get:
+      summary: Weekly or monthly report
+      tags: [Reports]
+      security:
+        - sanctumBearer: [reports]
+      parameters:
+        - name: period
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [weekly, monthly]
+        - name: date
+          in: query
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          description: Derived report payload
+  /api/v1/search:
+    get:
+      summary: Global search across modules
+      tags: [Search]
+      security:
+        - sanctumBearer: [read]
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Grouped search results
+components:
+  securitySchemes:
+    sanctumBearer:
+      type: http
+      scheme: bearer
+      bearerFormat: Laravel Sanctum personal access token

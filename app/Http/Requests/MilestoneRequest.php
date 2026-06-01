@@ -12,12 +12,12 @@ class MilestoneRequest extends FormRequest
     {
         return [
             'title' => ['required', 'string', 'max:180'],
-            'category' => ['required', 'string', 'max:80'],
+            'category' => ['required', 'string', 'max:120'],
             'target_type' => ['required', Rule::in(Milestone::TARGET_TYPES)],
-            'source_type' => ['required', Rule::in(Milestone::SOURCE_TYPES)],
-            'source_filter' => ['nullable', 'string', 'max:120'],
-            'target_value' => ['required', 'numeric', 'min:1'],
-            'current_value' => ['required', 'numeric', 'min:0'],
+            'source_type' => ['nullable', Rule::in(Milestone::SOURCE_TYPES)],
+            'source_filter' => ['nullable', 'string', 'max:180'],
+            'target_value' => ['required', 'numeric', 'min:0'],
+            'current_value' => ['nullable', 'numeric', 'min:0'],
             'start_date' => ['nullable', 'date'],
             'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
             'status' => ['required', Rule::in(Milestone::STATUSES)],

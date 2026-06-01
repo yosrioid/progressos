@@ -3,6 +3,15 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\DailyProgressRequest;
+use App\Http\Requests\LearningEntryRequest;
+use App\Http\Requests\MilestoneRequest;
+use App\Http\Requests\ProjectRequest;
+use App\Http\Requests\QuickCaptureRequest;
+use App\Http\Requests\ReferenceRequest;
+use App\Http\Requests\SavedViewRequest;
+use App\Http\Requests\TaskRequest;
+use App\Http\Requests\WorkLogRequest;
 use App\Models\AuditLog;
 use App\Models\DailyProgressEntry;
 use App\Models\LearningEntry;
@@ -12,14 +21,12 @@ use App\Models\Reference;
 use App\Models\SavedView;
 use App\Models\Task;
 use App\Models\WorkLog;
-use App\Rules\SafeHttpUrl;
 use App\Services\DashboardData;
 use App\Services\MilestoneProgressSync;
 use App\Services\ProjectResolver;
 use App\Services\ReportBuilder;
 use App\Services\TagSyncer;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ProgressApiController extends Controller
@@ -54,7 +61,7 @@ class ProgressApiController extends Controller
 
     public function project(Request $request, Project $project)
     {
-        abort_unless($project->user_id === $request->user()->id, 403);
+        $this->authorize('view', $project);
 
         return response()->json([
             'project' => $project,
@@ -69,29 +76,17 @@ class ProgressApiController extends Controller
         ]);
     }
 
-    public function updateProject(Request $request, Project $project)
+    public function updateProject(ProjectRequest $request, Project $project)
     {
-        abort_unless($project->user_id === $request->user()->id, 403);
-        $data = $request->validate([
-            'name' => ['required', 'string', 'max:120'],
-            'color' => ['nullable', 'string', 'max:32'],
-            'archived' => ['boolean'],
-        ]);
-        $project->update($data);
+        $this->authorize('update', $project);
+        $project->update($request->validated());
 
         return response()->json(['project' => $project->fresh()]);
     }
 
-    public function quickCapture(Request $request, ProjectResolver $projects)
+    public function quickCapture(QuickCaptureRequest $request, ProjectResolver $projects)
     {
-        $data = $request->validate([
-            'type' => ['required', 'in:task,work_log,daily_progress,learning,blocker'],
-            'title' => ['required', 'string', 'max:180'],
-            'date' => ['nullable', 'date'],
-            'notes' => ['nullable', 'string'],
-            'project_name' => ['nullable', 'string', 'max:120'],
-            'duration_minutes' => ['nullable', 'integer', 'min:1', 'max:10000'],
-        ]);
+        $data = $request->validated();
 
         $date = $data['date'] ?? now($request->user()->timezone)->toDateString();
         $project = $projects->resolve($request->user(), $data['project_name'] ?? null);
@@ -160,24 +155,14 @@ class ProgressApiController extends Controller
 
     public function showDailyProgress(Request $request, DailyProgressEntry $dailyProgress)
     {
-        abort_unless($dailyProgress->user_id === $request->user()->id, 403);
+        $this->authorize('view', $dailyProgress);
 
         return response()->json(['entry' => $dailyProgress->load(['tags', 'references'])]);
     }
 
-    public function storeDailyProgress(Request $request, TagSyncer $tags)
+    public function storeDailyProgress(DailyProgressRequest $request, TagSyncer $tags)
     {
-        $data = $request->validate([
-            'date' => ['required', 'date'],
-            'title' => ['required', 'string', 'max:180'],
-            'in_progress' => ['nullable', 'string'],
-            'todo' => ['nullable', 'string'],
-            'blockers' => ['nullable', 'string'],
-            'notes' => ['nullable', 'string'],
-            'mood' => ['nullable', 'string', 'max:80'],
-            'completed_items' => ['nullable', 'array'],
-            'tags' => ['nullable', 'array'],
-        ]);
+        $data = $request->validated();
         $tagNames = $data['tags'] ?? [];
         unset($data['tags']);
         $entry = $request->user()->dailyProgressEntries()->create($data);
@@ -186,10 +171,10 @@ class ProgressApiController extends Controller
         return response()->json(['entry' => $entry->load('tags')], 201);
     }
 
-    public function updateDailyProgress(Request $request, DailyProgressEntry $dailyProgress, TagSyncer $tags)
+    public function updateDailyProgress(DailyProgressRequest $request, DailyProgressEntry $dailyProgress, TagSyncer $tags)
     {
-        abort_unless($dailyProgress->user_id === $request->user()->id, 403);
-        $data = $request->validate($this->dailyProgressRules());
+        $this->authorize('update', $dailyProgress);
+        $data = $request->validated();
         $tagNames = $data['tags'] ?? [];
         unset($data['tags']);
         $dailyProgress->update($data);
@@ -200,7 +185,7 @@ class ProgressApiController extends Controller
 
     public function deleteDailyProgress(Request $request, DailyProgressEntry $dailyProgress)
     {
-        abort_unless($dailyProgress->user_id === $request->user()->id, 403);
+        $this->authorize('delete', $dailyProgress);
         $dailyProgress->delete();
 
         return response()->noContent();
@@ -230,24 +215,14 @@ class ProgressApiController extends Controller
 
     public function showWorkLog(Request $request, WorkLog $workLog)
     {
-        abort_unless($workLog->user_id === $request->user()->id, 403);
+        $this->authorize('view', $workLog);
 
         return response()->json(['log' => $workLog->load(['tags', 'references'])]);
     }
 
-    public function storeWorkLog(Request $request, ProjectResolver $projects, TagSyncer $tags)
+    public function storeWorkLog(WorkLogRequest $request, ProjectResolver $projects, TagSyncer $tags)
     {
-        $data = $request->validate([
-            'date' => ['required', 'date'],
-            'project_name' => ['required', 'string', 'max:120'],
-            'title' => ['required', 'string', 'max:180'],
-            'category' => ['required', Rule::in(WorkLog::CATEGORIES)],
-            'status' => ['required', Rule::in(WorkLog::STATUSES)],
-            'priority' => ['required', Rule::in(WorkLog::PRIORITIES)],
-            'description' => ['nullable', 'string'],
-            'actual_duration' => ['nullable', 'integer', 'min:1'],
-            'tags' => ['nullable', 'array'],
-        ]);
+        $data = $request->validated();
         $tagNames = $data['tags'] ?? [];
         unset($data['tags']);
         $data['project_id'] = $projects->resolve($request->user(), $data['project_name'])?->id;
@@ -257,10 +232,10 @@ class ProgressApiController extends Controller
         return response()->json(['log' => $log->load('tags')], 201);
     }
 
-    public function updateWorkLog(Request $request, WorkLog $workLog, ProjectResolver $projects, TagSyncer $tags)
+    public function updateWorkLog(WorkLogRequest $request, WorkLog $workLog, ProjectResolver $projects, TagSyncer $tags)
     {
-        abort_unless($workLog->user_id === $request->user()->id, 403);
-        $data = $request->validate($this->workLogRules());
+        $this->authorize('update', $workLog);
+        $data = $request->validated();
         $tagNames = $data['tags'] ?? [];
         unset($data['tags']);
         $data['project_id'] = $projects->resolve($request->user(), $data['project_name'])?->id;
@@ -272,7 +247,7 @@ class ProgressApiController extends Controller
 
     public function deleteWorkLog(Request $request, WorkLog $workLog)
     {
-        abort_unless($workLog->user_id === $request->user()->id, 403);
+        $this->authorize('delete', $workLog);
         $workLog->delete();
 
         return response()->noContent();
@@ -299,30 +274,23 @@ class ProgressApiController extends Controller
 
     public function showTask(Request $request, Task $task)
     {
-        abort_unless($task->user_id === $request->user()->id, 403);
+        $this->authorize('view', $task);
 
         return response()->json(['task' => $task->load(['project', 'references'])]);
     }
 
-    public function storeTask(Request $request)
+    public function storeTask(TaskRequest $request)
     {
-        $data = $request->validate([
-            'title' => ['required', 'string', 'max:180'],
-            'project_id' => ['nullable', 'integer', Rule::exists('projects', 'id')->where('user_id', $request->user()->id)],
-            'notes' => ['nullable', 'string'],
-            'status' => ['required', Rule::in(Task::STATUSES)],
-            'priority' => ['required', Rule::in(Task::PRIORITIES)],
-            'due_date' => ['nullable', 'date'],
-        ]);
+        $data = $request->validated();
         $data['completed_at'] = $data['status'] === 'done' ? now() : null;
 
         return response()->json(['task' => $request->user()->tasks()->create($data)], 201);
     }
 
-    public function updateTask(Request $request, Task $task)
+    public function updateTask(TaskRequest $request, Task $task)
     {
-        abort_unless($task->user_id === $request->user()->id, 403);
-        $data = $request->validate($this->taskRules($request));
+        $this->authorize('update', $task);
+        $data = $request->validated();
         $data['completed_at'] = $data['status'] === 'done' ? ($task->completed_at ?? now()) : null;
         $task->update($data);
 
@@ -331,8 +299,8 @@ class ProgressApiController extends Controller
 
     public function updateTaskStatus(Request $request, Task $task)
     {
-        abort_unless($task->user_id === $request->user()->id, 403);
-        $data = $request->validate(['status' => ['required', Rule::in(Task::STATUSES)]]);
+        $this->authorize('update', $task);
+        $data = $request->validate(['status' => ['required', 'in:todo,in_progress,done,blocked']]);
         $task->update([...$data, 'completed_at' => $data['status'] === 'done' ? now() : null]);
 
         return response()->json(['task' => $task->fresh()]);
@@ -340,7 +308,7 @@ class ProgressApiController extends Controller
 
     public function deleteTask(Request $request, Task $task)
     {
-        abort_unless($task->user_id === $request->user()->id, 403);
+        $this->authorize('delete', $task);
         $task->delete();
 
         return response()->noContent();
@@ -367,39 +335,29 @@ class ProgressApiController extends Controller
 
     public function showLearning(Request $request, LearningEntry $learning)
     {
-        abort_unless($learning->user_id === $request->user()->id, 403);
+        $this->authorize('view', $learning);
 
         return response()->json(['entry' => $learning->load('references')]);
     }
 
-    public function storeLearning(Request $request)
+    public function storeLearning(LearningEntryRequest $request)
     {
-        $data = $request->validate([
-            'date' => ['required', 'date'],
-            'topic' => ['required', 'string', 'max:180'],
-            'category' => ['required', Rule::in(LearningEntry::CATEGORIES)],
-            'source_type' => ['required', Rule::in(LearningEntry::SOURCE_TYPES)],
-            'duration_minutes' => ['required', 'integer', 'min:1'],
-            'progress_notes' => ['nullable', 'string'],
-            'takeaway' => ['nullable', 'string'],
-            'next_action' => ['nullable', 'string'],
-            'rating' => ['nullable', 'integer', 'min:1', 'max:5'],
-        ]);
+        $data = $request->validated();
 
         return response()->json(['entry' => $request->user()->learningEntries()->create($data)], 201);
     }
 
-    public function updateLearning(Request $request, LearningEntry $learning)
+    public function updateLearning(LearningEntryRequest $request, LearningEntry $learning)
     {
-        abort_unless($learning->user_id === $request->user()->id, 403);
-        $learning->update($request->validate($this->learningRules()));
+        $this->authorize('update', $learning);
+        $learning->update($request->validated());
 
         return response()->json(['entry' => $learning->fresh()->load('references')]);
     }
 
     public function deleteLearning(Request $request, LearningEntry $learning)
     {
-        abort_unless($learning->user_id === $request->user()->id, 403);
+        $this->authorize('delete', $learning);
         $learning->delete();
 
         return response()->noContent();
@@ -420,36 +378,24 @@ class ProgressApiController extends Controller
 
     public function showMilestone(Request $request, Milestone $milestone)
     {
-        abort_unless($milestone->user_id === $request->user()->id, 403);
+        $this->authorize('view', $milestone);
 
         return response()->json(['milestone' => $milestone->load('references')->setAttribute('progress_percent', $milestone->progressPercent())]);
     }
 
-    public function storeMilestone(Request $request)
+    public function storeMilestone(MilestoneRequest $request)
     {
-        $data = $request->validate([
-            'title' => ['required', 'string', 'max:180'],
-            'category' => ['required', 'string', 'max:120'],
-            'target_type' => ['required', Rule::in(Milestone::TARGET_TYPES)],
-            'source_type' => ['nullable', Rule::in(Milestone::SOURCE_TYPES)],
-            'source_filter' => ['nullable', 'string', 'max:180'],
-            'target_value' => ['required', 'numeric', 'min:0'],
-            'current_value' => ['nullable', 'numeric', 'min:0'],
-            'start_date' => ['nullable', 'date'],
-            'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
-            'status' => ['required', Rule::in(Milestone::STATUSES)],
-            'notes' => ['nullable', 'string'],
-        ]);
+        $data = $request->validated();
         $data['source_type'] ??= 'manual';
         $data['current_value'] ??= 0;
 
         return response()->json(['milestone' => $request->user()->milestones()->create($data)], 201);
     }
 
-    public function updateMilestone(Request $request, Milestone $milestone)
+    public function updateMilestone(MilestoneRequest $request, Milestone $milestone)
     {
-        abort_unless($milestone->user_id === $request->user()->id, 403);
-        $data = $request->validate($this->milestoneRules());
+        $this->authorize('update', $milestone);
+        $data = $request->validated();
         $data['source_type'] ??= 'manual';
         $data['current_value'] ??= 0;
         $milestone->update($data);
@@ -459,7 +405,7 @@ class ProgressApiController extends Controller
 
     public function deleteMilestone(Request $request, Milestone $milestone)
     {
-        abort_unless($milestone->user_id === $request->user()->id, 403);
+        $this->authorize('delete', $milestone);
         $milestone->delete();
 
         return response()->noContent();
@@ -542,14 +488,9 @@ class ProgressApiController extends Controller
         return response()->json(['saved_views' => $query->get()]);
     }
 
-    public function storeSavedView(Request $request)
+    public function storeSavedView(SavedViewRequest $request)
     {
-        $data = $request->validate([
-            'module' => ['required', 'in:tasks,work-logs,daily-progress,learning,milestones'],
-            'name' => ['required', 'string', 'max:80'],
-            'filters' => ['required', 'array'],
-            'pinned' => ['boolean'],
-        ]);
+        $data = $request->validated();
 
         $view = SavedView::updateOrCreate(
             ['user_id' => $request->user()->id, 'module' => $data['module'], 'name' => $data['name']],
@@ -561,25 +502,18 @@ class ProgressApiController extends Controller
 
     public function deleteSavedView(Request $request, SavedView $savedView)
     {
-        abort_unless($savedView->user_id === $request->user()->id, 403);
+        $this->authorize('delete', $savedView);
         $savedView->delete();
 
         return response()->noContent();
     }
 
-    public function storeReference(Request $request)
+    public function storeReference(ReferenceRequest $request)
     {
-        $data = $request->validate([
-            'referenceable_type' => ['required', 'in:task,work_log,learning,milestone,daily_progress'],
-            'referenceable_id' => ['required', 'integer'],
-            'label' => ['required', 'string', 'max:160'],
-            'url' => ['required', 'max:2000', new SafeHttpUrl],
-            'type' => ['required', 'in:link,doc,ticket,pr,article,course,other'],
-            'notes' => ['nullable', 'string'],
-        ]);
+        $data = $request->validated();
 
         $target = self::REFERENCE_TYPES[$data['referenceable_type']]::query()->findOrFail($data['referenceable_id']);
-        abort_unless($target->user_id === $request->user()->id, 403);
+        $this->authorize('view', $target);
 
         $reference = $target->references()->create([
             'user_id' => $request->user()->id,
@@ -594,7 +528,7 @@ class ProgressApiController extends Controller
 
     public function deleteReference(Request $request, Reference $reference)
     {
-        abort_unless($reference->user_id === $request->user()->id, 403);
+        $this->authorize('delete', $reference);
         $reference->delete();
 
         return response()->noContent();
@@ -633,81 +567,4 @@ class ProgressApiController extends Controller
             ->withQueryString();
     }
 
-    private function dailyProgressRules(): array
-    {
-        return [
-            'date' => ['required', 'date'],
-            'title' => ['required', 'string', 'max:180'],
-            'in_progress' => ['nullable', 'string'],
-            'todo' => ['nullable', 'string'],
-            'blockers' => ['nullable', 'string'],
-            'notes' => ['nullable', 'string'],
-            'mood' => ['nullable', 'string', 'max:80'],
-            'completed_items' => ['nullable', 'array'],
-            'tags' => ['nullable', 'array'],
-            'archived' => ['boolean'],
-        ];
-    }
-
-    private function workLogRules(): array
-    {
-        return [
-            'date' => ['required', 'date'],
-            'project_name' => ['required', 'string', 'max:120'],
-            'ticket_code' => ['nullable', 'string', 'max:80'],
-            'title' => ['required', 'string', 'max:180'],
-            'category' => ['required', Rule::in(WorkLog::CATEGORIES)],
-            'status' => ['required', Rule::in(WorkLog::STATUSES)],
-            'priority' => ['required', Rule::in(WorkLog::PRIORITIES)],
-            'description' => ['nullable', 'string'],
-            'resolution_or_outcome' => ['nullable', 'string'],
-            'estimated_duration' => ['nullable', 'integer', 'min:1'],
-            'actual_duration' => ['nullable', 'integer', 'min:1'],
-            'tags' => ['nullable', 'array'],
-        ];
-    }
-
-    private function taskRules(Request $request): array
-    {
-        return [
-            'title' => ['required', 'string', 'max:180'],
-            'project_id' => ['nullable', 'integer', Rule::exists('projects', 'id')->where('user_id', $request->user()->id)],
-            'notes' => ['nullable', 'string'],
-            'status' => ['required', Rule::in(Task::STATUSES)],
-            'priority' => ['required', Rule::in(Task::PRIORITIES)],
-            'due_date' => ['nullable', 'date'],
-        ];
-    }
-
-    private function learningRules(): array
-    {
-        return [
-            'date' => ['required', 'date'],
-            'topic' => ['required', 'string', 'max:180'],
-            'category' => ['required', Rule::in(LearningEntry::CATEGORIES)],
-            'source_type' => ['required', Rule::in(LearningEntry::SOURCE_TYPES)],
-            'duration_minutes' => ['required', 'integer', 'min:1'],
-            'progress_notes' => ['nullable', 'string'],
-            'takeaway' => ['nullable', 'string'],
-            'next_action' => ['nullable', 'string'],
-            'rating' => ['nullable', 'integer', 'min:1', 'max:5'],
-        ];
-    }
-
-    private function milestoneRules(): array
-    {
-        return [
-            'title' => ['required', 'string', 'max:180'],
-            'category' => ['required', 'string', 'max:120'],
-            'target_type' => ['required', Rule::in(Milestone::TARGET_TYPES)],
-            'source_type' => ['nullable', Rule::in(Milestone::SOURCE_TYPES)],
-            'source_filter' => ['nullable', 'string', 'max:180'],
-            'target_value' => ['required', 'numeric', 'min:0'],
-            'current_value' => ['nullable', 'numeric', 'min:0'],
-            'start_date' => ['nullable', 'date'],
-            'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
-            'status' => ['required', Rule::in(Milestone::STATUSES)],
-            'notes' => ['nullable', 'string'],
-        ];
-    }
 }

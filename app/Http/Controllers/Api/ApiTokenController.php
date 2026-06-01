@@ -3,8 +3,9 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
+use App\Http\Requests\ApiTokenRequest;
 use Illuminate\Support\Carbon;
+use Illuminate\Http\Request;
 use Laravel\Sanctum\PersonalAccessToken;
 
 class ApiTokenController extends Controller
@@ -18,18 +19,13 @@ class ApiTokenController extends Controller
         ]);
     }
 
-    public function store(Request $request)
+    public function store(ApiTokenRequest $request)
     {
-        $data = $request->validate([
-            'name' => ['required', 'string', 'max:120'],
-            'abilities' => ['nullable', 'array'],
-            'abilities.*' => ['string', 'max:80'],
-            'expires_at' => ['nullable', 'date', 'after:now'],
-        ]);
+        $data = $request->validated();
 
         $newAccessToken = $request->user()->createToken(
             $data['name'],
-            $data['abilities'] ?? ['*'],
+            $data['abilities'] ?? ['read', 'write', 'capture', 'reports'],
             isset($data['expires_at']) ? Carbon::parse($data['expires_at']) : null,
         );
 
