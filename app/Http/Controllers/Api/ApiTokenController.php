@@ -4,9 +4,9 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ApiTokenRequest;
-use Illuminate\Support\Carbon;
-use Illuminate\Http\Request;
 use App\Support\ApiResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Laravel\Sanctum\PersonalAccessToken;
 
 class ApiTokenController extends Controller

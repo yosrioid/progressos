@@ -12,11 +12,11 @@ use App\Models\SavedView;
 use App\Models\Task;
 use App\Models\WorkLog;
 use App\Policies\OwnedModelPolicy;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
-use Illuminate\Cache\RateLimiting\Limit;
-use Illuminate\Http\Request;
 
 class AppServiceProvider extends ServiceProvider
 {

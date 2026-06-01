@@ -11,6 +11,7 @@ class SafeHttpUrl implements ValidationRule
     {
         if (! is_string($value) || ! filter_var($value, FILTER_VALIDATE_URL)) {
             $fail('The :attribute must be a valid URL.');
+
             return;
         }
 
@@ -18,12 +19,14 @@ class SafeHttpUrl implements ValidationRule
         $scheme = strtolower($parts['scheme'] ?? '');
         if (! in_array($scheme, ['http', 'https'], true)) {
             $fail('The :attribute must use http or https.');
+
             return;
         }
 
         $host = $parts['host'] ?? '';
         if ($host === '' || in_array(strtolower($host), ['localhost'], true) || str_ends_with(strtolower($host), '.local')) {
             $fail('The :attribute cannot point to a local host.');
+
             return;
         }
 

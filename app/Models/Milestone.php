@@ -17,6 +17,7 @@ class Milestone extends Model
     use Auditable, HasFactory, SoftDeletes;
 
     public const STATUSES = ['active', 'paused', 'completed', 'cancelled'];
+
     public const TARGET_TYPES = ['count', 'duration', 'streak', 'custom'];
 
     public const SOURCE_TYPES = ['manual', 'work_log_count', 'work_log_minutes', 'learning_minutes', 'daily_progress_streak', 'task_done_count'];

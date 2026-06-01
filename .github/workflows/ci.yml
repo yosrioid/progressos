@@ -44,6 +44,12 @@ jobs:
       - name: Install PHP dependencies
         run: composer install --no-interaction --prefer-dist --no-progress
 
+      - name: Check PHP code style
+        run: composer lint
+
+      - name: Run static analysis
+        run: composer analyse
+
       - name: Install Node dependencies
         run: npm ci
 
