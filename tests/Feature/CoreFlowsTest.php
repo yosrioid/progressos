@@ -228,3 +228,40 @@ it('exposes recent activity from audited record changes', function () {
         ->assertOk()
         ->assertJsonPath('recent_activity.0.event', 'Task.created');
 });
+
+it('keeps core API response contracts stable for external clients', function () {
+    $user = User::factory()->create();
+    $project = Project::create(['user_id' => $user->id, 'name' => 'Contract', 'color' => 'teal']);
+    $task = Task::factory()->for($user)->for($project)->create(['title' => 'Contract task']);
+    WorkLog::factory()->for($user)->for($project)->create(['title' => 'Contract log', 'project_name' => 'Contract']);
+
+    $this->actingAs($user)
+        ->getJson('/api/v1/tasks?per_page=6&sort=title&direction=asc')
+        ->assertOk()
+        ->assertJsonStructure([
+            'data' => [['id', 'title', 'status', 'priority']],
+            'meta' => ['current_page', 'per_page', 'total'],
+            'links' => ['first', 'last', 'prev', 'next'],
+            'tasks' => [
+                'data' => [['id', 'title', 'status', 'priority']],
+                'current_page',
+                'per_page',
+                'total',
+            ],
+        ]);
+
+    $this->actingAs($user)
+        ->getJson("/api/v1/tasks/{$task->id}")
+        ->assertOk()
+        ->assertJsonStructure(['data' => ['id', 'title', 'status', 'priority', 'project'], 'task' => ['id', 'title', 'status', 'priority', 'project']]);
+
+    $this->actingAs($user)
+        ->getJson("/api/v1/projects/{$project->id}")
+        ->assertOk()
+        ->assertJsonStructure(['project' => ['id', 'name'], 'tasks', 'workLogs', 'metrics']);
+
+    $this->actingAs($user)
+        ->getJson('/api/v1/search?q=Contract')
+        ->assertOk()
+        ->assertJsonStructure(['query', 'results' => ['work_logs', 'tasks', 'projects']]);
+});

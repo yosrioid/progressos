@@ -110,9 +110,14 @@ Security checklist:
 ## Architecture
 
 - `app/Models`: user-owned domain models for daily progress, work logs, learning entries, milestones, and report snapshots.
-- `app/Http/Controllers/Api`: same-origin JSON controllers for auth, dashboard, records, projects, reports, CSV export, and search.
+- `routes/api.php`: Laravel API entrypoint that loads `routes/api/auth.php`, `routes/api/tokens.php`, and `routes/api/v1.php`.
+- `routes/web.php`: Vue SPA catch-all route only.
+- `app/Http/Controllers/Api`: resource-specific same-origin JSON controllers for auth, dashboard, projects, capture, records, reports, CSV export, search, activity, saved views, and references.
 - `app/Http/Requests`: Form Request validation for core write paths.
+- `app/Http/Resources`: API response resources for core record details and mutations.
+- `app/Support/ApiResponse.php`: standard JSON response envelope helpers for item, collection, and paginated responses.
 - `app/Http/Middleware/EnsureApiTokenCan.php`: Sanctum token ability enforcement that still allows first-party browser sessions.
+- `app/Support/ApiQuery.php`: shared search, sorting, pagination, and CSV hardening helpers.
 - `app/Services`: focused services for dashboard aggregation, report generation, and tag syncing.
 - `docs/api.md` and `docs/openapi.yaml`: REST API usage notes and starter OpenAPI contract for external clients.
 - `resources/js/vue`: Vue 3 + Pinia + TypeScript SPA with a responsive sidebar/mobile navigation, dashboard cards, record lists, project views, quick capture, and report views.
@@ -144,7 +149,7 @@ curl -I http://127.0.0.1:8000/login
 
 Current verification passed:
 
-- Pest: `18 passed`, `111 assertions`
+- Pest: `19 passed`, `163 assertions`
 - Vite production build: passed
 - Playwright: `7 passed`, `3 skipped` across desktop Chromium and mobile Chromium projects. Skips are project-specific viewport checks.
 - Local HTTP smoke check: `/login` returned `200 OK`
@@ -164,6 +169,6 @@ Current verification passed:
 - Add metric-linked milestones with scheduled recalculation.
 - Add saved report snapshots and comparison history.
 - Add richer chart components when a charting dependency is justified.
-- Split the large API controller into resource-specific controllers once the current API hardening PR is merged.
+- Add saved report snapshots and comparison history.
 - Add deeper module-specific timeline/activity layouts.
 - Add optional PDF export via a small, well-contained service if reporting demand warrants it.

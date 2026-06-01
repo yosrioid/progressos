@@ -2,43 +2,182 @@ openapi: 3.1.0
 info:
   title: ProgressOS API
   version: 1.0.0
-  description: Same-origin REST API for the ProgressOS Vue client and trusted local integrations.
+  description: REST API for the ProgressOS Vue client and trusted external integrations.
 servers:
   - url: http://127.0.0.1:8000
 security:
   - sanctumBearer: []
+tags:
+  - name: Auth
+  - name: Tokens
+  - name: Dashboard
+  - name: Projects
+  - name: Daily Progress
+  - name: Work Logs
+  - name: Tasks
+  - name: Learning
+  - name: Milestones
+  - name: Capture
+  - name: Reports
+  - name: Search
+  - name: Activity
+  - name: Saved Views
+  - name: References
 paths:
+  /api/register:
+    post:
+      tags: [Auth]
+      summary: Register a user
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
+      responses:
+        "201":
+          $ref: "#/components/responses/UserResponse"
+        "422":
+          $ref: "#/components/responses/ValidationError"
   /api/login:
     post:
-      summary: Login with email and password
       tags: [Auth]
+      summary: Login with email and password
       security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
       responses:
         "200":
-          description: Authenticated user session
+          $ref: "#/components/responses/UserResponse"
         "422":
-          description: Invalid credentials or validation error
+          $ref: "#/components/responses/ValidationError"
+  /api/logout:
+    post:
+      tags: [Auth]
+      summary: Logout the current session
+      responses:
+        "200":
+          $ref: "#/components/responses/OkResponse"
   /api/me:
     get:
-      summary: Current authenticated user
       tags: [Auth]
+      summary: Current authenticated user
       security:
         - sanctumBearer: [read]
       responses:
         "200":
-          description: User profile payload
+          $ref: "#/components/responses/UserResponse"
+  /api/profile:
+    patch:
+      tags: [Auth]
+      summary: Update profile
+      security:
+        - sanctumBearer: [write]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProfileRequest"
+      responses:
+        "200":
+          $ref: "#/components/responses/UserResponse"
+  /api/profile/avatar:
+    post:
+      tags: [Auth]
+      summary: Upload avatar
+      security:
+        - sanctumBearer: [write]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [avatar]
+              properties:
+                avatar:
+                  type: string
+                  format: binary
+      responses:
+        "200":
+          $ref: "#/components/responses/UserResponse"
+  /api/profile/password:
+    put:
+      tags: [Auth]
+      summary: Change password
+      security:
+        - sanctumBearer: [write]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PasswordRequest"
+      responses:
+        "200":
+          $ref: "#/components/responses/OkResponse"
+  /api/forgot-password:
+    post:
+      tags: [Auth]
+      summary: Send password reset link
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email:
+                  type: string
+                  format: email
+      responses:
+        "200":
+          $ref: "#/components/responses/OkResponse"
+  /api/reset-password:
+    post:
+      tags: [Auth]
+      summary: Reset password
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResetPasswordRequest"
+      responses:
+        "200":
+          $ref: "#/components/responses/OkResponse"
   /api/tokens:
     get:
-      summary: List personal access tokens
       tags: [Tokens]
+      summary: List personal access tokens
       security:
         - sanctumBearer: [tokens]
       responses:
         "200":
           description: Token list
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/CollectionEnvelope"
+                  - type: object
+                    properties:
+                      tokens:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/Token"
     post:
-      summary: Create a personal access token
       tags: [Tokens]
+      summary: Create a personal access token
       security:
         - sanctumBearer: [tokens]
       requestBody:
@@ -46,51 +185,445 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              required: [name]
-              properties:
-                name:
-                  type: string
-                  maxLength: 120
-                abilities:
-                  type: array
-                  items:
-                    type: string
-                    enum: ["*", read, write, capture, reports, tokens]
-                expires_at:
-                  type: string
-                  format: date-time
+              $ref: "#/components/schemas/TokenRequest"
       responses:
         "201":
           description: Token metadata and one-time plain text token
   /api/tokens/{token}:
     delete:
-      summary: Revoke a personal access token
       tags: [Tokens]
+      summary: Revoke a personal access token
       security:
         - sanctumBearer: [tokens]
       parameters:
-        - name: token
-          in: path
-          required: true
-          schema:
-            type: integer
+        - $ref: "#/components/parameters/TokenId"
       responses:
         "204":
           description: Token revoked
   /api/v1/dashboard:
     get:
-      summary: Dashboard metrics, charts, and recent records
       tags: [Dashboard]
+      summary: Dashboard metrics, charts, and recent records
       security:
         - sanctumBearer: [read]
       responses:
         "200":
           description: Dashboard payload
+  /api/v1/projects:
+    get:
+      tags: [Projects]
+      summary: List projects
+      security:
+        - sanctumBearer: [read]
+      responses:
+        "200":
+          description: Project collection
+    post:
+      deprecated: true
+      tags: [Projects]
+      summary: Reserved for future project creation
+      responses:
+        "405":
+          description: Not supported
+  /api/v1/projects/{project}:
+    get:
+      tags: [Projects]
+      summary: Project detail with recent tasks, work logs, and metrics
+      security:
+        - sanctumBearer: [read]
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      responses:
+        "200":
+          description: Project detail
+    patch:
+      tags: [Projects]
+      summary: Update project
+      security:
+        - sanctumBearer: [write]
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      requestBody:
+        $ref: "#/components/requestBodies/Project"
+      responses:
+        "200":
+          description: Updated project
+  /api/v1/daily-progress:
+    get:
+      tags: [Daily Progress]
+      summary: List daily progress entries
+      security:
+        - sanctumBearer: [read]
+      parameters:
+        - $ref: "#/components/parameters/Search"
+        - $ref: "#/components/parameters/From"
+        - $ref: "#/components/parameters/To"
+        - name: tag
+          in: query
+          schema:
+            type: string
+        - name: archived
+          in: query
+          schema:
+            type: boolean
+        - $ref: "#/components/parameters/Sort"
+        - $ref: "#/components/parameters/Direction"
+        - $ref: "#/components/parameters/PerPage"
+      responses:
+        "200":
+          $ref: "#/components/responses/PaginatedResponse"
+    post:
+      tags: [Daily Progress]
+      summary: Create daily progress entry
+      security:
+        - sanctumBearer: [write]
+      requestBody:
+        $ref: "#/components/requestBodies/DailyProgress"
+      responses:
+        "201":
+          description: Created entry
+  /api/v1/daily-progress/{dailyProgress}:
+    get:
+      tags: [Daily Progress]
+      summary: Show daily progress entry
+      security:
+        - sanctumBearer: [read]
+      parameters:
+        - $ref: "#/components/parameters/DailyProgressId"
+      responses:
+        "200":
+          description: Entry detail
+    patch:
+      tags: [Daily Progress]
+      summary: Update daily progress entry
+      security:
+        - sanctumBearer: [write]
+      parameters:
+        - $ref: "#/components/parameters/DailyProgressId"
+      requestBody:
+        $ref: "#/components/requestBodies/DailyProgress"
+      responses:
+        "200":
+          description: Updated entry
+    delete:
+      tags: [Daily Progress]
+      summary: Delete daily progress entry
+      security:
+        - sanctumBearer: [write]
+      parameters:
+        - $ref: "#/components/parameters/DailyProgressId"
+      responses:
+        "204":
+          description: Deleted
+  /api/v1/work-logs:
+    get:
+      tags: [Work Logs]
+      summary: List work logs
+      security:
+        - sanctumBearer: [read]
+      parameters:
+        - $ref: "#/components/parameters/Search"
+        - $ref: "#/components/parameters/From"
+        - $ref: "#/components/parameters/To"
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [todo, in_progress, done, blocked]
+        - name: category
+          in: query
+          schema:
+            type: string
+        - name: priority
+          in: query
+          schema:
+            type: string
+        - name: project_name
+          in: query
+          schema:
+            type: string
+        - $ref: "#/components/parameters/Sort"
+        - $ref: "#/components/parameters/Direction"
+        - $ref: "#/components/parameters/PerPage"
+      responses:
+        "200":
+          $ref: "#/components/responses/PaginatedResponse"
+    post:
+      tags: [Work Logs]
+      summary: Create work log
+      security:
+        - sanctumBearer: [write]
+      requestBody:
+        $ref: "#/components/requestBodies/WorkLog"
+      responses:
+        "201":
+          description: Created work log
+  /api/v1/work-logs/{workLog}:
+    get:
+      tags: [Work Logs]
+      summary: Show work log
+      security:
+        - sanctumBearer: [read]
+      parameters:
+        - $ref: "#/components/parameters/WorkLogId"
+      responses:
+        "200":
+          description: Work log detail
+    patch:
+      tags: [Work Logs]
+      summary: Update work log
+      security:
+        - sanctumBearer: [write]
+      parameters:
+        - $ref: "#/components/parameters/WorkLogId"
+      requestBody:
+        $ref: "#/components/requestBodies/WorkLog"
+      responses:
+        "200":
+          description: Updated work log
+    delete:
+      tags: [Work Logs]
+      summary: Delete work log
+      security:
+        - sanctumBearer: [write]
+      parameters:
+        - $ref: "#/components/parameters/WorkLogId"
+      responses:
+        "204":
+          description: Deleted
+  /api/v1/tasks:
+    get:
+      tags: [Tasks]
+      summary: List tasks
+      security:
+        - sanctumBearer: [read]
+      parameters:
+        - $ref: "#/components/parameters/Search"
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: priority
+          in: query
+          schema:
+            type: string
+        - name: project_id
+          in: query
+          schema:
+            type: integer
+        - $ref: "#/components/parameters/From"
+        - $ref: "#/components/parameters/To"
+        - $ref: "#/components/parameters/Sort"
+        - $ref: "#/components/parameters/Direction"
+        - $ref: "#/components/parameters/PerPage"
+      responses:
+        "200":
+          $ref: "#/components/responses/PaginatedResponse"
+    post:
+      tags: [Tasks]
+      summary: Create task
+      security:
+        - sanctumBearer: [write]
+      requestBody:
+        $ref: "#/components/requestBodies/Task"
+      responses:
+        "201":
+          description: Created task
+  /api/v1/tasks/{task}:
+    get:
+      tags: [Tasks]
+      summary: Show task
+      security:
+        - sanctumBearer: [read]
+      parameters:
+        - $ref: "#/components/parameters/TaskId"
+      responses:
+        "200":
+          description: Task detail
+    patch:
+      tags: [Tasks]
+      summary: Update task
+      security:
+        - sanctumBearer: [write]
+      parameters:
+        - $ref: "#/components/parameters/TaskId"
+      requestBody:
+        $ref: "#/components/requestBodies/Task"
+      responses:
+        "200":
+          description: Updated task
+    delete:
+      tags: [Tasks]
+      summary: Delete task
+      security:
+        - sanctumBearer: [write]
+      parameters:
+        - $ref: "#/components/parameters/TaskId"
+      responses:
+        "204":
+          description: Deleted
+  /api/v1/tasks/{task}/status:
+    patch:
+      tags: [Tasks]
+      summary: Update task status
+      security:
+        - sanctumBearer: [write]
+      parameters:
+        - $ref: "#/components/parameters/TaskId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status:
+                  type: string
+                  enum: [todo, in_progress, done, blocked]
+      responses:
+        "200":
+          description: Updated task
+  /api/v1/learning:
+    get:
+      tags: [Learning]
+      summary: List learning entries
+      security:
+        - sanctumBearer: [read]
+      parameters:
+        - $ref: "#/components/parameters/Search"
+        - $ref: "#/components/parameters/From"
+        - $ref: "#/components/parameters/To"
+        - name: category
+          in: query
+          schema:
+            type: string
+        - name: source_type
+          in: query
+          schema:
+            type: string
+        - $ref: "#/components/parameters/Sort"
+        - $ref: "#/components/parameters/Direction"
+        - $ref: "#/components/parameters/PerPage"
+      responses:
+        "200":
+          $ref: "#/components/responses/PaginatedResponse"
+    post:
+      tags: [Learning]
+      summary: Create learning entry
+      security:
+        - sanctumBearer: [write]
+      requestBody:
+        $ref: "#/components/requestBodies/Learning"
+      responses:
+        "201":
+          description: Created learning entry
+  /api/v1/learning/{learning}:
+    get:
+      tags: [Learning]
+      summary: Show learning entry
+      security:
+        - sanctumBearer: [read]
+      parameters:
+        - $ref: "#/components/parameters/LearningId"
+      responses:
+        "200":
+          description: Learning detail
+    patch:
+      tags: [Learning]
+      summary: Update learning entry
+      security:
+        - sanctumBearer: [write]
+      parameters:
+        - $ref: "#/components/parameters/LearningId"
+      requestBody:
+        $ref: "#/components/requestBodies/Learning"
+      responses:
+        "200":
+          description: Updated learning entry
+    delete:
+      tags: [Learning]
+      summary: Delete learning entry
+      security:
+        - sanctumBearer: [write]
+      parameters:
+        - $ref: "#/components/parameters/LearningId"
+      responses:
+        "204":
+          description: Deleted
+  /api/v1/milestones:
+    get:
+      tags: [Milestones]
+      summary: List milestones
+      security:
+        - sanctumBearer: [read]
+      parameters:
+        - $ref: "#/components/parameters/Search"
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: target_type
+          in: query
+          schema:
+            type: string
+        - name: category
+          in: query
+          schema:
+            type: string
+        - $ref: "#/components/parameters/Sort"
+        - $ref: "#/components/parameters/Direction"
+        - $ref: "#/components/parameters/PerPage"
+      responses:
+        "200":
+          $ref: "#/components/responses/PaginatedResponse"
+    post:
+      tags: [Milestones]
+      summary: Create milestone
+      security:
+        - sanctumBearer: [write]
+      requestBody:
+        $ref: "#/components/requestBodies/Milestone"
+      responses:
+        "201":
+          description: Created milestone
+  /api/v1/milestones/{milestone}:
+    get:
+      tags: [Milestones]
+      summary: Show milestone
+      security:
+        - sanctumBearer: [read]
+      parameters:
+        - $ref: "#/components/parameters/MilestoneId"
+      responses:
+        "200":
+          description: Milestone detail
+    patch:
+      tags: [Milestones]
+      summary: Update milestone
+      security:
+        - sanctumBearer: [write]
+      parameters:
+        - $ref: "#/components/parameters/MilestoneId"
+      requestBody:
+        $ref: "#/components/requestBodies/Milestone"
+      responses:
+        "200":
+          description: Updated milestone
+    delete:
+      tags: [Milestones]
+      summary: Delete milestone
+      security:
+        - sanctumBearer: [write]
+      parameters:
+        - $ref: "#/components/parameters/MilestoneId"
+      responses:
+        "204":
+          description: Deleted
   /api/v1/quick-capture:
     post:
-      summary: Create a task, blocker, work log, daily progress, or learning entry from a compact payload
       tags: [Capture]
+      summary: Create a task, blocker, work log, daily progress, or learning entry from a compact payload
       security:
         - sanctumBearer: [capture]
       requestBody:
@@ -98,88 +631,18 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              required: [type, title]
-              properties:
-                type:
-                  type: string
-                  enum: [task, blocker, work_log, daily_progress, learning]
-                title:
-                  type: string
-                  maxLength: 180
-                date:
-                  type: string
-                  format: date
-                project_name:
-                  type: string
-                  maxLength: 120
-                duration_minutes:
-                  type: integer
-                  minimum: 1
-                  maximum: 10000
-                notes:
-                  type: string
+              $ref: "#/components/schemas/QuickCaptureRequest"
       responses:
         "201":
           description: Created record
-  /api/v1/{resource}:
-    get:
-      summary: List records for a core module
-      tags: [Records]
-      security:
-        - sanctumBearer: [read]
-      parameters:
-        - name: resource
-          in: path
-          required: true
-          schema:
-            type: string
-            enum: [daily-progress, work-logs, tasks, learning, milestones]
-        - name: search
-          in: query
-          schema:
-            type: string
-        - name: from
-          in: query
-          schema:
-            type: string
-            format: date
-        - name: to
-          in: query
-          schema:
-            type: string
-            format: date
-        - name: sort
-          in: query
-          schema:
-            type: string
-        - name: direction
-          in: query
-          schema:
-            type: string
-            enum: [asc, desc]
-        - name: per_page
-          in: query
-          schema:
-            type: integer
-            minimum: 6
-            maximum: 50
-      responses:
-        "200":
-          description: Paginated records
   /api/v1/reports/{period}:
     get:
-      summary: Weekly or monthly report
       tags: [Reports]
+      summary: Weekly or monthly report
       security:
         - sanctumBearer: [reports]
       parameters:
-        - name: period
-          in: path
-          required: true
-          schema:
-            type: string
-            enum: [weekly, monthly]
+        - $ref: "#/components/parameters/Period"
         - name: date
           in: query
           schema:
@@ -188,10 +651,25 @@ paths:
       responses:
         "200":
           description: Derived report payload
+  /api/v1/reports/{period}/export:
+    get:
+      tags: [Reports]
+      summary: Export weekly or monthly report CSV
+      security:
+        - sanctumBearer: [reports]
+      parameters:
+        - $ref: "#/components/parameters/Period"
+      responses:
+        "200":
+          description: CSV report export
+          content:
+            text/csv:
+              schema:
+                type: string
   /api/v1/search:
     get:
-      summary: Global search across modules
       tags: [Search]
+      summary: Global search across modules
       security:
         - sanctumBearer: [read]
       parameters:
@@ -203,9 +681,461 @@ paths:
       responses:
         "200":
           description: Grouped search results
+  /api/v1/activity:
+    get:
+      tags: [Activity]
+      summary: Paginated audit activity feed
+      security:
+        - sanctumBearer: [read]
+      responses:
+        "200":
+          $ref: "#/components/responses/PaginatedResponse"
+  /api/v1/saved-views:
+    get:
+      tags: [Saved Views]
+      summary: List saved views
+      security:
+        - sanctumBearer: [read]
+      parameters:
+        - name: module
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Saved view collection
+    post:
+      tags: [Saved Views]
+      summary: Store saved view
+      security:
+        - sanctumBearer: [write]
+      requestBody:
+        $ref: "#/components/requestBodies/SavedView"
+      responses:
+        "201":
+          description: Stored saved view
+  /api/v1/saved-views/{savedView}:
+    delete:
+      tags: [Saved Views]
+      summary: Delete saved view
+      security:
+        - sanctumBearer: [write]
+      parameters:
+        - $ref: "#/components/parameters/SavedViewId"
+      responses:
+        "204":
+          description: Deleted
+  /api/v1/references:
+    post:
+      tags: [References]
+      summary: Store reference link on a record
+      security:
+        - sanctumBearer: [write]
+      requestBody:
+        $ref: "#/components/requestBodies/Reference"
+      responses:
+        "201":
+          description: Created reference
+  /api/v1/references/{reference}:
+    delete:
+      tags: [References]
+      summary: Delete reference
+      security:
+        - sanctumBearer: [write]
+      parameters:
+        - $ref: "#/components/parameters/ReferenceId"
+      responses:
+        "204":
+          description: Deleted
 components:
   securitySchemes:
     sanctumBearer:
       type: http
       scheme: bearer
       bearerFormat: Laravel Sanctum personal access token
+  parameters:
+    Search:
+      name: search
+      in: query
+      schema:
+        type: string
+    From:
+      name: from
+      in: query
+      schema:
+        type: string
+        format: date
+    To:
+      name: to
+      in: query
+      schema:
+        type: string
+        format: date
+    Sort:
+      name: sort
+      in: query
+      schema:
+        type: string
+    Direction:
+      name: direction
+      in: query
+      schema:
+        type: string
+        enum: [asc, desc]
+    PerPage:
+      name: per_page
+      in: query
+      schema:
+        type: integer
+        minimum: 6
+        maximum: 50
+    Period:
+      name: period
+      in: path
+      required: true
+      schema:
+        type: string
+        enum: [weekly, monthly]
+    TokenId: { name: token, in: path, required: true, schema: { type: integer } }
+    ProjectId: { name: project, in: path, required: true, schema: { type: integer } }
+    DailyProgressId: { name: dailyProgress, in: path, required: true, schema: { type: integer } }
+    WorkLogId: { name: workLog, in: path, required: true, schema: { type: integer } }
+    TaskId: { name: task, in: path, required: true, schema: { type: integer } }
+    LearningId: { name: learning, in: path, required: true, schema: { type: integer } }
+    MilestoneId: { name: milestone, in: path, required: true, schema: { type: integer } }
+    SavedViewId: { name: savedView, in: path, required: true, schema: { type: integer } }
+    ReferenceId: { name: reference, in: path, required: true, schema: { type: integer } }
+  requestBodies:
+    Project:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ProjectRequest"
+    DailyProgress:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/DailyProgressRequest"
+    WorkLog:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/WorkLogRequest"
+    Task:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/TaskRequest"
+    Learning:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/LearningRequest"
+    Milestone:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/MilestoneRequest"
+    SavedView:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/SavedViewRequest"
+    Reference:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ReferenceRequest"
+  responses:
+    OkResponse:
+      description: Standard success response
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Envelope"
+    UserResponse:
+      description: User response envelope
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: "#/components/schemas/Envelope"
+              - type: object
+                properties:
+                  user:
+                    $ref: "#/components/schemas/User"
+    PaginatedResponse:
+      description: Standard paginated response
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/PaginatedEnvelope"
+    ValidationError:
+      description: Validation error
+  schemas:
+    Envelope:
+      type: object
+      properties:
+        data: {}
+        message:
+          type: string
+      additionalProperties: true
+    CollectionEnvelope:
+      allOf:
+        - $ref: "#/components/schemas/Envelope"
+        - type: object
+          properties:
+            data:
+              type: array
+              items: {}
+    PaginatedEnvelope:
+      type: object
+      required: [data, meta, links]
+      properties:
+        data:
+          type: array
+          items: {}
+        meta:
+          type: object
+          properties:
+            current_page: { type: integer }
+            from: { type: [integer, "null"] }
+            last_page: { type: integer }
+            path: { type: string }
+            per_page: { type: integer }
+            to: { type: [integer, "null"] }
+            total: { type: integer }
+        links:
+          type: object
+          properties:
+            first: { type: [string, "null"] }
+            last: { type: [string, "null"] }
+            prev: { type: [string, "null"] }
+            next: { type: [string, "null"] }
+      additionalProperties: true
+    User:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        email: { type: string, format: email }
+        timezone: { type: string }
+        theme: { type: string, enum: [system, light, dark] }
+        avatar_url: { type: [string, "null"] }
+    Token:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        abilities:
+          type: array
+          items: { type: string }
+        last_used_at: { type: [string, "null"], format: date-time }
+        expires_at: { type: [string, "null"], format: date-time }
+        created_at: { type: string, format: date-time }
+    Project:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        color: { type: string }
+        archived: { type: boolean }
+    DailyProgress:
+      type: object
+      properties:
+        id: { type: integer }
+        date: { type: string, format: date }
+        title: { type: string }
+        in_progress: { type: [string, "null"] }
+        todo: { type: [string, "null"] }
+        blockers: { type: [string, "null"] }
+        notes: { type: [string, "null"] }
+        completed_items:
+          type: array
+          items: { type: string }
+        mood: { type: [string, "null"] }
+        archived: { type: boolean }
+    WorkLog:
+      type: object
+      properties:
+        id: { type: integer }
+        project_id: { type: [integer, "null"] }
+        date: { type: string, format: date }
+        project_name: { type: string }
+        ticket_code: { type: [string, "null"] }
+        title: { type: string }
+        category: { type: string, enum: [bug, feature, research, testing, setup, meeting, documentation, refactor, other] }
+        status: { type: string, enum: [todo, in_progress, done, blocked] }
+        priority: { type: string, enum: [low, medium, high, urgent] }
+        description: { type: [string, "null"] }
+        resolution_or_outcome: { type: [string, "null"] }
+        estimated_duration: { type: [integer, "null"] }
+        actual_duration: { type: [integer, "null"] }
+    Task:
+      type: object
+      properties:
+        id: { type: integer }
+        project_id: { type: [integer, "null"] }
+        milestone_id: { type: [integer, "null"] }
+        work_log_id: { type: [integer, "null"] }
+        title: { type: string }
+        notes: { type: [string, "null"] }
+        status: { type: string, enum: [todo, in_progress, done, blocked] }
+        priority: { type: string, enum: [low, medium, high, urgent] }
+        due_date: { type: [string, "null"], format: date }
+        completed_at: { type: [string, "null"], format: date-time }
+    LearningEntry:
+      type: object
+      properties:
+        id: { type: integer }
+        date: { type: string, format: date }
+        topic: { type: string }
+        category: { type: string, enum: [programming, english, japanese, german, books, career, other] }
+        source_type: { type: string, enum: [book, article, video, course, practice, podcast, other] }
+        duration_minutes: { type: integer }
+        progress_notes: { type: [string, "null"] }
+        takeaway: { type: [string, "null"] }
+        next_action: { type: [string, "null"] }
+        rating: { type: [integer, "null"], minimum: 1, maximum: 5 }
+    Milestone:
+      type: object
+      properties:
+        id: { type: integer }
+        title: { type: string }
+        category: { type: string }
+        target_type: { type: string, enum: [count, duration, streak, custom] }
+        source_type: { type: string, enum: [manual, work_log_count, work_log_minutes, learning_minutes, daily_progress_streak, task_done_count] }
+        source_filter: { type: [string, "null"] }
+        target_value: { type: number }
+        current_value: { type: number }
+        progress_percent: { type: integer }
+        start_date: { type: [string, "null"], format: date }
+        end_date: { type: [string, "null"], format: date }
+        status: { type: string, enum: [active, paused, completed, cancelled] }
+        notes: { type: [string, "null"] }
+    RegisterRequest:
+      type: object
+      required: [name, email, password, password_confirmation]
+      properties:
+        name: { type: string, maxLength: 120 }
+        email: { type: string, format: email, maxLength: 255 }
+        timezone: { type: string }
+        password: { type: string, format: password }
+        password_confirmation: { type: string, format: password }
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string, format: password }
+        remember: { type: boolean }
+    ProfileRequest:
+      type: object
+      required: [name, email, timezone, theme]
+      properties:
+        name: { type: string, maxLength: 120 }
+        email: { type: string, format: email, maxLength: 255 }
+        timezone: { type: string }
+        theme: { type: string, enum: [system, light, dark] }
+    PasswordRequest:
+      type: object
+      required: [current_password, password, password_confirmation]
+      properties:
+        current_password: { type: string, format: password }
+        password: { type: string, format: password }
+        password_confirmation: { type: string, format: password }
+    ResetPasswordRequest:
+      type: object
+      required: [token, email, password, password_confirmation]
+      properties:
+        token: { type: string }
+        email: { type: string, format: email }
+        password: { type: string, format: password }
+        password_confirmation: { type: string, format: password }
+    TokenRequest:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, maxLength: 120 }
+        abilities:
+          type: array
+          items:
+            type: string
+            enum: ["*", read, write, capture, reports, tokens]
+        expires_at: { type: string, format: date-time }
+    ProjectRequest:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, maxLength: 120 }
+        color: { type: [string, "null"], maxLength: 32 }
+        archived: { type: boolean }
+    DailyProgressRequest:
+      allOf:
+        - $ref: "#/components/schemas/DailyProgress"
+        - type: object
+          required: [date, title]
+          properties:
+            tags:
+              type: array
+              items: { type: string, maxLength: 40 }
+    WorkLogRequest:
+      allOf:
+        - $ref: "#/components/schemas/WorkLog"
+        - type: object
+          required: [date, project_name, title, category, status, priority]
+          properties:
+            tags:
+              type: array
+              items: { type: string, maxLength: 40 }
+    TaskRequest:
+      allOf:
+        - $ref: "#/components/schemas/Task"
+        - type: object
+          required: [title, status, priority]
+    LearningRequest:
+      allOf:
+        - $ref: "#/components/schemas/LearningEntry"
+        - type: object
+          required: [date, topic, category, source_type, duration_minutes]
+    MilestoneRequest:
+      allOf:
+        - $ref: "#/components/schemas/Milestone"
+        - type: object
+          required: [title, category, target_type, target_value, status]
+    QuickCaptureRequest:
+      type: object
+      required: [type, title]
+      properties:
+        type: { type: string, enum: [task, blocker, work_log, daily_progress, learning] }
+        title: { type: string, maxLength: 180 }
+        date: { type: string, format: date }
+        project_name: { type: [string, "null"], maxLength: 120 }
+        duration_minutes: { type: [integer, "null"], minimum: 1, maximum: 10000 }
+        notes: { type: [string, "null"] }
+    SavedViewRequest:
+      type: object
+      required: [module, name, filters]
+      properties:
+        module: { type: string, enum: [tasks, work-logs, daily-progress, learning, milestones] }
+        name: { type: string, maxLength: 80 }
+        filters: { type: object }
+        pinned: { type: boolean }
+    ReferenceRequest:
+      type: object
+      required: [referenceable_type, referenceable_id, label, url, type]
+      properties:
+        referenceable_type: { type: string, enum: [task, work_log, learning, milestone, daily_progress] }
+        referenceable_id: { type: integer }
+        label: { type: string, maxLength: 160 }
+        url: { type: string, format: uri, maxLength: 2000 }
+        type: { type: string, enum: [link, doc, ticket, pr, article, course, other] }
+        notes: { type: [string, "null"] }

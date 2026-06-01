@@ -31,10 +31,11 @@ Initial use cases:
 
 Before building Raycast, CLI, WhatsApp, or other connectors, stabilize:
 
-- API documentation
-- Token-based auth strategy
+- API documentation: starter OpenAPI contract exists in `docs/openapi.yaml`
+- Token-based auth strategy: Sanctum personal access tokens with route abilities are implemented
 - Quick-capture endpoint contract
 - Activity timeline endpoint
+- Response contract tests for future external clients
 - Export endpoints
 
 ## Current Foundation
