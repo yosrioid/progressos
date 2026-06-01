@@ -3,17 +3,18 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\ApiToken;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
+use Laravel\Sanctum\PersonalAccessToken;
 
 class ApiTokenController extends Controller
 {
     public function index(Request $request)
     {
         return response()->json([
-            'tokens' => $request->user()->apiTokens()
+            'tokens' => $request->user()->tokens()
                 ->latest()
-                ->get(['id', 'name', 'abilities', 'last_used_at', 'revoked_at', 'created_at']),
+                ->get(['id', 'name', 'abilities', 'last_used_at', 'expires_at', 'created_at']),
         ]);
     }
 
@@ -23,20 +24,32 @@ class ApiTokenController extends Controller
             'name' => ['required', 'string', 'max:120'],
             'abilities' => ['nullable', 'array'],
             'abilities.*' => ['string', 'max:80'],
+            'expires_at' => ['nullable', 'date', 'after:now'],
         ]);
 
-        [$token, $plainTextToken] = ApiToken::issue($request->user(), $data['name'], $data['abilities'] ?? ['*']);
+        $newAccessToken = $request->user()->createToken(
+            $data['name'],
+            $data['abilities'] ?? ['*'],
+            isset($data['expires_at']) ? Carbon::parse($data['expires_at']) : null,
+        );
+
+        $token = $newAccessToken->accessToken;
 
         return response()->json([
-            'token' => $token->only(['id', 'name', 'abilities', 'created_at']),
-            'plain_text_token' => $plainTextToken,
+            'token' => $token->only(['id', 'name', 'abilities', 'expires_at', 'created_at']),
+            'plain_text_token' => $newAccessToken->plainTextToken,
         ], 201);
     }
 
-    public function destroy(Request $request, ApiToken $token)
+    public function destroy(Request $request, PersonalAccessToken $token)
     {
-        abort_unless($token->user_id === $request->user()->id, 403);
-        $token->forceFill(['revoked_at' => now()])->save();
+        abort_unless(
+            $token->tokenable_id === $request->user()->id
+                && $token->tokenable_type === $request->user()::class,
+            403,
+        );
+
+        $token->delete();
 
         return response()->noContent();
     }

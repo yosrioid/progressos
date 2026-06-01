@@ -83,6 +83,7 @@ Supported `type` values:
 
 ## Notes
 
-- API tokens are stored hashed with SHA-256.
-- Token authentication is intentionally dependency-light and does not require Sanctum.
+- API token auth uses Laravel Sanctum personal access tokens.
+- Sanctum stores token secrets hashed in `personal_access_tokens`; the plain token is only returned at creation time.
+- The default token prefix is `pos_` through `SANCTUM_TOKEN_PREFIX` so leaked tokens are easier to identify in secret scanners.
 - Token abilities are stored for future authorization expansion, but current MVP endpoints treat valid tokens as full user API access.

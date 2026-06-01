@@ -13,7 +13,7 @@ Route::prefix('api')->group(function () {
         Route::post('reset-password', [AuthController::class, 'resetPassword']);
     });
 
-    Route::middleware('auth')->group(function () {
+    Route::middleware('auth:sanctum')->group(function () {
         Route::get('me', [AuthController::class, 'me']);
         Route::patch('profile', [AuthController::class, 'updateProfile']);
         Route::post('profile/avatar', [AuthController::class, 'updateAvatar']);

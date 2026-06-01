@@ -3,6 +3,7 @@
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 
 it('registers, authenticates, and logs out through the REST API', function () {
@@ -74,7 +75,8 @@ it('issues and revokes bearer tokens for REST API access', function () {
         ->deleteJson('/api/tokens/'.$response->json('token.id'))
         ->assertNoContent();
 
-    $this->postJson('/api/logout')->assertOk();
+    Auth::guard('web')->logout();
+    Auth::forgetGuards();
 
     $this->withHeader('Authorization', "Bearer {$plainTextToken}")
         ->getJson('/api/v1/dashboard')

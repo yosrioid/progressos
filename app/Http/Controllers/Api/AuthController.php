@@ -28,7 +28,7 @@ class AuthController extends Controller
             'remember' => ['boolean'],
         ]);
 
-        if (! Auth::attempt($request->only('email', 'password'), (bool) ($credentials['remember'] ?? false))) {
+        if (! Auth::guard('web')->attempt($request->only('email', 'password'), (bool) ($credentials['remember'] ?? false))) {
             return response()->json(['message' => 'Invalid credentials.'], 422);
         }
 
@@ -54,7 +54,7 @@ class AuthController extends Controller
             'theme' => 'system',
         ]);
 
-        Auth::login($user);
+        Auth::guard('web')->login($user);
         $request->session()->regenerate();
 
         return response()->json(['user' => $this->userPayload($user)], 201);
@@ -138,6 +138,7 @@ class AuthController extends Controller
         Auth::guard('web')->logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();
+        Auth::forgetGuards();
 
         return response()->json(['ok' => true]);
     }
