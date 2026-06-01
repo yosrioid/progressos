@@ -12,7 +12,15 @@ const syncs = ref<any[]>([]);
 const runs = ref<any[]>([]);
 const connectionForm = ref({ name: 'Google Sheets', spreadsheet_id: '', credentials_json: '' });
 const saving = ref(false);
+const loadError = ref('');
+const googleHelpOpen = ref(false);
+const openGroups = ref({ google_oauth: true, sync_data: true, history: false });
 const sectionKeys = computed(() => Object.keys(sections.value) as Array<keyof typeof sections.value>);
+const sectionLabels: Record<string, string> = {
+  google_oauth: 'Google Sheets Connection',
+  sync_data: 'Sync Data',
+  history: 'Backup History',
+};
 
 function moduleLabel(value: string) {
   return value.replaceAll('_', ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
@@ -24,20 +32,37 @@ function blankSync() {
 
 async function load() {
   loading.value = true;
-  const data: any = await api.get('/api/v1/configuration').then(unwrap);
-  const config = data.configuration;
-  sections.value = config.sections;
-  modules.value = config.available_modules;
-  frequencies.value = config.frequencies;
-  connection.value = config.connection;
-  syncs.value = config.syncs.length ? config.syncs : [blankSync()];
-  runs.value = config.runs;
-  connectionForm.value = {
-    name: config.connection?.name || 'Google Sheets',
-    spreadsheet_id: config.connection?.spreadsheet_id || '',
-    credentials_json: '',
-  };
-  loading.value = false;
+  loadError.value = '';
+  try {
+    const data: any = await api.get('/api/v1/configuration').then(unwrap);
+    const config = data.configuration;
+    sections.value = config.sections;
+    modules.value = config.available_modules;
+    frequencies.value = config.frequencies;
+    connection.value = config.connection;
+    syncs.value = config.syncs.length ? config.syncs : [blankSync()];
+    runs.value = config.runs;
+    connectionForm.value = {
+      name: config.connection?.name || 'Google Sheets',
+      spreadsheet_id: config.connection?.spreadsheet_id || '',
+      credentials_json: '',
+    };
+  } catch (error: any) {
+    loadError.value = error.response?.data?.message || 'Could not load configuration. Please refresh or sign in again.';
+    syncs.value = [blankSync()];
+    modules.value = ['daily_progress', 'work_logs', 'tasks', 'learning', 'milestones', 'reports'];
+    frequencies.value = ['daily', 'weekly', 'monthly'];
+  } finally {
+    loading.value = false;
+  }
+}
+
+function toggleSection(key: keyof typeof sections.value) {
+  sections.value[key] = !sections.value[key];
+}
+
+function toggleGroup(key: keyof typeof openGroups.value) {
+  openGroups.value[key] = !openGroups.value[key];
 }
 
 async function saveConnection() {
@@ -118,69 +143,159 @@ onMounted(load);
     </div>
 
     <div class="card p-4">
-      <div class="grid gap-3 md:grid-cols-3">
-        <label v-for="key in sectionKeys" :key="key" class="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-          <span class="font-bold capitalize text-slate-700">{{ key.replaceAll('_', ' ') }}</span>
-          <input v-model="sections[key]" type="checkbox" class="h-5 w-5 accent-teal-700" />
-        </label>
+      <div class="mb-3 flex items-center justify-between gap-3">
+        <div>
+          <h2 class="font-extrabold">Visible Configuration Areas</h2>
+          <p class="text-sm font-medium text-slate-500">Click a name to show or hide that configuration group.</p>
+        </div>
+      </div>
+      <div class="flex flex-wrap gap-2" role="toolbar" aria-label="Configuration visibility">
+        <button
+          v-for="key in sectionKeys"
+          :key="key"
+          type="button"
+          class="rounded-xl border px-4 py-2.5 text-sm font-extrabold transition"
+          :class="sections[key] ? 'border-teal-200 bg-teal-50 text-teal-800 shadow-sm' : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50'"
+          :aria-pressed="sections[key]"
+          @click="toggleSection(key)"
+        >
+          {{ sectionLabels[key] || key.replaceAll('_', ' ') }}
+          <span class="ml-2 text-xs font-black uppercase" :class="sections[key] ? 'text-teal-600' : 'text-slate-400'">{{ sections[key] ? 'Shown' : 'Hidden' }}</span>
+        </button>
       </div>
     </div>
 
-    <section v-if="sections.google_oauth" class="card overflow-hidden p-0">
-      <div class="border-b border-slate-100 bg-slate-50/70 px-5 py-4">
-        <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h2 class="font-extrabold">Google Sheets Connection</h2>
+    <section v-if="sections.google_oauth" class="card overflow-visible p-0">
+      <button type="button" class="flex w-full items-center justify-between gap-4 border-b border-slate-100 bg-slate-50/70 px-5 py-4 text-left" :aria-expanded="openGroups.google_oauth" @click="toggleGroup('google_oauth')">
+        <span class="min-w-0">
+          <span class="block text-xs font-extrabold uppercase text-teal-700">Backup Destination</span>
+          <span class="mt-1 block text-lg font-extrabold text-slate-950">Google Sheets Connection</span>
+          <span class="mt-1 block text-sm font-medium text-slate-500">Encrypted service account settings and spreadsheet target.</span>
+        </span>
+        <span class="flex shrink-0 items-center gap-3">
+          <span class="pill" :class="connection?.status === 'verified' ? 'pill-green' : connection?.status === 'error' ? 'pill-red' : 'pill-slate'">{{ connection?.status || 'not configured' }}</span>
+          <span class="grid h-8 w-8 place-items-center rounded-xl border border-slate-200 bg-white text-slate-500 transition" :class="openGroups.google_oauth ? 'rotate-180' : ''">⌄</span>
+        </span>
+      </button>
+      <div v-if="openGroups.google_oauth">
+        <div class="border-b border-slate-100 px-5 py-4">
+          <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+            <div class="flex items-center gap-2">
+              <h3 class="font-extrabold">Service Account</h3>
+              <div class="relative">
+                <button
+                  type="button"
+                  class="grid h-7 w-7 place-items-center rounded-full border border-slate-200 bg-white text-xs font-black text-slate-500 hover:border-teal-200 hover:text-teal-700"
+                  aria-label="How to get Google service account JSON"
+                  @click="googleHelpOpen = !googleHelpOpen"
+                >?</button>
+                <div v-if="googleHelpOpen" class="absolute left-0 z-20 mt-2 w-[min(22rem,calc(100vw-2rem))] rounded-2xl border border-slate-200 bg-white p-4 text-sm font-medium leading-6 text-slate-600 shadow-2xl shadow-slate-950/10">
+                  <p class="font-extrabold text-slate-900">How to get the JSON</p>
+                  <ol class="mt-2 list-decimal space-y-1 pl-5">
+                    <li>Open Google Cloud Console and create/select a project.</li>
+                    <li>Enable the Google Sheets API.</li>
+                    <li>Create a Service Account, then create a JSON key.</li>
+                    <li>Paste the downloaded JSON here.</li>
+                    <li>Share your spreadsheet with the JSON's <span class="font-bold">client_email</span>.</li>
+                  </ol>
+                </div>
+              </div>
+            </div>
             <p class="text-sm font-medium text-slate-500">Service account credentials are stored encrypted. Share your spreadsheet with the service account email.</p>
           </div>
-          <span class="pill" :class="connection?.status === 'verified' ? 'pill-green' : connection?.status === 'error' ? 'pill-red' : 'pill-slate'">{{ connection?.status || 'not configured' }}</span>
         </div>
       </div>
-      <div class="grid gap-4 p-5 lg:grid-cols-2">
-        <label><span class="label mb-1">Connection name</span><input v-model="connectionForm.name" class="field" placeholder="Google Sheets" /></label>
-        <label><span class="label mb-1">Spreadsheet ID</span><input v-model="connectionForm.spreadsheet_id" class="field" placeholder="1AbC..." /></label>
-        <label class="lg:col-span-2">
-          <span class="label mb-1">Service account JSON</span>
-          <textarea v-model="connectionForm.credentials_json" class="field min-h-40 font-mono text-xs" placeholder='{"project_id":"...","client_email":"...","private_key":"..."}'></textarea>
-        </label>
-        <div v-if="connection?.service_account_email" class="rounded-xl border border-teal-100 bg-teal-50 p-4 text-sm font-semibold text-teal-900 lg:col-span-2">
-          Share the spreadsheet with: {{ connection.service_account_email }}
+        <div class="divide-y divide-slate-100">
+          <div class="grid gap-3 px-5 py-4 md:grid-cols-[16rem_1fr] md:items-center">
+            <div>
+              <span class="font-extrabold text-slate-800">Connection name</span>
+              <p class="text-xs font-semibold text-slate-500">Friendly label for this destination.</p>
+            </div>
+            <input v-model="connectionForm.name" class="field" placeholder="Google Sheets" />
+          </div>
+          <div class="grid gap-3 px-5 py-4 md:grid-cols-[16rem_1fr] md:items-center">
+            <div>
+              <span class="font-extrabold text-slate-800">Spreadsheet ID</span>
+              <p class="text-xs font-semibold text-slate-500">The long ID from the Google Sheets URL.</p>
+            </div>
+            <input v-model="connectionForm.spreadsheet_id" class="field" placeholder="1AbC..." />
+          </div>
+          <div class="grid gap-3 px-5 py-4 md:grid-cols-[16rem_1fr]">
+            <div>
+              <span class="font-extrabold text-slate-800">Service account JSON</span>
+              <p class="text-xs font-semibold text-slate-500">Paste the downloaded JSON key. It will not be displayed again.</p>
+            </div>
+            <textarea v-model="connectionForm.credentials_json" class="field min-h-40 font-mono text-xs" placeholder='{"project_id":"...","client_email":"...","private_key":"..."}'></textarea>
+          </div>
+          <div v-if="connection?.service_account_email" class="px-5 py-4">
+            <div class="rounded-xl border border-teal-100 bg-teal-50 p-4 text-sm font-semibold text-teal-900">
+              Share the spreadsheet with: {{ connection.service_account_email }}
+            </div>
+          </div>
         </div>
-      </div>
-      <div class="flex flex-wrap justify-end gap-2 border-t border-slate-100 bg-slate-50/70 px-5 py-4">
-        <button class="btn btn-muted" type="button" @click="verifyConnection">Test settings</button>
-        <button class="btn btn-primary" type="button" :disabled="saving" @click="saveConnection">Save connection</button>
+        <div class="flex flex-wrap justify-end gap-2 border-t border-slate-100 bg-slate-50/70 px-5 py-4">
+          <button class="btn btn-muted" type="button" @click="verifyConnection">Test settings</button>
+          <button class="btn btn-primary" type="button" :disabled="saving" @click="saveConnection">Save connection</button>
+        </div>
       </div>
     </section>
 
     <section v-if="sections.sync_data" class="card overflow-hidden p-0">
-      <div class="border-b border-slate-100 bg-slate-50/70 px-5 py-4">
-        <h2 class="font-extrabold">Sync Data</h2>
-        <p class="text-sm font-medium text-slate-500">Add one or more schedules. Each row can target a different module and frequency.</p>
-      </div>
-      <div v-if="loading" class="p-6 text-sm font-semibold text-slate-500">Loading configuration...</div>
-      <div v-else class="divide-y divide-slate-100">
-        <div v-for="(sync, index) in syncs" :key="sync.id || `new-${index}`" class="grid gap-3 p-5 lg:grid-cols-[1.2fr_1fr_1.2fr_auto] lg:items-end">
-          <label><span class="label mb-1">Feature</span><select v-model="sync.module" class="field"><option v-for="module in modules" :key="module" :value="module">{{ moduleLabel(module) }}</option></select></label>
-          <label><span class="label mb-1">Frequency</span><select v-model="sync.frequency" class="field"><option v-for="frequency in frequencies" :key="frequency" :value="frequency">{{ frequency }}</option></select></label>
-          <label><span class="label mb-1">Sheet/tab name</span><input v-model="sync.destination_sheet_name" class="field" :placeholder="sync.module" /></label>
-          <div class="flex flex-wrap items-center gap-2">
-            <label class="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm font-bold text-slate-700"><input v-model="sync.enabled" type="checkbox" class="accent-teal-700" />Active</label>
-            <button class="btn btn-muted" type="button" @click="runNow(sync)">Run</button>
-            <button class="btn btn-primary" type="button" @click="saveSync(sync)">Save</button>
-            <button class="btn border border-red-200 bg-red-50 text-red-700 hover:bg-red-100" type="button" @click="removeSync(sync, index)">Delete</button>
+      <button type="button" class="flex w-full items-center justify-between gap-4 border-b border-slate-100 bg-slate-50/70 px-5 py-4 text-left" :aria-expanded="openGroups.sync_data" @click="toggleGroup('sync_data')">
+        <span>
+          <span class="block text-xs font-extrabold uppercase text-teal-700">Automation</span>
+          <span class="mt-1 block text-lg font-extrabold text-slate-950">Sync Data</span>
+          <span class="mt-1 block text-sm font-medium text-slate-500">Module schedules for daily, weekly, and monthly backup runs.</span>
+        </span>
+        <span class="grid h-8 w-8 place-items-center rounded-xl border border-slate-200 bg-white text-slate-500 transition" :class="openGroups.sync_data ? 'rotate-180' : ''">⌄</span>
+      </button>
+      <div v-if="openGroups.sync_data">
+        <div v-if="loading" class="p-6 text-sm font-semibold text-slate-500">Loading configuration...</div>
+        <div v-else-if="loadError" class="p-6">
+          <div class="rounded-2xl border border-red-200 bg-red-50 p-4">
+            <p class="font-extrabold text-red-800">Configuration failed to load</p>
+            <p class="mt-1 text-sm font-medium text-red-700">{{ loadError }}</p>
+            <button class="btn mt-3 border border-red-200 bg-white text-red-700 hover:bg-red-100" type="button" @click="load">Retry</button>
           </div>
-          <p class="text-xs font-semibold text-slate-500 lg:col-span-4">Last run: {{ sync.last_run_at || 'never' }} · Next run: {{ sync.next_run_at || 'after save' }}</p>
+        </div>
+        <div v-else class="divide-y divide-slate-100">
+          <div v-for="(sync, index) in syncs" :key="sync.id || `new-${index}`" class="p-5">
+            <div class="mb-4 flex items-center justify-between gap-3">
+              <div>
+                <h3 class="font-extrabold">Sync #{{ index + 1 }}</h3>
+                <p class="text-xs font-semibold text-slate-500">Last run: {{ sync.last_run_at || 'never' }} · Next run: {{ sync.next_run_at || 'after save' }}</p>
+              </div>
+              <label class="flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm font-bold text-slate-700"><input v-model="sync.enabled" type="checkbox" class="accent-teal-700" />Active</label>
+            </div>
+            <div class="grid gap-3 md:grid-cols-[16rem_1fr] md:items-center">
+              <span class="font-extrabold text-slate-800">Feature</span>
+              <select v-model="sync.module" class="field"><option v-for="module in modules" :key="module" :value="module">{{ moduleLabel(module) }}</option></select>
+              <span class="font-extrabold text-slate-800">Frequency</span>
+              <select v-model="sync.frequency" class="field"><option v-for="frequency in frequencies" :key="frequency" :value="frequency">{{ frequency }}</option></select>
+              <span class="font-extrabold text-slate-800">Sheet/tab name</span>
+              <input v-model="sync.destination_sheet_name" class="field" :placeholder="sync.module" />
+            </div>
+            <div class="mt-4 flex flex-wrap justify-end gap-2">
+              <button class="btn btn-muted" type="button" @click="runNow(sync)">Run</button>
+              <button class="btn btn-primary" type="button" @click="saveSync(sync)">Save</button>
+              <button class="btn border border-red-200 bg-red-50 text-red-700 hover:bg-red-100" type="button" @click="removeSync(sync, index)">Delete</button>
+            </div>
+          </div>
         </div>
       </div>
     </section>
 
     <section v-if="sections.history" class="card overflow-hidden p-0">
-      <div class="border-b border-slate-100 bg-slate-50/70 px-5 py-4">
-        <h2 class="font-extrabold">Backup History</h2>
-        <p class="text-sm font-medium text-slate-500">Recent backup runs and generated spreadsheet-compatible CSV files.</p>
-      </div>
-      <div class="overflow-x-auto">
+      <button type="button" class="flex w-full items-center justify-between gap-4 border-b border-slate-100 bg-slate-50/70 px-5 py-4 text-left" :aria-expanded="openGroups.history" @click="toggleGroup('history')">
+        <span>
+          <span class="block text-xs font-extrabold uppercase text-teal-700">Audit</span>
+          <span class="mt-1 block text-lg font-extrabold text-slate-950">Backup History</span>
+          <span class="mt-1 block text-sm font-medium text-slate-500">Recent backup runs and generated spreadsheet-compatible CSV files.</span>
+        </span>
+        <span class="grid h-8 w-8 place-items-center rounded-xl border border-slate-200 bg-white text-slate-500 transition" :class="openGroups.history ? 'rotate-180' : ''">⌄</span>
+      </button>
+      <div v-if="openGroups.history" class="overflow-x-auto">
         <table class="data-table">
           <thead><tr><th>Module</th><th>Status</th><th>Rows</th><th>File</th><th>Created</th></tr></thead>
           <tbody>
