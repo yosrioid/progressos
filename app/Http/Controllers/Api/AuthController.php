@@ -32,9 +32,11 @@ class AuthController extends Controller
             return response()->json(['message' => 'Invalid credentials.'], 422);
         }
 
-        $request->session()->regenerate();
+        if ($request->hasSession()) {
+            $request->session()->regenerate();
+        }
 
-        return response()->json(['user' => $this->userPayload($request->user())]);
+        return response()->json(['user' => $this->userPayload(Auth::guard('web')->user())]);
     }
 
     public function register(Request $request)
@@ -55,7 +57,9 @@ class AuthController extends Controller
         ]);
 
         Auth::guard('web')->login($user);
-        $request->session()->regenerate();
+        if ($request->hasSession()) {
+            $request->session()->regenerate();
+        }
 
         return response()->json(['user' => $this->userPayload($user)], 201);
     }
@@ -136,8 +140,10 @@ class AuthController extends Controller
     public function logout(Request $request)
     {
         Auth::guard('web')->logout();
-        $request->session()->invalidate();
-        $request->session()->regenerateToken();
+        if ($request->hasSession()) {
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+        }
         Auth::forgetGuards();
 
         return response()->json(['ok' => true]);

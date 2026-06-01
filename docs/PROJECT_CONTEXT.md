@@ -36,10 +36,11 @@ The app was originally built with React/Inertia, then rewritten to Vue SPA + sam
 
 ## Architecture Snapshot
 
+- `routes/api.php`
+  - Hosts `/api` auth, token, and `/api/v1` product endpoints through Laravel's API route loader.
+  - Uses Sanctum stateful API middleware so the Vue SPA can use session auth while bearer-token clients remain supported.
 - `routes/web.php`
-  - Hosts `/api` auth endpoints.
-  - Hosts `/api/v1` product endpoints.
-  - Uses catch-all SPA route for Vue.
+  - Hosts only the catch-all SPA route for Vue.
 - `app/Http/Controllers/Api/AuthController.php`
   - JSON/session auth for login, register, logout, profile update, password update.
 - `app/Http/Controllers/Api/*Controller.php`

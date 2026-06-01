@@ -110,6 +110,8 @@ Security checklist:
 ## Architecture
 
 - `app/Models`: user-owned domain models for daily progress, work logs, learning entries, milestones, and report snapshots.
+- `routes/api.php`: Laravel API routes for auth, token management, and versioned product endpoints.
+- `routes/web.php`: Vue SPA catch-all route only.
 - `app/Http/Controllers/Api`: resource-specific same-origin JSON controllers for auth, dashboard, projects, capture, records, reports, CSV export, search, activity, saved views, and references.
 - `app/Http/Requests`: Form Request validation for core write paths.
 - `app/Http/Resources`: API response resources for core record details and mutations.
