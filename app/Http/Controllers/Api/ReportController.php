@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Services\ReportBuilder;
+use App\Services\ReportSnapshotService;
 use App\Support\ApiQuery;
 use App\Support\ApiResponse;
 use Illuminate\Http\Request;
@@ -16,6 +17,24 @@ class ReportController extends Controller
         abort_unless(in_array($period, ['weekly', 'monthly'], true), 404);
 
         return ApiResponse::item('report', $builder->build($request->user(), $period, $request->query('date')));
+    }
+
+    public function snapshots(Request $request, string $period)
+    {
+        abort_unless(in_array($period, ['weekly', 'monthly'], true), 404);
+
+        return ApiResponse::collection('snapshots', $request->user()->reportSnapshots()
+            ->where('period_type', $period)
+            ->latest('period_start')
+            ->take(24)
+            ->get());
+    }
+
+    public function storeSnapshot(Request $request, ReportSnapshotService $snapshots, string $period)
+    {
+        abort_unless(in_array($period, ['weekly', 'monthly'], true), 404);
+
+        return ApiResponse::item('snapshot', $snapshots->store($request->user(), $period, $request->query('date')), 201, 'Report snapshot saved.');
     }
 
     public function export(Request $request, ReportBuilder $builder, string $period): StreamedResponse

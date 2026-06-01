@@ -4,12 +4,40 @@ namespace App\Services;
 
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Cache;
 
 class QuickCaptureService
 {
     public function __construct(private readonly ProjectResolver $projects) {}
 
     public function capture(User $user, array $data): Model
+    {
+        return $this->createRecord($user, $data);
+    }
+
+    public function captureIdempotently(User $user, array $data, ?string $key): Model
+    {
+        $key = trim((string) $key);
+        if ($key === '') {
+            return $this->capture($user, $data);
+        }
+
+        $cacheKey = 'quick-capture:'.$user->id.':'.hash('sha256', $key);
+        $existing = Cache::get($cacheKey);
+        if (is_array($existing) && isset($existing['type'], $existing['id']) && is_a($existing['type'], Model::class, true)) {
+            $record = $existing['type']::query()->find($existing['id']);
+            if ($record instanceof Model) {
+                return $record;
+            }
+        }
+
+        $record = $this->createRecord($user, $data);
+        Cache::put($cacheKey, ['type' => $record::class, 'id' => $record->getKey()], now()->addDay());
+
+        return $record;
+    }
+
+    private function createRecord(User $user, array $data): Model
     {
         $date = $data['date'] ?? now($user->timezone)->toDateString();
         $project = $this->projects->resolve($user, $data['project_name'] ?? null);

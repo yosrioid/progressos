@@ -626,6 +626,12 @@ paths:
       summary: Create a task, blocker, work log, daily progress, or learning entry from a compact payload
       security:
         - sanctumBearer: [capture]
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          schema:
+            type: string
+          description: Optional key used to deduplicate retried capture requests for 24 hours.
       requestBody:
         required: true
         content:
@@ -666,6 +672,32 @@ paths:
             text/csv:
               schema:
                 type: string
+  /api/v1/reports/{period}/snapshots:
+    get:
+      tags: [Reports]
+      summary: List saved report snapshots
+      security:
+        - sanctumBearer: [reports]
+      parameters:
+        - $ref: "#/components/parameters/Period"
+      responses:
+        "200":
+          description: Report snapshot collection
+    post:
+      tags: [Reports]
+      summary: Store a report snapshot
+      security:
+        - sanctumBearer: [reports, write]
+      parameters:
+        - $ref: "#/components/parameters/Period"
+        - name: date
+          in: query
+          schema:
+            type: string
+            format: date
+      responses:
+        "201":
+          description: Stored report snapshot
   /api/v1/search:
     get:
       tags: [Search]

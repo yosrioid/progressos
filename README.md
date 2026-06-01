@@ -153,7 +153,7 @@ curl -I http://127.0.0.1:8000/login
 
 Current verification passed:
 
-- Pest: `19 passed`, `163 assertions`
+- Pest: `24 passed`, `180 assertions`
 - Pint: passed
 - Larastan/PHPStan: passed
 - Vite production build: passed

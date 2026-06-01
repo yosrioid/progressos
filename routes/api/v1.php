@@ -19,6 +19,7 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
     Route::middleware(['ability:read', 'throttle:api-read'])->group(function () {
         Route::get('dashboard', DashboardController::class);
         Route::get('reports/{period}', [ReportController::class, 'show'])->middleware('ability:reports,read');
+        Route::get('reports/{period}/snapshots', [ReportController::class, 'snapshots'])->middleware('ability:reports,read');
         Route::get('search', SearchController::class);
         Route::get('activity', ActivityController::class);
         Route::apiResource('projects', ProjectController::class)->only(['index', 'show']);
@@ -47,4 +48,7 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
 
     Route::get('reports/{period}/export', [ReportController::class, 'export'])
         ->middleware(['ability:reports,read', 'throttle:api-export']);
+
+    Route::post('reports/{period}/snapshots', [ReportController::class, 'storeSnapshot'])
+        ->middleware(['ability:reports,write', 'throttle:api-write']);
 });
