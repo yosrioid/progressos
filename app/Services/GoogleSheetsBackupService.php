@@ -81,17 +81,22 @@ class GoogleSheetsBackupService
      */
     private function normalizeRows(array $rows): array
     {
-        return array_map(fn (array $row) => array_map(function (mixed $value) {
-            if (is_bool($value)) {
-                return $value ? 'yes' : 'no';
-            }
+        return array_values(array_map(fn (array $row) => array_values(array_map(fn (mixed $value) => $this->normalizeCell($value), $row)), $rows));
+    }
 
-            if (is_array($value)) {
-                return json_encode($value);
-            }
+    private function normalizeCell(mixed $value): string|int|float|null
+    {
+        if (is_bool($value)) {
+            return $value ? 'yes' : 'no';
+        }
 
-            return is_scalar($value) || $value === null ? $value : (string) $value;
-        }, $row), $rows);
+        if (is_array($value)) {
+            $encoded = json_encode($value);
+
+            return $encoded === false ? null : $encoded;
+        }
+
+        return is_scalar($value) || $value === null ? $value : (string) $value;
     }
 
     private function quoteSheetName(string $sheetName): string
