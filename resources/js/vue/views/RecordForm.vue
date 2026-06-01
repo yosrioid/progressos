@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from 'vue';
 import { RouterLink, useRoute, useRouter } from 'vue-router';
 import { api, unwrap } from '../api';
+import DatePicker from '../components/DatePicker.vue';
 import { toast } from '../feedback';
 import { pasteLinkOverSelection } from '../linkPaste';
 import { configs, normalizeForForm, serialize, type Field } from '../records';
@@ -113,6 +114,7 @@ onMounted(load);
             <span>Enable {{ field.label.toLowerCase() }}</span>
             <input v-model="form[field.key]" type="checkbox" />
           </label>
+          <DatePicker v-else-if="field.type === 'date'" v-model="form[field.key]" :label="field.label" :required="field.required" />
           <input v-else v-model="form[field.key]" class="field" :type="inputType(field)" :required="field.required" />
           <span v-if="errors[field.key]?.[0]" class="mt-1 block text-sm font-semibold text-red-700">{{ errors[field.key][0] }}</span>
         </label>

@@ -2,6 +2,7 @@
 import { computed, onMounted, ref, watch } from 'vue';
 import { RouterLink, useRoute, useRouter } from 'vue-router';
 import { api, unwrap } from '../api';
+import DatePicker from '../components/DatePicker.vue';
 import { confirmAction, toast } from '../feedback';
 import { formatDate, minutes } from '../format';
 import { configs } from '../records';
@@ -157,8 +158,8 @@ onMounted(() => { syncFromRoute(); load(); loadSavedViews(); });
       <select v-if="type === 'tasks' || type === 'work-logs' || type === 'milestones'" v-model="filters.status" class="field"><option value="">Any status</option><option v-for="option in statusOptions" :key="option" :value="option">{{ option.replaceAll('_', ' ') }}</option></select>
       <select v-if="categoryOptions.length" v-model="filters.category" class="field"><option value="">Any category</option><option v-for="option in categoryOptions" :key="option" :value="option">{{ option }}</option></select>
       <select v-if="type === 'tasks' || type === 'work-logs'" v-model="filters.priority" class="field"><option value="">Any priority</option><option v-for="option in ['low', 'medium', 'high', 'urgent']" :key="option" :value="option">{{ option }}</option></select>
-      <input v-model="filters.from" class="field" type="date" />
-      <input v-model="filters.to" class="field" type="date" />
+      <DatePicker v-model="filters.from" label="From date" placeholder="From date" />
+      <DatePicker v-model="filters.to" label="To date" placeholder="To date" />
       <select v-model="filters.sort" class="field"><option v-for="option in sortOptions" :key="option.value" :value="option.value">Sort: {{ option.label }}</option></select>
       <select v-model="filters.direction" class="field"><option value="desc">Newest first</option><option value="asc">Oldest first</option></select>
     </div>
