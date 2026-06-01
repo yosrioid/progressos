@@ -1,11 +1,14 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
 
 const props = defineProps<{ modelValue?: string; label?: string; placeholder?: string; required?: boolean }>();
 const emit = defineEmits<{ 'update:modelValue': [value: string] }>();
 
 const open = ref(false);
 const root = ref<HTMLElement | null>(null);
+const trigger = ref<HTMLElement | null>(null);
+const panel = ref<HTMLElement | null>(null);
+const panelStyle = ref<Record<string, string>>({});
 const today = new Date();
 const cursor = ref(toDate(props.modelValue) || today);
 
@@ -66,28 +69,64 @@ function chooseToday() {
   select(formatDate(today));
 }
 
+async function toggle() {
+  open.value = !open.value;
+  if (open.value) {
+    await nextTick();
+    positionPanel();
+  }
+}
+
+function positionPanel() {
+  const rect = trigger.value?.getBoundingClientRect();
+  if (!rect) return;
+  const width = Math.min(320, window.innerWidth - 24);
+  const left = Math.min(Math.max(12, rect.left), window.innerWidth - width - 12);
+  const availableBelow = window.innerHeight - rect.bottom;
+  const top = availableBelow < 390 ? Math.max(12, rect.top - 390) : rect.bottom + 8;
+  panelStyle.value = {
+    left: `${left}px`,
+    top: `${top}px`,
+    width: `${width}px`,
+  };
+}
+
 function handleOutside(event: MouseEvent) {
-  if (root.value && !root.value.contains(event.target as Node)) open.value = false;
+  const target = event.target as Node;
+  if (root.value?.contains(target) || panel.value?.contains(target)) return;
+  open.value = false;
 }
 
 watch(open, (value) => {
-  if (value) window.addEventListener('mousedown', handleOutside);
-  else window.removeEventListener('mousedown', handleOutside);
+  if (value) {
+    window.addEventListener('mousedown', handleOutside);
+    window.addEventListener('scroll', positionPanel, true);
+    window.addEventListener('resize', positionPanel);
+  } else {
+    window.removeEventListener('mousedown', handleOutside);
+    window.removeEventListener('scroll', positionPanel, true);
+    window.removeEventListener('resize', positionPanel);
+  }
 });
 
-onBeforeUnmount(() => window.removeEventListener('mousedown', handleOutside));
+onBeforeUnmount(() => {
+  window.removeEventListener('mousedown', handleOutside);
+  window.removeEventListener('scroll', positionPanel, true);
+  window.removeEventListener('resize', positionPanel);
+});
 </script>
 
 <template>
   <div ref="root" class="relative">
-    <button type="button" class="field flex items-center justify-between gap-3 text-left" :aria-label="label || placeholder || 'Choose date'" @click="open = !open">
+    <button ref="trigger" type="button" class="field flex items-center justify-between gap-3 text-left" :aria-label="label || placeholder || 'Choose date'" @click="toggle">
       <span :class="displayValue ? 'text-slate-900' : 'text-slate-400'">{{ displayValue || placeholder || 'Choose date' }}</span>
       <span class="grid h-7 w-7 place-items-center rounded-lg bg-teal-50 text-teal-700">
         <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewBox="0 0 24 24"><path d="M7 3v3M17 3v3M4 9h16M6 5h12a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z" /></svg>
       </span>
     </button>
     <input class="sr-only" :value="modelValue" :required="required" tabindex="-1" aria-hidden="true" />
-    <div v-if="open" class="absolute z-40 mt-2 w-80 max-w-[calc(100vw-2rem)] rounded-2xl border border-slate-200 bg-white p-3 shadow-2xl shadow-slate-950/10">
+    <Teleport to="body">
+    <div v-if="open" ref="panel" class="fixed z-[80] rounded-2xl border border-slate-200 bg-white p-3 shadow-2xl shadow-slate-950/10" :style="panelStyle">
       <div class="mb-3 flex items-center justify-between gap-2">
         <button type="button" class="btn btn-muted px-3" aria-label="Previous month" @click="shiftMonth(-1)">‹</button>
         <p class="text-sm font-extrabold text-slate-900">{{ monthLabel }}</p>
@@ -113,5 +152,6 @@ onBeforeUnmount(() => window.removeEventListener('mousedown', handleOutside));
         <button type="button" class="btn btn-primary" @click="chooseToday">Today</button>
       </div>
     </div>
+    </Teleport>
   </div>
 </template>
