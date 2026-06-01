@@ -74,6 +74,21 @@ class User extends Authenticatable
         return $this->hasMany(ReportSnapshot::class);
     }
 
+    public function backupConnections(): HasMany
+    {
+        return $this->hasMany(BackupConnection::class);
+    }
+
+    public function backupSyncs(): HasMany
+    {
+        return $this->hasMany(BackupSync::class);
+    }
+
+    public function backupRuns(): HasMany
+    {
+        return $this->hasMany(BackupRun::class);
+    }
+
     /**
      * Get the attributes that should be cast.
      *

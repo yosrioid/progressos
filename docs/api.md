@@ -97,3 +97,21 @@ Supported `type` values:
 - `POST /api/v1/quick-capture` supports `Idempotency-Key` to deduplicate retries for 24 hours.
 - `POST /api/v1/reports/{period}/snapshots` stores a weekly or monthly report snapshot.
 - `GET /api/v1/reports/{period}/snapshots` lists recent snapshots for review history.
+
+## Configuration Backups
+
+- `GET /api/v1/configuration` returns visible configuration sections, supported backup modules/frequencies, connection metadata, sync schedules, and recent backup runs.
+- `PUT /api/v1/configuration/backup-connection` stores Google Sheets service account settings. Credentials are encrypted at rest and the raw JSON is never returned.
+- `POST /api/v1/configuration/backup-connection/verify` validates that spreadsheet ID, `project_id`, `client_email`, and `private_key` are present.
+- `POST /api/v1/configuration/backup-syncs` creates a daily, weekly, or monthly backup sync for `daily_progress`, `work_logs`, `tasks`, `learning`, `milestones`, or `reports`.
+- `PATCH /api/v1/configuration/backup-syncs/{sync}` updates a sync row.
+- `DELETE /api/v1/configuration/backup-syncs/{sync}` deletes a sync row.
+- `POST /api/v1/configuration/backup-syncs/{sync}/run` runs a sync immediately and writes a spreadsheet-compatible CSV file into Laravel storage.
+
+Scheduled processing is available through:
+
+```bash
+php artisan backups:run-due
+```
+
+The scheduler registers this command hourly, so production/local automation should run Laravel's scheduler process.
