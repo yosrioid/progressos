@@ -2,7 +2,19 @@
 
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ApiTokenController;
-use App\Http\Controllers\Api\ProgressApiController;
+use App\Http\Controllers\Api\ActivityController;
+use App\Http\Controllers\Api\CaptureController;
+use App\Http\Controllers\Api\DailyProgressController;
+use App\Http\Controllers\Api\DashboardController;
+use App\Http\Controllers\Api\LearningController;
+use App\Http\Controllers\Api\MilestoneController;
+use App\Http\Controllers\Api\ProjectController;
+use App\Http\Controllers\Api\ReferenceController;
+use App\Http\Controllers\Api\ReportController;
+use App\Http\Controllers\Api\SavedViewController;
+use App\Http\Controllers\Api\SearchController;
+use App\Http\Controllers\Api\TaskController;
+use App\Http\Controllers\Api\WorkLogController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('api')->group(function () {
@@ -25,53 +37,53 @@ Route::prefix('api')->group(function () {
 
         Route::prefix('v1')->group(function () {
             Route::middleware(['ability:read', 'throttle:api-read'])->group(function () {
-                Route::get('dashboard', [ProgressApiController::class, 'dashboard']);
-                Route::get('projects', [ProgressApiController::class, 'projects']);
-                Route::get('projects/{project}', [ProgressApiController::class, 'project']);
-                Route::get('daily-progress', [ProgressApiController::class, 'dailyProgress']);
-                Route::get('daily-progress/{dailyProgress}', [ProgressApiController::class, 'showDailyProgress']);
-                Route::get('work-logs', [ProgressApiController::class, 'workLogs']);
-                Route::get('work-logs/{workLog}', [ProgressApiController::class, 'showWorkLog']);
-                Route::get('tasks', [ProgressApiController::class, 'tasks']);
-                Route::get('tasks/{task}', [ProgressApiController::class, 'showTask']);
-                Route::get('learning', [ProgressApiController::class, 'learning']);
-                Route::get('learning/{learning}', [ProgressApiController::class, 'showLearning']);
-                Route::get('milestones', [ProgressApiController::class, 'milestones']);
-                Route::get('milestones/{milestone}', [ProgressApiController::class, 'showMilestone']);
-                Route::get('reports/{period}', [ProgressApiController::class, 'report'])->middleware('ability:reports,read');
-                Route::get('search', [ProgressApiController::class, 'search']);
-                Route::get('activity', [ProgressApiController::class, 'activity']);
-                Route::get('saved-views', [ProgressApiController::class, 'savedViews']);
+                Route::get('dashboard', DashboardController::class);
+                Route::get('projects', [ProjectController::class, 'index']);
+                Route::get('projects/{project}', [ProjectController::class, 'show']);
+                Route::get('daily-progress', [DailyProgressController::class, 'index']);
+                Route::get('daily-progress/{dailyProgress}', [DailyProgressController::class, 'show']);
+                Route::get('work-logs', [WorkLogController::class, 'index']);
+                Route::get('work-logs/{workLog}', [WorkLogController::class, 'show']);
+                Route::get('tasks', [TaskController::class, 'index']);
+                Route::get('tasks/{task}', [TaskController::class, 'show']);
+                Route::get('learning', [LearningController::class, 'index']);
+                Route::get('learning/{learning}', [LearningController::class, 'show']);
+                Route::get('milestones', [MilestoneController::class, 'index']);
+                Route::get('milestones/{milestone}', [MilestoneController::class, 'show']);
+                Route::get('reports/{period}', [ReportController::class, 'show'])->middleware('ability:reports,read');
+                Route::get('search', SearchController::class);
+                Route::get('activity', ActivityController::class);
+                Route::get('saved-views', [SavedViewController::class, 'index']);
             });
 
             Route::middleware(['ability:write', 'throttle:api-write'])->group(function () {
-                Route::patch('projects/{project}', [ProgressApiController::class, 'updateProject']);
-                Route::post('daily-progress', [ProgressApiController::class, 'storeDailyProgress']);
-                Route::patch('daily-progress/{dailyProgress}', [ProgressApiController::class, 'updateDailyProgress']);
-                Route::delete('daily-progress/{dailyProgress}', [ProgressApiController::class, 'deleteDailyProgress']);
-                Route::post('work-logs', [ProgressApiController::class, 'storeWorkLog']);
-                Route::patch('work-logs/{workLog}', [ProgressApiController::class, 'updateWorkLog']);
-                Route::delete('work-logs/{workLog}', [ProgressApiController::class, 'deleteWorkLog']);
-                Route::post('tasks', [ProgressApiController::class, 'storeTask']);
-                Route::patch('tasks/{task}', [ProgressApiController::class, 'updateTask']);
-                Route::patch('tasks/{task}/status', [ProgressApiController::class, 'updateTaskStatus']);
-                Route::delete('tasks/{task}', [ProgressApiController::class, 'deleteTask']);
-                Route::post('learning', [ProgressApiController::class, 'storeLearning']);
-                Route::patch('learning/{learning}', [ProgressApiController::class, 'updateLearning']);
-                Route::delete('learning/{learning}', [ProgressApiController::class, 'deleteLearning']);
-                Route::post('milestones', [ProgressApiController::class, 'storeMilestone']);
-                Route::patch('milestones/{milestone}', [ProgressApiController::class, 'updateMilestone']);
-                Route::delete('milestones/{milestone}', [ProgressApiController::class, 'deleteMilestone']);
-                Route::post('saved-views', [ProgressApiController::class, 'storeSavedView']);
-                Route::delete('saved-views/{savedView}', [ProgressApiController::class, 'deleteSavedView']);
-                Route::post('references', [ProgressApiController::class, 'storeReference']);
-                Route::delete('references/{reference}', [ProgressApiController::class, 'deleteReference']);
+                Route::patch('projects/{project}', [ProjectController::class, 'update']);
+                Route::post('daily-progress', [DailyProgressController::class, 'store']);
+                Route::patch('daily-progress/{dailyProgress}', [DailyProgressController::class, 'update']);
+                Route::delete('daily-progress/{dailyProgress}', [DailyProgressController::class, 'destroy']);
+                Route::post('work-logs', [WorkLogController::class, 'store']);
+                Route::patch('work-logs/{workLog}', [WorkLogController::class, 'update']);
+                Route::delete('work-logs/{workLog}', [WorkLogController::class, 'destroy']);
+                Route::post('tasks', [TaskController::class, 'store']);
+                Route::patch('tasks/{task}', [TaskController::class, 'update']);
+                Route::patch('tasks/{task}/status', [TaskController::class, 'updateStatus']);
+                Route::delete('tasks/{task}', [TaskController::class, 'destroy']);
+                Route::post('learning', [LearningController::class, 'store']);
+                Route::patch('learning/{learning}', [LearningController::class, 'update']);
+                Route::delete('learning/{learning}', [LearningController::class, 'destroy']);
+                Route::post('milestones', [MilestoneController::class, 'store']);
+                Route::patch('milestones/{milestone}', [MilestoneController::class, 'update']);
+                Route::delete('milestones/{milestone}', [MilestoneController::class, 'destroy']);
+                Route::post('saved-views', [SavedViewController::class, 'store']);
+                Route::delete('saved-views/{savedView}', [SavedViewController::class, 'destroy']);
+                Route::post('references', [ReferenceController::class, 'store']);
+                Route::delete('references/{reference}', [ReferenceController::class, 'destroy']);
             });
 
-            Route::post('quick-capture', [ProgressApiController::class, 'quickCapture'])
+            Route::post('quick-capture', CaptureController::class)
                 ->middleware(['ability:capture,write', 'throttle:api-capture']);
 
-            Route::get('reports/{period}/export', [ProgressApiController::class, 'exportReport'])
+            Route::get('reports/{period}/export', [ReportController::class, 'export'])
                 ->middleware(['ability:reports,read', 'throttle:api-export']);
         });
     });

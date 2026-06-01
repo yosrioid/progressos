@@ -42,9 +42,10 @@ The app was originally built with React/Inertia, then rewritten to Vue SPA + sam
   - Uses catch-all SPA route for Vue.
 - `app/Http/Controllers/Api/AuthController.php`
   - JSON/session auth for login, register, logout, profile update, password update.
-- `app/Http/Controllers/Api/ProgressApiController.php`
-  - Dashboard, projects, quick capture, daily progress, work logs, tasks, learning, milestones, reports, CSV export, and search.
-  - This controller is now functional but getting large. A future refactor can split it by resource.
+- `app/Http/Controllers/Api/*Controller.php`
+  - Resource-specific JSON controllers for auth, dashboard, projects, quick capture, records, reports, CSV export, search, activity, saved views, and references.
+- `app/Support/ApiQuery.php`
+  - Shared API search, sort, pagination, and CSV safety helpers.
 - `resources/js/app.ts`
   - Vue app entrypoint.
 - `resources/js/vue/App.vue`
@@ -131,13 +132,13 @@ export PATH="/Users/oirsoy/Library/Application Support/Herd/config/nvm/versions/
 
 - Record lists have filtering/sorting/pagination and saved views, but module-specific default presets can still improve.
 - Reports are improved but still use lightweight inline charting instead of a dedicated chart library.
-- `ProgressApiController` should eventually be split into resource controllers.
+- API controllers are now split by domain; future backend work should keep new product areas in their own controllers.
 - References can be saved and removed, but richer reference type-specific presentation can still improve.
 
 ## Recommended Next Work
 
-1. Split `ProgressApiController` into resource-specific controllers after behavior settles.
-2. Add per-module default filter presets.
+1. Add per-module default filter presets.
+2. Add saved report snapshots and comparison history.
 3. Improve reports UI further:
    - previous-period comparison
    - better chart presentation
@@ -205,5 +206,5 @@ Rewrite ProgressOS from React/Inertia to a Vue SPA backed by same-origin REST AP
 
 ## Notes
 
-Remaining work: split the large API controller, add per-module default filter presets, richer reference presentation, saved report snapshots, and deeper module-specific timelines.
+Remaining work: add per-module default filter presets, richer reference presentation, saved report snapshots, and deeper module-specific timelines.
 ```
