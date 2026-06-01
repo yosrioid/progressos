@@ -153,8 +153,11 @@ test('mobile layout exposes compact navigation and usable quick capture', async 
   const title = `E2E mobile task ${Date.now()}`;
 
   await login(page);
+  await page.getByRole('button', { name: 'Open menu' }).click();
+  await expect(page.getByRole('dialog', { name: 'Navigation menu' })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Dashboard' })).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Work', exact: true })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Work Logs' })).toBeVisible();
+  await page.getByRole('button', { name: 'Close menu' }).last().click();
 
   await page.getByRole('button', { name: /quick add/i }).click();
   await expect(page.getByRole('heading', { name: 'Quick Add' })).toBeVisible();
