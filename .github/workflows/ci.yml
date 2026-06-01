@@ -53,6 +53,9 @@ jobs:
       - name: Install Node dependencies
         run: npm ci
 
+      - name: Validate OpenAPI contract
+        run: npx --yes @redocly/cli lint docs/openapi.yaml
+
       - name: Prepare Laravel
         run: |
           cp .env.example .env

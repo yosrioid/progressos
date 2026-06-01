@@ -12,6 +12,17 @@ trait Auditable
     {
         foreach (['created', 'updated', 'deleted'] as $event) {
             static::$event(function (Model $model) use ($event) {
+                $metadata = match ($event) {
+                    'updated' => [
+                        'before' => collect($model->getChanges())->except('updated_at')->keys()
+                            ->mapWithKeys(fn ($key) => [$key => $model->getOriginal($key)])
+                            ->all(),
+                        'after' => collect($model->getChanges())->except('updated_at')->all(),
+                    ],
+                    'deleted' => ['snapshot' => $model->attributesToArray()],
+                    default => null,
+                };
+
                 AuditLog::create([
                     'user_id' => Auth::id() ?: $model->getAttribute('user_id'),
                     'event' => class_basename($model).'.'.$event,
@@ -19,7 +30,7 @@ trait Auditable
                     'auditable_id' => $model->getKey(),
                     'ip_address' => request()?->ip(),
                     'user_agent' => request()?->userAgent(),
-                    'metadata' => $event === 'updated' ? ['changes' => $model->getChanges()] : null,
+                    'metadata' => $metadata,
                 ]);
             });
         }

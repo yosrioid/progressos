@@ -69,6 +69,11 @@ class User extends Authenticatable
         return $this->hasMany(AuditLog::class);
     }
 
+    public function reportSnapshots(): HasMany
+    {
+        return $this->hasMany(ReportSnapshot::class);
+    }
+
     /**
      * Get the attributes that should be cast.
      *

@@ -11,6 +11,6 @@ class CaptureController extends Controller
 {
     public function __invoke(QuickCaptureRequest $request, QuickCaptureService $capture)
     {
-        return ApiResponse::item('record', $capture->capture($request->user(), $request->validated()), 201, 'Captured.');
+        return ApiResponse::item('record', $capture->captureIdempotently($request->user(), $request->validated(), $request->header('Idempotency-Key')), 201, 'Captured.');
     }
 }

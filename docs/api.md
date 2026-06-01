@@ -94,3 +94,6 @@ Supported `type` values:
 - Auth, token management, read, write, quick-capture, and export routes use separate Laravel rate limiters.
 - `docs/openapi.yaml` contains the OpenAPI contract for auth, token management, core resources, capture, reports, search, activity, saved views, and references.
 - Routes are split into `routes/api/auth.php`, `routes/api/tokens.php`, and `routes/api/v1.php`; `routes/api.php` only loads those files.
+- `POST /api/v1/quick-capture` supports `Idempotency-Key` to deduplicate retries for 24 hours.
+- `POST /api/v1/reports/{period}/snapshots` stores a weekly or monthly report snapshot.
+- `GET /api/v1/reports/{period}/snapshots` lists recent snapshots for review history.
