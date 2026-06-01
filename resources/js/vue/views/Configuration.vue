@@ -10,6 +10,7 @@ const connection = ref<any>(null);
 const syncs = ref<any[]>([]);
 const runs = ref<any[]>([]);
 const connectionForm = ref({ name: 'Google Sheets', spreadsheet_id: '', credentials_json: '' });
+const credentialFileName = ref('');
 const saving = ref(false);
 const loadError = ref('');
 const googleHelpOpen = ref(false);
@@ -53,12 +54,27 @@ function toggleGroup(key: keyof typeof openGroups.value) {
   openGroups.value[key] = !openGroups.value[key];
 }
 
+async function selectCredentialFile(event: Event) {
+  const file = (event.target as HTMLInputElement).files?.[0];
+  if (!file) return;
+  credentialFileName.value = file.name;
+  try {
+    connectionForm.value.credentials_json = await file.text();
+    toast({ tone: 'success', title: 'Credential loaded', message: `${file.name} is ready to save.` });
+  } catch {
+    credentialFileName.value = '';
+    connectionForm.value.credentials_json = '';
+    toast({ tone: 'error', title: 'Could not read file', message: 'Choose a valid Google service account JSON file.' });
+  }
+}
+
 async function saveConnection(showToast = true) {
   saving.value = true;
   try {
     const data: any = await api.put('/api/v1/configuration/backup-connection', connectionForm.value).then(unwrap);
     connection.value = data.connection;
     connectionForm.value.credentials_json = '';
+    credentialFileName.value = '';
     if (showToast) toast({ tone: 'success', title: 'Connection saved', message: 'Backup destination settings were updated.' });
   } catch (error: any) {
     if (showToast) toast({ tone: 'error', title: 'Connection failed', message: error.response?.data?.message || 'Check the credential fields.' });
@@ -179,7 +195,7 @@ onMounted(load);
                     <li>Open Google Cloud Console and create/select a project.</li>
                     <li>Enable the Google Sheets API.</li>
                     <li>Create a Service Account, then create a JSON key.</li>
-                    <li>Paste the downloaded JSON here.</li>
+                    <li>Upload the downloaded JSON file here.</li>
                     <li>Share your spreadsheet with the JSON's <span class="font-bold">client_email</span>.</li>
                   </ol>
                 </div>
@@ -207,9 +223,18 @@ onMounted(load);
           <div class="grid gap-3 px-5 py-4 md:grid-cols-[16rem_1fr]">
             <div>
               <span class="font-extrabold text-slate-800">Service account JSON</span>
-              <p class="text-xs font-semibold text-slate-500">Paste the downloaded JSON key. It will not be displayed again.</p>
+              <p class="text-xs font-semibold text-slate-500">Upload the downloaded JSON key. It will not be displayed after save.</p>
             </div>
-            <textarea v-model="connectionForm.credentials_json" class="field min-h-40 font-mono text-xs" placeholder='{"project_id":"...","client_email":"...","private_key":"..."}'></textarea>
+            <div class="space-y-3">
+              <label class="flex min-h-32 cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-5 text-center transition hover:border-teal-300 hover:bg-teal-50/50">
+                <input class="sr-only" type="file" accept="application/json,.json" @change="selectCredentialFile" />
+                <span class="text-sm font-extrabold text-slate-800">{{ credentialFileName || (connection?.has_credentials ? 'Credential file already uploaded' : 'Upload service account JSON') }}</span>
+                <span class="mt-1 text-xs font-semibold text-slate-500">{{ connectionForm.credentials_json ? 'Ready to save' : connection?.has_credentials ? 'Upload a new JSON only if you want to replace it.' : 'Choose the JSON key downloaded from Google Cloud.' }}</span>
+              </label>
+              <div v-if="connectionForm.credentials_json || connection?.has_credentials" class="rounded-xl border border-teal-100 bg-teal-50 px-4 py-3 text-sm font-bold text-teal-900">
+                {{ connectionForm.credentials_json ? 'New credential selected. Click Save Changes to store it.' : 'Credential uploaded and encrypted.' }}
+              </div>
+            </div>
           </div>
           <div v-if="connection?.service_account_email" class="px-5 py-4">
             <div class="rounded-xl border border-teal-100 bg-teal-50 p-4 text-sm font-semibold text-teal-900">
