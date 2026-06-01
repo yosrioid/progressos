@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import { toast } from '../feedback';
 import { useAuthStore } from '../stores/auth';
 
@@ -7,8 +7,15 @@ const auth = useAuthStore();
 const profile = ref({ name: auth.user?.name || '', email: auth.user?.email || '', timezone: auth.user?.timezone || 'Asia/Jakarta', theme: auth.user?.theme || 'system' });
 const password = ref({ current_password: '', password: '', password_confirmation: '' });
 const avatar = ref<File | null>(null);
+const avatarPreview = ref('');
+const cropZoom = ref(1.15);
+const cropX = ref(0);
+const cropY = ref(0);
 const message = ref('');
 const error = ref('');
+const avatarStyle = computed(() => ({
+  transform: `translate(calc(-50% + ${cropX.value}px), calc(-50% + ${cropY.value}px)) scale(${cropZoom.value})`,
+}));
 
 async function saveProfile() {
   message.value = '';
@@ -36,19 +43,62 @@ async function savePassword() {
 }
 
 async function saveAvatar() {
-  if (!avatar.value) return;
+  if (!avatar.value || !avatarPreview.value) return;
   message.value = '';
   error.value = '';
   const payload = new FormData();
-  payload.append('avatar', avatar.value);
+  const cropped = await croppedAvatarBlob();
+  payload.append('avatar', new File([cropped], 'avatar.jpg', { type: 'image/jpeg' }));
   try {
     await auth.updateAvatar(payload);
     avatar.value = null;
+    avatarPreview.value = '';
+    cropZoom.value = 1.15;
+    cropX.value = 0;
+    cropY.value = 0;
     message.value = 'Avatar updated.';
     toast({ tone: 'success', title: 'Avatar updated', message: 'Your profile image has been saved.' });
   } catch (e: any) {
     error.value = e.response?.data?.message || 'Could not update avatar.';
   }
+}
+
+function selectAvatar(event: Event) {
+  const file = (event.target as HTMLInputElement).files?.[0] || null;
+  avatar.value = file;
+  if (avatarPreview.value) URL.revokeObjectURL(avatarPreview.value);
+  avatarPreview.value = file ? URL.createObjectURL(file) : '';
+  cropZoom.value = 1.15;
+  cropX.value = 0;
+  cropY.value = 0;
+}
+
+async function croppedAvatarBlob(): Promise<Blob> {
+  const image = new Image();
+  image.src = avatarPreview.value;
+  await new Promise((resolve, reject) => {
+    image.onload = resolve;
+    image.onerror = reject;
+  });
+  const outputSize = 512;
+  const previewSize = 256;
+  const canvas = document.createElement('canvas');
+  canvas.width = outputSize;
+  canvas.height = outputSize;
+  const context = canvas.getContext('2d');
+  if (!context) throw new Error('Canvas is not supported.');
+  context.fillStyle = '#f8fafc';
+  context.fillRect(0, 0, outputSize, outputSize);
+
+  const baseScale = Math.max(previewSize / image.width, previewSize / image.height);
+  const renderedWidth = image.width * baseScale * cropZoom.value;
+  const renderedHeight = image.height * baseScale * cropZoom.value;
+  const scaleToOutput = outputSize / previewSize;
+  const dx = ((previewSize - renderedWidth) / 2 + cropX.value) * scaleToOutput;
+  const dy = ((previewSize - renderedHeight) / 2 + cropY.value) * scaleToOutput;
+
+  context.drawImage(image, dx, dy, renderedWidth * scaleToOutput, renderedHeight * scaleToOutput);
+  return await new Promise((resolve) => canvas.toBlob((blob) => resolve(blob as Blob), 'image/jpeg', 0.9));
 }
 </script>
 
@@ -99,12 +149,45 @@ async function saveAvatar() {
     <form class="card overflow-hidden p-0" @submit.prevent="saveAvatar">
       <div class="border-b border-slate-100 bg-slate-50/70 px-5 py-4">
         <h2 class="font-extrabold">Avatar</h2>
-        <p class="text-sm font-medium text-slate-500">Use a square image for the cleanest crop.</p>
+        <p class="text-sm font-medium text-slate-500">Crop and position your profile photo before saving it.</p>
       </div>
-      <div class="flex flex-col gap-4 p-5 sm:flex-row sm:items-center">
-        <img v-if="auth.user?.avatar_url" :src="auth.user.avatar_url" class="h-20 w-20 rounded-2xl object-cover" alt="Current avatar" />
-        <div v-else class="grid h-20 w-20 place-items-center rounded-2xl bg-teal-100 text-2xl font-extrabold text-teal-800">{{ auth.user?.name?.slice(0, 1) || 'P' }}</div>
-        <label class="block flex-1 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4"><span class="label mb-1">Upload image</span><input class="field bg-white" type="file" accept="image/*" @change="avatar = ($event.target as HTMLInputElement).files?.[0] || null" /></label>
+      <div class="grid gap-5 p-5 lg:grid-cols-[18rem_1fr]">
+        <div class="space-y-4">
+          <div class="relative mx-auto h-64 w-64 overflow-hidden rounded-[2rem] border border-slate-200 bg-slate-100 shadow-inner">
+            <img
+              v-if="avatarPreview"
+              :src="avatarPreview"
+              class="absolute left-1/2 top-1/2 h-full w-full select-none object-cover"
+              :style="avatarStyle"
+              alt="Avatar crop preview"
+              draggable="false"
+            />
+            <img v-else-if="auth.user?.avatar_url" :src="auth.user.avatar_url" class="h-full w-full object-cover" alt="Current avatar" />
+            <div v-else class="grid h-full w-full place-items-center bg-teal-100 text-5xl font-extrabold text-teal-800">{{ auth.user?.name?.slice(0, 1) || 'P' }}</div>
+            <div class="pointer-events-none absolute inset-0 rounded-[2rem] ring-4 ring-white/80"></div>
+          </div>
+          <p class="text-center text-xs font-semibold text-slate-500">Saved image will be cropped as a square avatar.</p>
+        </div>
+        <div class="space-y-4">
+          <label class="block rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4">
+            <span class="label mb-1">Upload image</span>
+            <input class="field bg-white" type="file" accept="image/*" @change="selectAvatar" />
+          </label>
+          <div class="grid gap-4 rounded-2xl border border-slate-200 bg-white p-4" :class="!avatarPreview ? 'opacity-60' : ''">
+            <label>
+              <span class="label mb-2">Zoom</span>
+              <input v-model.number="cropZoom" class="w-full accent-teal-700" type="range" min="1" max="3" step="0.05" :disabled="!avatarPreview" />
+            </label>
+            <label>
+              <span class="label mb-2">Horizontal position</span>
+              <input v-model.number="cropX" class="w-full accent-teal-700" type="range" min="-100" max="100" step="1" :disabled="!avatarPreview" />
+            </label>
+            <label>
+              <span class="label mb-2">Vertical position</span>
+              <input v-model.number="cropY" class="w-full accent-teal-700" type="range" min="-100" max="100" step="1" :disabled="!avatarPreview" />
+            </label>
+          </div>
+        </div>
       </div>
       <div class="flex justify-end border-t border-slate-100 bg-slate-50/70 px-5 py-4"><button class="btn btn-primary" :disabled="!avatar">Save avatar</button></div>
     </form>

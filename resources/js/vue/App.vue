@@ -28,7 +28,7 @@ const navGroups = [
     ],
   },
   {
-    label: 'Capture',
+    label: 'Work',
     items: [
       { label: 'Daily Progress', href: '/daily-progress', icon: 'calendar' },
       { label: 'Work Logs', href: '/work-logs', icon: 'briefcase' },
@@ -36,10 +36,15 @@ const navGroups = [
     ],
   },
   {
-    label: 'Growth',
+    label: 'Learning & Goals',
     items: [
       { label: 'Learning', href: '/learning', icon: 'book' },
       { label: 'Milestones', href: '/milestones', icon: 'target' },
+    ],
+  },
+  {
+    label: 'Review',
+    items: [
       { label: 'Weekly Report', href: '/reports/weekly', icon: 'chart' },
     ],
   },
@@ -213,14 +218,21 @@ onUnmounted(() => window.removeEventListener('keydown', shortcuts));
           </button>
           <div class="relative">
             <button class="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-2.5 text-sm font-bold text-slate-700 shadow-sm transition hover:border-teal-200 hover:text-teal-800" aria-label="Open profile menu" aria-haspopup="menu" :aria-expanded="profileMenu" @click="profileMenu = !profileMenu">
-              <span class="grid h-8 w-8 place-items-center rounded-lg bg-slate-900 text-xs font-extrabold text-white">{{ initials }}</span>
+              <img v-if="auth.user?.avatar_url" :src="auth.user.avatar_url" class="h-8 w-8 rounded-lg object-cover" alt="" />
+              <span v-else class="grid h-8 w-8 place-items-center rounded-lg bg-slate-900 text-xs font-extrabold text-white">{{ initials }}</span>
               <span class="hidden max-w-32 truncate md:block">{{ auth.user?.name || 'Profile' }}</span>
             </button>
             <button v-if="profileMenu" class="fixed inset-0 z-10 cursor-default" tabindex="-1" aria-label="Close profile menu" @click="profileMenu = false"></button>
             <div v-if="profileMenu" class="absolute right-0 z-20 mt-2 w-64 overflow-hidden rounded-2xl border border-slate-200 bg-white p-2 shadow-2xl shadow-slate-900/10" role="menu">
               <div class="border-b border-slate-100 px-3 py-3">
-                <p class="truncate text-sm font-extrabold text-slate-900">{{ auth.user?.name }}</p>
-                <p class="truncate text-xs font-semibold text-slate-500">{{ auth.user?.email }}</p>
+                <div class="flex items-center gap-3">
+                  <img v-if="auth.user?.avatar_url" :src="auth.user.avatar_url" class="h-10 w-10 rounded-xl object-cover" alt="" />
+                  <span v-else class="grid h-10 w-10 place-items-center rounded-xl bg-slate-900 text-xs font-extrabold text-white">{{ initials }}</span>
+                  <div class="min-w-0">
+                    <p class="truncate text-sm font-extrabold text-slate-900">{{ auth.user?.name }}</p>
+                    <p class="truncate text-xs font-semibold text-slate-500">{{ auth.user?.email }}</p>
+                  </div>
+                </div>
               </div>
               <RouterLink to="/profile" class="mt-2 flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-100" role="menuitem">
                 <svg class="h-4 w-4 text-slate-400" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewBox="0 0 24 24"><path v-for="path in icons.user" :key="path" :d="path" /></svg>
