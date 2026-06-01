@@ -1,10 +1,9 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { onMounted, ref } from 'vue';
 import { api, unwrap } from '../api';
 import { confirmAction, toast } from '../feedback';
 
 const loading = ref(true);
-const sections = ref({ google_oauth: true, sync_data: true, history: true });
 const modules = ref<string[]>([]);
 const frequencies = ref<string[]>([]);
 const connection = ref<any>(null);
@@ -15,12 +14,6 @@ const saving = ref(false);
 const loadError = ref('');
 const googleHelpOpen = ref(false);
 const openGroups = ref({ google_oauth: true, sync_data: true, history: false });
-const sectionKeys = computed(() => Object.keys(sections.value) as Array<keyof typeof sections.value>);
-const sectionLabels: Record<string, string> = {
-  google_oauth: 'Google Sheets Connection',
-  sync_data: 'Sync Data',
-  history: 'Backup History',
-};
 
 function moduleLabel(value: string) {
   return value.replaceAll('_', ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
@@ -36,7 +29,6 @@ async function load() {
   try {
     const data: any = await api.get('/api/v1/configuration').then(unwrap);
     const config = data.configuration;
-    sections.value = config.sections;
     modules.value = config.available_modules;
     frequencies.value = config.frequencies;
     connection.value = config.connection;
@@ -57,23 +49,20 @@ async function load() {
   }
 }
 
-function toggleSection(key: keyof typeof sections.value) {
-  sections.value[key] = !sections.value[key];
-}
-
 function toggleGroup(key: keyof typeof openGroups.value) {
   openGroups.value[key] = !openGroups.value[key];
 }
 
-async function saveConnection() {
+async function saveConnection(showToast = true) {
   saving.value = true;
   try {
     const data: any = await api.put('/api/v1/configuration/backup-connection', connectionForm.value).then(unwrap);
     connection.value = data.connection;
     connectionForm.value.credentials_json = '';
-    toast({ tone: 'success', title: 'Connection saved', message: 'Backup destination settings were updated.' });
+    if (showToast) toast({ tone: 'success', title: 'Connection saved', message: 'Backup destination settings were updated.' });
   } catch (error: any) {
-    toast({ tone: 'error', title: 'Connection failed', message: error.response?.data?.message || 'Check the credential fields.' });
+    if (showToast) toast({ tone: 'error', title: 'Connection failed', message: error.response?.data?.message || 'Check the credential fields.' });
+    throw error;
   } finally {
     saving.value = false;
   }
@@ -93,7 +82,7 @@ function addSync() {
   syncs.value.unshift(blankSync());
 }
 
-async function saveSync(sync: any) {
+async function saveSync(sync: any, showToast = true) {
   const payload = {
     module: sync.module,
     frequency: sync.frequency,
@@ -105,7 +94,22 @@ async function saveSync(sync: any) {
     : api.post('/api/v1/configuration/backup-syncs', payload);
   const data: any = await request.then(unwrap);
   Object.assign(sync, data.sync);
-  toast({ tone: 'success', title: 'Sync saved', message: `${moduleLabel(sync.module)} backup is configured.` });
+  if (showToast) toast({ tone: 'success', title: 'Sync saved', message: `${moduleLabel(sync.module)} backup is configured.` });
+}
+
+async function saveAll() {
+  saving.value = true;
+  try {
+    await saveConnection(false);
+    for (const sync of syncs.value) {
+      await saveSync(sync, false);
+    }
+    toast({ tone: 'success', title: 'Configuration saved', message: 'Connection and sync schedules were updated.' });
+  } catch {
+    toast({ tone: 'error', title: 'Save failed', message: 'Review the highlighted configuration values and try again.' });
+  } finally {
+    saving.value = false;
+  }
 }
 
 async function removeSync(sync: any, index: number) {
@@ -121,7 +125,7 @@ async function removeSync(sync: any, index: number) {
 }
 
 async function runNow(sync: any) {
-  if (!sync.id) await saveSync(sync);
+  if (!sync.id) await saveSync(sync, false);
   const data: any = await api.post(`/api/v1/configuration/backup-syncs/${sync.id}/run`).then(unwrap);
   runs.value.unshift(data.run);
   toast({ tone: data.run.status === 'completed' ? 'success' : 'error', title: data.run.status === 'completed' ? 'Backup complete' : 'Backup failed', message: data.run.file_path || data.run.error_message });
@@ -137,35 +141,12 @@ onMounted(load);
       <div>
         <p class="text-sm font-extrabold text-teal-700">Configuration</p>
         <h1 class="mt-1 text-3xl font-extrabold tracking-tight">Backup & Sync Settings</h1>
-        <p class="mt-1 max-w-3xl text-sm font-medium leading-6 text-slate-500">Choose which configuration sections are visible, store Google Sheets destination settings, and add module-level backup schedules.</p>
+        <p class="mt-1 max-w-3xl text-sm font-medium leading-6 text-slate-500">Store Google Sheets destination settings and add module-level backup schedules.</p>
       </div>
-      <button class="btn btn-primary" @click="addSync">Add Sync</button>
+      <button class="btn btn-primary" :disabled="saving || loading" @click="saveAll">Save Changes</button>
     </div>
 
-    <div class="card p-4">
-      <div class="mb-3 flex items-center justify-between gap-3">
-        <div>
-          <h2 class="font-extrabold">Visible Configuration Areas</h2>
-          <p class="text-sm font-medium text-slate-500">Click a name to show or hide that configuration group.</p>
-        </div>
-      </div>
-      <div class="flex flex-wrap gap-2" role="toolbar" aria-label="Configuration visibility">
-        <button
-          v-for="key in sectionKeys"
-          :key="key"
-          type="button"
-          class="rounded-xl border px-4 py-2.5 text-sm font-extrabold transition"
-          :class="sections[key] ? 'border-teal-200 bg-teal-50 text-teal-800 shadow-sm' : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50'"
-          :aria-pressed="sections[key]"
-          @click="toggleSection(key)"
-        >
-          {{ sectionLabels[key] || key.replaceAll('_', ' ') }}
-          <span class="ml-2 text-xs font-black uppercase" :class="sections[key] ? 'text-teal-600' : 'text-slate-400'">{{ sections[key] ? 'Shown' : 'Hidden' }}</span>
-        </button>
-      </div>
-    </div>
-
-    <section v-if="sections.google_oauth" class="card overflow-visible p-0">
+    <section class="card overflow-visible p-0">
       <button type="button" class="flex w-full items-center justify-between gap-4 border-b border-slate-100 bg-slate-50/70 px-5 py-4 text-left" :aria-expanded="openGroups.google_oauth" @click="toggleGroup('google_oauth')">
         <span class="min-w-0">
           <span class="block text-xs font-extrabold uppercase text-teal-700">Backup Destination</span>
@@ -174,7 +155,9 @@ onMounted(load);
         </span>
         <span class="flex shrink-0 items-center gap-3">
           <span class="pill" :class="connection?.status === 'verified' ? 'pill-green' : connection?.status === 'error' ? 'pill-red' : 'pill-slate'">{{ connection?.status || 'not configured' }}</span>
-          <span class="grid h-8 w-8 place-items-center rounded-xl border border-slate-200 bg-white text-slate-500 transition" :class="openGroups.google_oauth ? 'rotate-180' : ''">⌄</span>
+          <span class="grid h-8 w-8 place-items-center rounded-xl border border-slate-200 bg-white text-slate-500 transition" :class="openGroups.google_oauth ? 'rotate-180' : ''">
+            <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6" /></svg>
+          </span>
         </span>
       </button>
       <div v-if="openGroups.google_oauth">
@@ -236,20 +219,24 @@ onMounted(load);
         </div>
         <div class="flex flex-wrap justify-end gap-2 border-t border-slate-100 bg-slate-50/70 px-5 py-4">
           <button class="btn btn-muted" type="button" @click="verifyConnection">Test settings</button>
-          <button class="btn btn-primary" type="button" :disabled="saving" @click="saveConnection">Save connection</button>
         </div>
       </div>
     </section>
 
-    <section v-if="sections.sync_data" class="card overflow-hidden p-0">
-      <button type="button" class="flex w-full items-center justify-between gap-4 border-b border-slate-100 bg-slate-50/70 px-5 py-4 text-left" :aria-expanded="openGroups.sync_data" @click="toggleGroup('sync_data')">
-        <span>
+    <section class="card overflow-hidden p-0">
+      <div class="flex items-center justify-between gap-4 border-b border-slate-100 bg-slate-50/70 px-5 py-4">
+        <button type="button" class="min-w-0 flex-1 text-left" :aria-expanded="openGroups.sync_data" @click="toggleGroup('sync_data')">
           <span class="block text-xs font-extrabold uppercase text-teal-700">Automation</span>
           <span class="mt-1 block text-lg font-extrabold text-slate-950">Sync Data</span>
           <span class="mt-1 block text-sm font-medium text-slate-500">Module schedules for daily, weekly, and monthly backup runs.</span>
+        </button>
+        <span class="flex shrink-0 items-center gap-2">
+          <button class="btn btn-muted" type="button" @click="addSync">Add Sync</button>
+          <button type="button" class="grid h-8 w-8 place-items-center rounded-xl border border-slate-200 bg-white text-slate-500 transition" :class="openGroups.sync_data ? 'rotate-180' : ''" aria-label="Toggle sync data" @click="toggleGroup('sync_data')">
+            <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6" /></svg>
+          </button>
         </span>
-        <span class="grid h-8 w-8 place-items-center rounded-xl border border-slate-200 bg-white text-slate-500 transition" :class="openGroups.sync_data ? 'rotate-180' : ''">⌄</span>
-      </button>
+      </div>
       <div v-if="openGroups.sync_data">
         <div v-if="loading" class="p-6 text-sm font-semibold text-slate-500">Loading configuration...</div>
         <div v-else-if="loadError" class="p-6">
@@ -278,7 +265,6 @@ onMounted(load);
             </div>
             <div class="mt-4 flex flex-wrap justify-end gap-2">
               <button class="btn btn-muted" type="button" @click="runNow(sync)">Run</button>
-              <button class="btn btn-primary" type="button" @click="saveSync(sync)">Save</button>
               <button class="btn border border-red-200 bg-red-50 text-red-700 hover:bg-red-100" type="button" @click="removeSync(sync, index)">Delete</button>
             </div>
           </div>
@@ -286,14 +272,16 @@ onMounted(load);
       </div>
     </section>
 
-    <section v-if="sections.history" class="card overflow-hidden p-0">
+    <section class="card overflow-hidden p-0">
       <button type="button" class="flex w-full items-center justify-between gap-4 border-b border-slate-100 bg-slate-50/70 px-5 py-4 text-left" :aria-expanded="openGroups.history" @click="toggleGroup('history')">
         <span>
           <span class="block text-xs font-extrabold uppercase text-teal-700">Audit</span>
           <span class="mt-1 block text-lg font-extrabold text-slate-950">Backup History</span>
           <span class="mt-1 block text-sm font-medium text-slate-500">Recent backup runs and generated spreadsheet-compatible CSV files.</span>
         </span>
-        <span class="grid h-8 w-8 place-items-center rounded-xl border border-slate-200 bg-white text-slate-500 transition" :class="openGroups.history ? 'rotate-180' : ''">⌄</span>
+        <span class="grid h-8 w-8 place-items-center rounded-xl border border-slate-200 bg-white text-slate-500 transition" :class="openGroups.history ? 'rotate-180' : ''">
+          <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6" /></svg>
+        </span>
       </button>
       <div v-if="openGroups.history" class="overflow-x-auto">
         <table class="data-table">
