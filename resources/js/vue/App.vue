@@ -2,6 +2,7 @@
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router';
 import { api } from './api';
+import DatePicker from './components/DatePicker.vue';
 import { dismissToast, feedback, resolveConfirm, toast } from './feedback';
 import { pasteLinkOverSelection } from './linkPaste';
 import { useAuthStore } from './stores/auth';
@@ -300,7 +301,7 @@ onUnmounted(() => window.removeEventListener('keydown', shortcuts));
         </div>
         <div class="grid gap-3 p-5 sm:grid-cols-2">
           <select v-model="quickForm.type" class="field"><option value="task">Task</option><option value="blocker">Blocker</option><option value="work_log">Work log</option><option value="daily_progress">Daily progress</option><option value="learning">Learning</option></select>
-          <input v-model="quickForm.date" class="field" type="date" />
+          <DatePicker v-model="quickForm.date" label="Quick add date" />
           <input v-model="quickForm.title" class="field sm:col-span-2" placeholder="Title" required />
           <input v-model="quickForm.project_name" class="field" placeholder="Project" />
           <input v-model="quickForm.duration_minutes" class="field" type="number" min="1" />

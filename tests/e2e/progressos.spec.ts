@@ -79,6 +79,16 @@ test('command palette supports keyboard navigation shortcuts', async ({ page }) 
   await expect(page.getByRole('heading', { name: 'New Work Log' })).toBeVisible();
 });
 
+test('record forms use the themed date picker', async ({ page }) => {
+  test.skip((page.viewportSize()?.width ?? 999) < 768, 'desktop date picker flow');
+
+  await login(page);
+  await page.goto('/daily-progress/create');
+  await page.getByRole('button', { name: 'Date' }).click();
+  await expect(page.getByRole('button', { name: 'Today' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Previous month' })).toBeVisible();
+});
+
 test('profile avatar crop upload updates the header avatar', async ({ page }) => {
   test.skip((page.viewportSize()?.width ?? 999) < 768, 'desktop avatar crop flow');
   const png = Buffer.from(
@@ -113,7 +123,6 @@ test('pasting a URL over selected textarea text preserves label as markdown link
 
   await login(page);
   await page.goto('/daily-progress/create');
-  await page.locator('input[type="date"]').fill(new Date().toISOString().slice(0, 10));
   await page.getByRole('textbox', { name: 'Title' }).fill(title);
   await textarea.fill('Spec');
   await textarea.focus();
@@ -148,7 +157,6 @@ test('creates, edits, and opens a daily progress record through Vue forms', asyn
   await login(page);
   await page.goto('/daily-progress/create');
   await expect(page.getByRole('heading', { name: 'New Daily Progress' })).toBeVisible();
-  await page.locator('input[type="date"]').fill(new Date().toISOString().slice(0, 10));
   await page.getByRole('textbox', { name: 'Title' }).fill(title);
   await page.locator('textarea').nth(0).fill('Created from Vue form');
   await page.locator('textarea').last().fill('e2e, vue');
@@ -171,7 +179,6 @@ test('delete uses themed confirmation and success notification', async ({ page }
 
   await login(page);
   await page.goto('/daily-progress/create');
-  await page.locator('input[type="date"]').fill(new Date().toISOString().slice(0, 10));
   await page.getByRole('textbox', { name: 'Title' }).fill(title);
   await page.getByRole('button', { name: 'Save' }).click();
   await expect(page.getByRole('heading', { name: title })).toBeVisible();
