@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\SavedViewRequest;
 use App\Models\SavedView;
+use App\Support\ApiResponse;
 use Illuminate\Http\Request;
 
 class SavedViewController extends Controller
@@ -17,7 +18,7 @@ class SavedViewController extends Controller
             $query->where('module', $module);
         }
 
-        return response()->json(['saved_views' => $query->get()]);
+        return ApiResponse::collection('saved_views', $query->get());
     }
 
     public function store(SavedViewRequest $request)
@@ -28,7 +29,7 @@ class SavedViewController extends Controller
             ['filters' => $data['filters'], 'pinned' => (bool) ($data['pinned'] ?? false)]
         );
 
-        return response()->json(['saved_view' => $view], 201);
+        return ApiResponse::item('saved_view', $view, 201, 'Saved view stored.');
     }
 
     public function destroy(Request $request, SavedView $savedView)

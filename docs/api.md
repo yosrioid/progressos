@@ -52,6 +52,16 @@ Revoked tokens stop authenticating immediately.
 - `reports`: `GET /api/v1/reports/{weekly|monthly}` and CSV exports
 - `tokens`: `GET|POST|DELETE /api/tokens`
 
+## Response Shape
+
+JSON responses use a standard envelope:
+
+- Item responses include `data`, `message` when useful, and a backwards-compatible named key such as `task`, `entry`, `log`, or `project`.
+- Collection responses include `data` and the existing named collection key such as `projects` or `saved_views`.
+- Paginated responses include `data`, `meta`, `links`, and the existing Laravel paginator key such as `tasks`, `logs`, `entries`, or `milestones`.
+
+The named keys keep the Vue client stable while external clients can use the consistent `data` / `meta` / `links` contract.
+
 ## Quick Capture
 
 `POST /api/v1/quick-capture`
@@ -82,4 +92,5 @@ Supported `type` values:
 - Browser session requests are allowed through the same routes without requiring a personal access token.
 - Bearer token requests are checked against route abilities.
 - Auth, token management, read, write, quick-capture, and export routes use separate Laravel rate limiters.
-- `docs/openapi.yaml` contains a starter OpenAPI contract for external clients.
+- `docs/openapi.yaml` contains the OpenAPI contract for auth, token management, core resources, capture, reports, search, activity, saved views, and references.
+- Routes are split into `routes/api/auth.php`, `routes/api/tokens.php`, and `routes/api/v1.php`; `routes/api.php` only loads those files.

@@ -12,12 +12,13 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password as PasswordRule;
+use App\Support\ApiResponse;
 
 class AuthController extends Controller
 {
     public function me(Request $request)
     {
-        return response()->json(['user' => $this->userPayload($request->user())]);
+        return ApiResponse::item('user', $this->userPayload($request->user()));
     }
 
     public function login(Request $request)
@@ -29,14 +30,14 @@ class AuthController extends Controller
         ]);
 
         if (! Auth::guard('web')->attempt($request->only('email', 'password'), (bool) ($credentials['remember'] ?? false))) {
-            return response()->json(['message' => 'Invalid credentials.'], 422);
+            return ApiResponse::ok([], 'Invalid credentials.', 422);
         }
 
         if ($request->hasSession()) {
             $request->session()->regenerate();
         }
 
-        return response()->json(['user' => $this->userPayload(Auth::guard('web')->user())]);
+        return ApiResponse::item('user', $this->userPayload(Auth::guard('web')->user()), message: 'Logged in.');
     }
 
     public function register(Request $request)
@@ -61,7 +62,7 @@ class AuthController extends Controller
             $request->session()->regenerate();
         }
 
-        return response()->json(['user' => $this->userPayload($user)], 201);
+        return ApiResponse::item('user', $this->userPayload($user), 201, 'Registered.');
     }
 
     public function updateProfile(Request $request)
@@ -75,7 +76,7 @@ class AuthController extends Controller
 
         $request->user()->update($data);
 
-        return response()->json(['user' => $this->userPayload($request->user()->fresh())]);
+        return ApiResponse::item('user', $this->userPayload($request->user()->fresh()), message: 'Profile updated.');
     }
 
     public function updateAvatar(Request $request)
@@ -92,7 +93,7 @@ class AuthController extends Controller
         $path = $data['avatar']->store('avatars', 'public');
         $user->update(['avatar_path' => $path]);
 
-        return response()->json(['user' => $this->userPayload($user->fresh())]);
+        return ApiResponse::item('user', $this->userPayload($user->fresh()), message: 'Avatar updated.');
     }
 
     public function updatePassword(Request $request)
@@ -104,7 +105,7 @@ class AuthController extends Controller
 
         $request->user()->update(['password' => Hash::make($data['password'])]);
 
-        return response()->json(['ok' => true]);
+        return ApiResponse::ok(['ok' => true], 'Password updated.');
     }
 
     public function forgotPassword(Request $request)
@@ -113,8 +114,8 @@ class AuthController extends Controller
         $status = Password::sendResetLink($request->only('email'));
 
         return $status === Password::RESET_LINK_SENT
-            ? response()->json(['message' => __($status)])
-            : response()->json(['message' => __($status)], 422);
+            ? ApiResponse::ok([], __($status))
+            : ApiResponse::ok([], __($status), 422);
     }
 
     public function resetPassword(Request $request)
@@ -133,8 +134,8 @@ class AuthController extends Controller
         });
 
         return $status === Password::PASSWORD_RESET
-            ? response()->json(['message' => __($status)])
-            : response()->json(['message' => __($status)], 422);
+            ? ApiResponse::ok([], __($status))
+            : ApiResponse::ok([], __($status), 422);
     }
 
     public function logout(Request $request)
@@ -146,7 +147,7 @@ class AuthController extends Controller
         }
         Auth::forgetGuards();
 
-        return response()->json(['ok' => true]);
+        return ApiResponse::ok(['ok' => true], 'Logged out.');
     }
 
     private function userPayload(User $user): array

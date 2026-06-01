@@ -110,11 +110,12 @@ Security checklist:
 ## Architecture
 
 - `app/Models`: user-owned domain models for daily progress, work logs, learning entries, milestones, and report snapshots.
-- `routes/api.php`: Laravel API routes for auth, token management, and versioned product endpoints.
+- `routes/api.php`: Laravel API entrypoint that loads `routes/api/auth.php`, `routes/api/tokens.php`, and `routes/api/v1.php`.
 - `routes/web.php`: Vue SPA catch-all route only.
 - `app/Http/Controllers/Api`: resource-specific same-origin JSON controllers for auth, dashboard, projects, capture, records, reports, CSV export, search, activity, saved views, and references.
 - `app/Http/Requests`: Form Request validation for core write paths.
 - `app/Http/Resources`: API response resources for core record details and mutations.
+- `app/Support/ApiResponse.php`: standard JSON response envelope helpers for item, collection, and paginated responses.
 - `app/Http/Middleware/EnsureApiTokenCan.php`: Sanctum token ability enforcement that still allows first-party browser sessions.
 - `app/Support/ApiQuery.php`: shared search, sorting, pagination, and CSV hardening helpers.
 - `app/Services`: focused services for dashboard aggregation, report generation, and tag syncing.
@@ -148,7 +149,7 @@ curl -I http://127.0.0.1:8000/login
 
 Current verification passed:
 
-- Pest: `19 passed`, `142 assertions`
+- Pest: `19 passed`, `163 assertions`
 - Vite production build: passed
 - Playwright: `7 passed`, `3 skipped` across desktop Chromium and mobile Chromium projects. Skips are project-specific viewport checks.
 - Local HTTP smoke check: `/login` returned `200 OK`

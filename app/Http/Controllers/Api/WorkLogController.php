@@ -9,6 +9,7 @@ use App\Models\WorkLog;
 use App\Services\ProjectResolver;
 use App\Services\TagSyncer;
 use App\Support\ApiQuery;
+use App\Support\ApiResponse;
 use Illuminate\Http\Request;
 
 class WorkLogController extends Controller
@@ -32,14 +33,14 @@ class WorkLogController extends Controller
             $query->whereHas('tags', fn ($tags) => $tags->where('name', $request->query('tag')));
         }
 
-        return response()->json(['logs' => ApiQuery::paginateSorted($query, $request, 'date', 12, ['date', 'created_at', 'updated_at', 'title', 'status', 'priority', 'category'])]);
+        return ApiResponse::paginated('logs', ApiQuery::paginateSorted($query, $request, 'date', 12, ['date', 'created_at', 'updated_at', 'title', 'status', 'priority', 'category']), resourceClass: WorkLogResource::class);
     }
 
     public function show(Request $request, WorkLog $workLog)
     {
         $this->authorize('view', $workLog);
 
-        return response()->json(['log' => new WorkLogResource($workLog->load(['tags', 'references']))]);
+        return ApiResponse::item('log', new WorkLogResource($workLog->load(['tags', 'references'])));
     }
 
     public function store(WorkLogRequest $request, ProjectResolver $projects, TagSyncer $tags)
@@ -51,7 +52,7 @@ class WorkLogController extends Controller
         $log = $request->user()->workLogs()->create($data);
         $tags->workLog($log, $request->user(), $tagNames);
 
-        return response()->json(['log' => new WorkLogResource($log->load('tags'))], 201);
+        return ApiResponse::item('log', new WorkLogResource($log->load('tags')), 201, 'Work log created.');
     }
 
     public function update(WorkLogRequest $request, WorkLog $workLog, ProjectResolver $projects, TagSyncer $tags)
@@ -64,7 +65,7 @@ class WorkLogController extends Controller
         $workLog->update($data);
         $tags->workLog($workLog, $request->user(), $tagNames);
 
-        return response()->json(['log' => new WorkLogResource($workLog->fresh()->load(['tags', 'references']))]);
+        return ApiResponse::item('log', new WorkLogResource($workLog->fresh()->load(['tags', 'references'])), 200, 'Work log updated.');
     }
 
     public function destroy(Request $request, WorkLog $workLog)

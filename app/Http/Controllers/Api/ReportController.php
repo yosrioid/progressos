@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Services\ReportBuilder;
 use App\Support\ApiQuery;
+use App\Support\ApiResponse;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -14,7 +15,7 @@ class ReportController extends Controller
     {
         abort_unless(in_array($period, ['weekly', 'monthly'], true), 404);
 
-        return response()->json(['report' => $builder->build($request->user(), $period, $request->query('date'))]);
+        return ApiResponse::item('report', $builder->build($request->user(), $period, $request->query('date')));
     }
 
     public function export(Request $request, ReportBuilder $builder, string $period): StreamedResponse

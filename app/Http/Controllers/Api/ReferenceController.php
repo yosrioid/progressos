@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ReferenceRequest;
 use App\Models\Reference;
+use App\Support\ApiResponse;
 use App\Support\ReferenceTypes;
 use Illuminate\Http\Request;
 
@@ -24,7 +25,7 @@ class ReferenceController extends Controller
             'notes' => $data['notes'] ?? null,
         ]);
 
-        return response()->json(['reference' => $reference], 201);
+        return ApiResponse::item('reference', $reference, 201, 'Reference created.');
     }
 
     public function destroy(Request $request, Reference $reference)

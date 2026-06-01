@@ -7,6 +7,7 @@ use App\Http\Requests\MilestoneRequest;
 use App\Http\Resources\MilestoneResource;
 use App\Models\Milestone;
 use App\Support\ApiQuery;
+use App\Support\ApiResponse;
 use Illuminate\Http\Request;
 
 class MilestoneController extends Controller
@@ -21,14 +22,14 @@ class MilestoneController extends Controller
             }
         }
 
-        return response()->json(['milestones' => ApiQuery::paginateSorted($query, $request, 'created_at', 20, ['created_at', 'updated_at', 'end_date', 'title', 'status', 'category'])]);
+        return ApiResponse::paginated('milestones', ApiQuery::paginateSorted($query, $request, 'created_at', 20, ['created_at', 'updated_at', 'end_date', 'title', 'status', 'category']), resourceClass: MilestoneResource::class);
     }
 
     public function show(Request $request, Milestone $milestone)
     {
         $this->authorize('view', $milestone);
 
-        return response()->json(['milestone' => new MilestoneResource($milestone->load('references'))]);
+        return ApiResponse::item('milestone', new MilestoneResource($milestone->load('references')));
     }
 
     public function store(MilestoneRequest $request)
@@ -37,7 +38,7 @@ class MilestoneController extends Controller
         $data['source_type'] ??= 'manual';
         $data['current_value'] ??= 0;
 
-        return response()->json(['milestone' => new MilestoneResource($request->user()->milestones()->create($data))], 201);
+        return ApiResponse::item('milestone', new MilestoneResource($request->user()->milestones()->create($data)), 201, 'Milestone created.');
     }
 
     public function update(MilestoneRequest $request, Milestone $milestone)
@@ -48,7 +49,7 @@ class MilestoneController extends Controller
         $data['current_value'] ??= 0;
         $milestone->update($data);
 
-        return response()->json(['milestone' => new MilestoneResource($milestone->fresh()->load('references'))]);
+        return ApiResponse::item('milestone', new MilestoneResource($milestone->fresh()->load('references')), 200, 'Milestone updated.');
     }
 
     public function destroy(Request $request, Milestone $milestone)

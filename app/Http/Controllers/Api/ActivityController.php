@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
+use App\Support\ApiResponse;
 use Illuminate\Http\Request;
 
 class ActivityController extends Controller
@@ -24,6 +25,6 @@ class ActivityController extends Controller
             'created_at' => $log->created_at,
         ]);
 
-        return response()->json(['activity' => $logs]);
+        return ApiResponse::paginated('activity', $logs);
     }
 }

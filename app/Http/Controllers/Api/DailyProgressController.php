@@ -8,6 +8,7 @@ use App\Http\Resources\DailyProgressResource;
 use App\Models\DailyProgressEntry;
 use App\Services\TagSyncer;
 use App\Support\ApiQuery;
+use App\Support\ApiResponse;
 use Illuminate\Http\Request;
 
 class DailyProgressController extends Controller
@@ -32,14 +33,14 @@ class DailyProgressController extends Controller
             $query->where('archived', false);
         }
 
-        return response()->json(['entries' => ApiQuery::paginateSorted($query, $request, 'date', 12, ['date', 'created_at', 'updated_at', 'title'])]);
+        return ApiResponse::paginated('entries', ApiQuery::paginateSorted($query, $request, 'date', 12, ['date', 'created_at', 'updated_at', 'title']), resourceClass: DailyProgressResource::class);
     }
 
     public function show(Request $request, DailyProgressEntry $dailyProgress)
     {
         $this->authorize('view', $dailyProgress);
 
-        return response()->json(['entry' => new DailyProgressResource($dailyProgress->load(['tags', 'references']))]);
+        return ApiResponse::item('entry', new DailyProgressResource($dailyProgress->load(['tags', 'references'])));
     }
 
     public function store(DailyProgressRequest $request, TagSyncer $tags)
@@ -50,7 +51,7 @@ class DailyProgressController extends Controller
         $entry = $request->user()->dailyProgressEntries()->create($data);
         $tags->daily($entry, $request->user(), $tagNames);
 
-        return response()->json(['entry' => new DailyProgressResource($entry->load('tags'))], 201);
+        return ApiResponse::item('entry', new DailyProgressResource($entry->load('tags')), 201, 'Daily progress created.');
     }
 
     public function update(DailyProgressRequest $request, DailyProgressEntry $dailyProgress, TagSyncer $tags)
@@ -62,7 +63,7 @@ class DailyProgressController extends Controller
         $dailyProgress->update($data);
         $tags->daily($dailyProgress, $request->user(), $tagNames);
 
-        return response()->json(['entry' => new DailyProgressResource($dailyProgress->fresh()->load(['tags', 'references']))]);
+        return ApiResponse::item('entry', new DailyProgressResource($dailyProgress->fresh()->load(['tags', 'references'])), 200, 'Daily progress updated.');
     }
 
     public function destroy(Request $request, DailyProgressEntry $dailyProgress)

@@ -7,6 +7,7 @@ use App\Http\Requests\TaskRequest;
 use App\Http\Resources\TaskResource;
 use App\Models\Task;
 use App\Support\ApiQuery;
+use App\Support\ApiResponse;
 use Illuminate\Http\Request;
 
 class TaskController extends Controller
@@ -27,14 +28,14 @@ class TaskController extends Controller
             $query->whereDate('due_date', '<=', $request->query('to'));
         }
 
-        return response()->json(['tasks' => ApiQuery::paginateSorted($query, $request, 'created_at', 20, ['created_at', 'updated_at', 'due_date', 'title', 'status', 'priority'])]);
+        return ApiResponse::paginated('tasks', ApiQuery::paginateSorted($query, $request, 'created_at', 20, ['created_at', 'updated_at', 'due_date', 'title', 'status', 'priority']), resourceClass: TaskResource::class);
     }
 
     public function show(Request $request, Task $task)
     {
         $this->authorize('view', $task);
 
-        return response()->json(['task' => new TaskResource($task->load(['project', 'references']))]);
+        return ApiResponse::item('task', new TaskResource($task->load(['project', 'references'])));
     }
 
     public function store(TaskRequest $request)
@@ -42,7 +43,7 @@ class TaskController extends Controller
         $data = $request->validated();
         $data['completed_at'] = $data['status'] === 'done' ? now() : null;
 
-        return response()->json(['task' => new TaskResource($request->user()->tasks()->create($data))], 201);
+        return ApiResponse::item('task', new TaskResource($request->user()->tasks()->create($data)), 201, 'Task created.');
     }
 
     public function update(TaskRequest $request, Task $task)
@@ -52,7 +53,7 @@ class TaskController extends Controller
         $data['completed_at'] = $data['status'] === 'done' ? ($task->completed_at ?? now()) : null;
         $task->update($data);
 
-        return response()->json(['task' => new TaskResource($task->fresh()->load(['project', 'references']))]);
+        return ApiResponse::item('task', new TaskResource($task->fresh()->load(['project', 'references'])), 200, 'Task updated.');
     }
 
     public function updateStatus(Request $request, Task $task)
@@ -61,7 +62,7 @@ class TaskController extends Controller
         $data = $request->validate(['status' => ['required', 'in:todo,in_progress,done,blocked']]);
         $task->update([...$data, 'completed_at' => $data['status'] === 'done' ? now() : null]);
 
-        return response()->json(['task' => new TaskResource($task->fresh())]);
+        return ApiResponse::item('task', new TaskResource($task->fresh()), 200, 'Task status updated.');
     }
 
     public function destroy(Request $request, Task $task)

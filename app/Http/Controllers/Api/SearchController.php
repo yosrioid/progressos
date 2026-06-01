@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Support\ApiResponse;
 use Illuminate\Http\Request;
 
 class SearchController extends Controller
@@ -11,10 +12,10 @@ class SearchController extends Controller
     {
         $q = trim((string) $request->query('q'));
         if ($q === '') {
-            return response()->json(['query' => '', 'results' => []]);
+            return ApiResponse::ok(['query' => '', 'results' => []]);
         }
 
-        return response()->json([
+        return ApiResponse::ok([
             'query' => $q,
             'results' => [
                 'daily_progress' => $request->user()->dailyProgressEntries()->where('title', 'like', "%{$q}%")->take(8)->get(),

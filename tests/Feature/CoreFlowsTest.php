@@ -239,6 +239,9 @@ it('keeps core API response contracts stable for external clients', function () 
         ->getJson('/api/v1/tasks?per_page=6&sort=title&direction=asc')
         ->assertOk()
         ->assertJsonStructure([
+            'data' => [['id', 'title', 'status', 'priority']],
+            'meta' => ['current_page', 'per_page', 'total'],
+            'links' => ['first', 'last', 'prev', 'next'],
             'tasks' => [
                 'data' => [['id', 'title', 'status', 'priority']],
                 'current_page',
@@ -250,7 +253,7 @@ it('keeps core API response contracts stable for external clients', function () 
     $this->actingAs($user)
         ->getJson("/api/v1/tasks/{$task->id}")
         ->assertOk()
-        ->assertJsonStructure(['task' => ['id', 'title', 'status', 'priority', 'project']]);
+        ->assertJsonStructure(['data' => ['id', 'title', 'status', 'priority', 'project'], 'task' => ['id', 'title', 'status', 'priority', 'project']]);
 
     $this->actingAs($user)
         ->getJson("/api/v1/projects/{$project->id}")

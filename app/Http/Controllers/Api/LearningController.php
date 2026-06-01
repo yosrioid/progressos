@@ -7,6 +7,7 @@ use App\Http\Requests\LearningEntryRequest;
 use App\Http\Resources\LearningEntryResource;
 use App\Models\LearningEntry;
 use App\Support\ApiQuery;
+use App\Support\ApiResponse;
 use Illuminate\Http\Request;
 
 class LearningController extends Controller
@@ -27,19 +28,19 @@ class LearningController extends Controller
             $query->whereDate('date', '<=', $request->query('to'));
         }
 
-        return response()->json(['entries' => ApiQuery::paginateSorted($query, $request, 'date', 12, ['date', 'created_at', 'updated_at', 'topic', 'category'])]);
+        return ApiResponse::paginated('entries', ApiQuery::paginateSorted($query, $request, 'date', 12, ['date', 'created_at', 'updated_at', 'topic', 'category']), resourceClass: LearningEntryResource::class);
     }
 
     public function show(Request $request, LearningEntry $learning)
     {
         $this->authorize('view', $learning);
 
-        return response()->json(['entry' => new LearningEntryResource($learning->load('references'))]);
+        return ApiResponse::item('entry', new LearningEntryResource($learning->load('references')));
     }
 
     public function store(LearningEntryRequest $request)
     {
-        return response()->json(['entry' => new LearningEntryResource($request->user()->learningEntries()->create($request->validated()))], 201);
+        return ApiResponse::item('entry', new LearningEntryResource($request->user()->learningEntries()->create($request->validated())), 201, 'Learning entry created.');
     }
 
     public function update(LearningEntryRequest $request, LearningEntry $learning)
@@ -47,7 +48,7 @@ class LearningController extends Controller
         $this->authorize('update', $learning);
         $learning->update($request->validated());
 
-        return response()->json(['entry' => new LearningEntryResource($learning->fresh()->load('references'))]);
+        return ApiResponse::item('entry', new LearningEntryResource($learning->fresh()->load('references')), 200, 'Learning entry updated.');
     }
 
     public function destroy(Request $request, LearningEntry $learning)

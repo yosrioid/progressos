@@ -1,0 +1,50 @@
+<?php
+
+use App\Http\Controllers\Api\ActivityController;
+use App\Http\Controllers\Api\CaptureController;
+use App\Http\Controllers\Api\DailyProgressController;
+use App\Http\Controllers\Api\DashboardController;
+use App\Http\Controllers\Api\LearningController;
+use App\Http\Controllers\Api\MilestoneController;
+use App\Http\Controllers\Api\ProjectController;
+use App\Http\Controllers\Api\ReferenceController;
+use App\Http\Controllers\Api\ReportController;
+use App\Http\Controllers\Api\SavedViewController;
+use App\Http\Controllers\Api\SearchController;
+use App\Http\Controllers\Api\TaskController;
+use App\Http\Controllers\Api\WorkLogController;
+use Illuminate\Support\Facades\Route;
+
+Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
+    Route::middleware(['ability:read', 'throttle:api-read'])->group(function () {
+        Route::get('dashboard', DashboardController::class);
+        Route::get('reports/{period}', [ReportController::class, 'show'])->middleware('ability:reports,read');
+        Route::get('search', SearchController::class);
+        Route::get('activity', ActivityController::class);
+        Route::apiResource('projects', ProjectController::class)->only(['index', 'show']);
+        Route::apiResource('daily-progress', DailyProgressController::class)->only(['index', 'show'])->parameters(['daily-progress' => 'dailyProgress']);
+        Route::apiResource('work-logs', WorkLogController::class)->only(['index', 'show'])->parameters(['work-logs' => 'workLog']);
+        Route::apiResource('tasks', TaskController::class)->only(['index', 'show']);
+        Route::apiResource('learning', LearningController::class)->only(['index', 'show']);
+        Route::apiResource('milestones', MilestoneController::class)->only(['index', 'show']);
+        Route::apiResource('saved-views', SavedViewController::class)->only(['index'])->parameters(['saved-views' => 'savedView']);
+    });
+
+    Route::middleware(['ability:write', 'throttle:api-write'])->group(function () {
+        Route::apiResource('projects', ProjectController::class)->only(['update']);
+        Route::apiResource('daily-progress', DailyProgressController::class)->only(['store', 'update', 'destroy'])->parameters(['daily-progress' => 'dailyProgress']);
+        Route::apiResource('work-logs', WorkLogController::class)->only(['store', 'update', 'destroy'])->parameters(['work-logs' => 'workLog']);
+        Route::apiResource('tasks', TaskController::class)->only(['store', 'update', 'destroy']);
+        Route::patch('tasks/{task}/status', [TaskController::class, 'updateStatus']);
+        Route::apiResource('learning', LearningController::class)->only(['store', 'update', 'destroy']);
+        Route::apiResource('milestones', MilestoneController::class)->only(['store', 'update', 'destroy']);
+        Route::apiResource('saved-views', SavedViewController::class)->only(['store', 'destroy'])->parameters(['saved-views' => 'savedView']);
+        Route::apiResource('references', ReferenceController::class)->only(['store', 'destroy']);
+    });
+
+    Route::post('quick-capture', CaptureController::class)
+        ->middleware(['ability:capture,write', 'throttle:api-capture']);
+
+    Route::get('reports/{period}/export', [ReportController::class, 'export'])
+        ->middleware(['ability:reports,read', 'throttle:api-export']);
+});

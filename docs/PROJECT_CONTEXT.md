@@ -37,8 +37,10 @@ The app was originally built with React/Inertia, then rewritten to Vue SPA + sam
 ## Architecture Snapshot
 
 - `routes/api.php`
-  - Hosts `/api` auth, token, and `/api/v1` product endpoints through Laravel's API route loader.
+  - Loads modular API route files for auth, token management, and `/api/v1` product endpoints through Laravel's API route loader.
   - Uses Sanctum stateful API middleware so the Vue SPA can use session auth while bearer-token clients remain supported.
+- `routes/api/auth.php`, `routes/api/tokens.php`, `routes/api/v1.php`
+  - Keep API routes split by concern and use `Route::apiResource()` for CRUD modules where practical.
 - `routes/web.php`
   - Hosts only the catch-all SPA route for Vue.
 - `app/Http/Controllers/Api/AuthController.php`
@@ -47,6 +49,8 @@ The app was originally built with React/Inertia, then rewritten to Vue SPA + sam
   - Resource-specific JSON controllers for auth, dashboard, projects, quick capture, records, reports, CSV export, search, activity, saved views, and references.
 - `app/Support/ApiQuery.php`
   - Shared API search, sort, pagination, and CSV safety helpers.
+- `app/Support/ApiResponse.php`
+  - Standard response envelope for item, collection, and paginated API responses.
 - `resources/js/app.ts`
   - Vue app entrypoint.
 - `resources/js/vue/App.vue`
