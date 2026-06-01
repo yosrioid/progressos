@@ -12,6 +12,8 @@ const route = useRoute();
 const quick = ref(false);
 const mobileMenu = ref(false);
 const profileMenu = ref(false);
+const commandOpen = ref(false);
+const commandQuery = ref('');
 const searchInput = ref<HTMLInputElement | null>(null);
 const query = ref('');
 const quickForm = ref({ type: 'work_log', title: '', project_name: '', duration_minutes: 30, notes: '', date: new Date().toISOString().slice(0, 10) });
@@ -61,6 +63,20 @@ const icons: Record<string, string[]> = {
   alert: ['M12 3 2 21h20L12 3ZM12 9v4M12 17h.01'],
 };
 const initials = computed(() => (auth.user?.name || 'U').split(' ').map((part) => part[0]).join('').slice(0, 2).toUpperCase());
+const commandItems = computed(() => [
+  ...navGroups.flatMap((group) => group.items.map((item) => ({ ...item, group: group.label, action: 'navigate' }))),
+  { label: 'New Daily Progress', href: '/daily-progress/create', icon: 'calendar', group: 'Create', action: 'navigate' },
+  { label: 'New Work Log', href: '/work-logs/create', icon: 'briefcase', group: 'Create', action: 'navigate' },
+  { label: 'New Task', href: '/tasks/create', icon: 'check', group: 'Create', action: 'navigate' },
+  { label: 'New Learning Entry', href: '/learning/create', icon: 'book', group: 'Create', action: 'navigate' },
+  { label: 'New Milestone', href: '/milestones/create', icon: 'target', group: 'Create', action: 'navigate' },
+  { label: 'Open Quick Add', href: '#quick-add', icon: 'plus', group: 'Action', action: 'quick' },
+  { label: 'Profile Settings', href: '/profile', icon: 'user', group: 'Account', action: 'navigate' },
+]);
+const filteredCommands = computed(() => {
+  const term = commandQuery.value.trim().toLowerCase();
+  return commandItems.value.filter((item) => !term || `${item.label} ${item.group}`.toLowerCase().includes(term)).slice(0, 9);
+});
 
 async function submitQuick() {
   await api.post('/api/v1/quick-capture', quickForm.value);
@@ -82,6 +98,16 @@ function search() {
   if (query.value.trim()) router.push(`/search?q=${encodeURIComponent(query.value.trim())}`);
 }
 
+async function runCommand(item: any) {
+  commandOpen.value = false;
+  commandQuery.value = '';
+  if (item.action === 'quick') {
+    quick.value = true;
+    return;
+  }
+  await router.push(item.href);
+}
+
 function handleQuickNotesPaste(event: ClipboardEvent) {
   pasteLinkOverSelection(event, quickForm, 'notes');
 }
@@ -98,8 +124,14 @@ function shortcuts(event: KeyboardEvent) {
     quick.value = false;
     mobileMenu.value = false;
     profileMenu.value = false;
+    commandOpen.value = false;
   }
   if (typing) return;
+  if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+    event.preventDefault();
+    commandOpen.value = true;
+    return;
+  }
   if (event.key === '/') {
     event.preventDefault();
     searchInput.value?.focus();
@@ -118,6 +150,7 @@ watch(() => auth.user?.theme, (theme) => applyTheme(theme || 'system'), { immedi
 watch(() => route.fullPath, () => {
   mobileMenu.value = false;
   profileMenu.value = false;
+  commandOpen.value = false;
 });
 onMounted(() => window.addEventListener('keydown', shortcuts));
 onUnmounted(() => window.removeEventListener('keydown', shortcuts));
@@ -172,6 +205,7 @@ onUnmounted(() => window.removeEventListener('keydown', shortcuts));
           <form class="relative order-last mt-2 w-full min-w-0 sm:order-none sm:mt-0 sm:block sm:flex-1" @submit.prevent="search">
             <svg class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewBox="0 0 24 24"><path v-for="path in icons.search" :key="path" :d="path" /></svg>
             <input ref="searchInput" v-model="query" class="field h-11 pl-9" placeholder="Search everything" aria-label="Search everything" />
+            <button type="button" class="absolute right-2 top-1/2 hidden -translate-y-1/2 rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-bold text-slate-400 md:block" @click="commandOpen = true">Cmd K</button>
           </form>
           <button class="btn btn-primary px-3 sm:px-4" title="Quick add" aria-label="Quick add" @click="quick = true">
             <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24"><path v-for="path in icons.plus" :key="path" :d="path" /></svg>
@@ -262,6 +296,33 @@ onUnmounted(() => window.removeEventListener('keydown', shortcuts));
         </div>
         <div class="flex justify-end border-t border-slate-100 bg-slate-50/70 px-5 py-4"><button class="btn btn-primary">Capture</button></div>
       </form>
+    </div>
+    <button class="fixed bottom-4 right-4 z-30 grid h-14 w-14 place-items-center rounded-2xl bg-teal-700 text-white shadow-2xl shadow-teal-900/25 sm:hidden" aria-label="Open floating action" @click="quick = true">
+      <svg class="h-6 w-6" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24"><path v-for="path in icons.plus" :key="path" :d="path" /></svg>
+    </button>
+    <div v-if="commandOpen" class="fixed inset-0 z-50 grid place-items-start bg-slate-950/40 p-3 pt-20 backdrop-blur-[2px] sm:p-6 sm:pt-24" role="dialog" aria-modal="true" aria-labelledby="command-title">
+      <button class="absolute inset-0 cursor-default" aria-label="Close command palette" @click="commandOpen = false"></button>
+      <section class="relative mx-auto w-full max-w-2xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl shadow-slate-950/15">
+        <div class="border-b border-slate-100 p-3">
+          <h2 id="command-title" class="sr-only">Command palette</h2>
+          <div class="relative">
+            <svg class="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewBox="0 0 24 24"><path v-for="path in icons.search" :key="path" :d="path" /></svg>
+            <input v-model="commandQuery" class="field h-12 border-0 bg-slate-50 pl-10 text-base" placeholder="Jump to a page or create something" autofocus @keydown.enter.prevent="filteredCommands[0] && runCommand(filteredCommands[0])" />
+          </div>
+        </div>
+        <div class="max-h-[24rem] overflow-y-auto p-2">
+          <button v-for="item in filteredCommands" :key="`${item.group}-${item.label}`" class="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left hover:bg-slate-100" @click="runCommand(item)">
+            <span class="grid h-9 w-9 place-items-center rounded-xl bg-slate-100 text-slate-500">
+              <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewBox="0 0 24 24"><path v-for="path in icons[item.icon]" :key="path" :d="path" /></svg>
+            </span>
+            <span class="min-w-0 flex-1">
+              <span class="block truncate text-sm font-extrabold text-slate-900">{{ item.label }}</span>
+              <span class="text-xs font-bold uppercase text-slate-400">{{ item.group }}</span>
+            </span>
+          </button>
+          <div v-if="filteredCommands.length === 0" class="p-8 text-center text-sm font-semibold text-slate-500">No matching command.</div>
+        </div>
+      </section>
     </div>
     <div class="fixed right-3 top-3 z-50 grid w-[min(24rem,calc(100vw-1.5rem))] gap-2 sm:right-5 sm:top-5">
       <div v-for="item in feedback.toasts" :key="item.id" class="rounded-2xl border bg-white p-4 shadow-2xl shadow-slate-950/10" :class="item.tone === 'success' ? 'border-teal-200' : item.tone === 'error' ? 'border-red-200' : 'border-slate-200'">

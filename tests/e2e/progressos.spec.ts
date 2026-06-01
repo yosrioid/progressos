@@ -67,6 +67,18 @@ test('global search and record filters are navigable', async ({ page }) => {
   await expect(page.getByText(/1 records/)).toBeVisible();
 });
 
+test('command palette supports keyboard navigation shortcuts', async ({ page }) => {
+  test.skip((page.viewportSize()?.width ?? 999) < 768, 'desktop command palette flow');
+
+  await login(page);
+  await page.keyboard.press(process.platform === 'darwin' ? 'Meta+K' : 'Control+K');
+  await expect(page.getByPlaceholder('Jump to a page or create something')).toBeVisible();
+  await page.getByPlaceholder('Jump to a page or create something').fill('New Work Log');
+  await page.keyboard.press('Enter');
+  await expect(page).toHaveURL(/\/work-logs\/create/);
+  await expect(page.getByRole('heading', { name: 'New Work Log' })).toBeVisible();
+});
+
 test('pasting a URL over selected textarea text preserves label as markdown link', async ({ page }) => {
   test.skip((page.viewportSize()?.width ?? 999) < 768, 'desktop paste flow');
   const title = `E2E link paste ${Date.now()}`;
