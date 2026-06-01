@@ -18,7 +18,9 @@ class WorkLog extends Model
     use Auditable, HasFactory, SoftDeletes;
 
     public const CATEGORIES = ['bug', 'feature', 'research', 'testing', 'setup', 'meeting', 'documentation', 'refactor', 'other'];
+
     public const STATUSES = ['todo', 'in_progress', 'done', 'blocked'];
+
     public const PRIORITIES = ['low', 'medium', 'high', 'urgent'];
 
     protected $fillable = ['user_id', 'project_id', 'date', 'project_name', 'ticket_code', 'title', 'category', 'status', 'priority', 'description', 'resolution_or_outcome', 'estimated_duration', 'actual_duration'];

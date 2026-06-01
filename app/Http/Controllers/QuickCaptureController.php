@@ -2,9 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\LearningEntry;
-use App\Models\Task;
-use App\Models\WorkLog;
 use App\Services\ProjectResolver;
 use Illuminate\Http\Request;
 

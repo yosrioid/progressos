@@ -18,6 +18,8 @@ ProgressOS is a Laravel REST API + Vue personal operating system for daily progr
 - Redis configured through Laravel env settings
 - Pest `4.7.0`
 - Playwright `1.60.0` for browser UI regression tests
+- Laravel Pint for code style checks
+- Larastan/PHPStan for static analysis
 
 Package choices: the original Inertia/React client was replaced with a Vue SPA backed by same-origin REST endpoints. `pest-plugin-laravel` did not declare Laravel 13 compatibility at build time, so Pest is used directly with Laravel's base test case.
 
@@ -53,6 +55,8 @@ Demo login after seeding:
 npm run dev
 php artisan serve
 php artisan test
+composer lint
+composer analyse
 npm run test:e2e
 ```
 
@@ -149,7 +153,9 @@ curl -I http://127.0.0.1:8000/login
 
 Current verification passed:
 
-- Pest: `19 passed`, `163 assertions`
+- Pest: `24 passed`, `180 assertions`
+- Pint: passed
+- Larastan/PHPStan: passed
 - Vite production build: passed
 - Playwright: `7 passed`, `3 skipped` across desktop Chromium and mobile Chromium projects. Skips are project-specific viewport checks.
 - Local HTTP smoke check: `/login` returned `200 OK`

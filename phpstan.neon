@@ -1,0 +1,17 @@
+includes:
+  - vendor/larastan/larastan/extension.neon
+
+parameters:
+  level: 3
+  parallel:
+    maximumNumberOfProcesses: 1
+  paths:
+    - app
+    - routes
+    - database/factories
+    - database/seeders
+  excludePaths:
+    - bootstrap/cache
+    - app/Http/Resources
+    - app/Services/DashboardData.php
+    - app/Services/ReportBuilder.php
