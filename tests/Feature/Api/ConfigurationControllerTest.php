@@ -5,6 +5,7 @@ use App\Models\BackupSync;
 use App\Models\LearningEntry;
 use App\Models\User;
 use App\Models\WorkLog;
+use App\Services\GoogleSheetsBackupService;
 use Illuminate\Support\Facades\Storage;
 
 it('stores verifies and lists backup configuration', function () {
@@ -33,6 +34,22 @@ it('stores verifies and lists backup configuration', function () {
 it('creates updates deletes and runs backup syncs', function () {
     Storage::fake('local');
     $user = User::factory()->create();
+    $connection = $user->backupConnections()->create([
+        'provider' => 'google_sheets',
+        'name' => 'Personal Sheets',
+        'spreadsheet_id' => 'sheet_123',
+        'credentials' => [
+            'project_id' => 'progressos',
+            'client_email' => 'backup@progressos.iam.gserviceaccount.com',
+            'private_key' => 'secret',
+        ],
+        'status' => 'verified',
+    ]);
+    $this->mock(GoogleSheetsBackupService::class)
+        ->shouldReceive('append')
+        ->once()
+        ->withArgs(fn ($actualConnection, string $sheetName, array $rows) => $actualConnection->is($connection) && $sheetName === 'learning_weekly' && count($rows) === 2)
+        ->andReturn('https://docs.google.com/spreadsheets/d/sheet_123/edit');
     WorkLog::factory()->for($user)->create(['title' => 'Backup this work', 'project_name' => 'ABC']);
     LearningEntry::factory()->for($user)->create(['topic' => 'Backup learning']);
 
@@ -58,7 +75,7 @@ it('creates updates deletes and runs backup syncs', function () {
         ->json('run');
 
     expect(BackupRun::query()->where('id', $run['id'])->where('rows_exported', 1)->exists())->toBeTrue();
-    Storage::assertExists($run['file_path']);
+    Storage::assertExists(str($run['file_path'])->after('local CSV: ')->toString());
 
     $this->actingAs($user)->deleteJson("/api/v1/configuration/backup-syncs/{$syncId}")->assertNoContent();
     expect(BackupSync::query()->find($syncId))->toBeNull();

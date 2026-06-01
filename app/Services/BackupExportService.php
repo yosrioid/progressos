@@ -19,6 +19,8 @@ use Throwable;
 
 class BackupExportService
 {
+    public function __construct(private readonly GoogleSheetsBackupService $sheets) {}
+
     public function run(BackupSync $sync): BackupRun
     {
         $run = BackupRun::query()->create([
@@ -31,6 +33,11 @@ class BackupExportService
         try {
             $rows = $this->rowsFor($sync->user, $sync->module);
             $path = $this->writeCsv($sync, $rows);
+            $connection = $sync->connection;
+            if (! $connection) {
+                throw new \InvalidArgumentException('Backup connection is required before syncing to Google Sheets.');
+            }
+            $destination = $this->sheets->append($connection, $sync->destination_sheet_name, $rows);
             $sync->update([
                 'last_run_at' => now(),
                 'next_run_at' => $this->nextRunAt($sync->frequency),
@@ -39,7 +46,7 @@ class BackupExportService
                 'status' => 'completed',
                 'finished_at' => now(),
                 'rows_exported' => max(count($rows) - 1, 0),
-                'file_path' => $path,
+                'file_path' => "{$destination} | local CSV: {$path}",
             ]);
         } catch (Throwable $exception) {
             $run->update([
@@ -83,7 +90,7 @@ class BackupExportService
     /**
      * @return array<int, array<int, mixed>>
      */
-    private function rowsFor(User $user, string $module): array
+    public function rowsFor(User $user, string $module): array
     {
         return match ($module) {
             'daily_progress' => $this->dailyProgressRows($user),

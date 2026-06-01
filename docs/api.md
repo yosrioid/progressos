@@ -106,7 +106,7 @@ Supported `type` values:
 - `POST /api/v1/configuration/backup-syncs` creates a daily, weekly, or monthly backup sync for `daily_progress`, `work_logs`, `tasks`, `learning`, `milestones`, or `reports`.
 - `PATCH /api/v1/configuration/backup-syncs/{sync}` updates a sync row.
 - `DELETE /api/v1/configuration/backup-syncs/{sync}` deletes a sync row.
-- `POST /api/v1/configuration/backup-syncs/{sync}/run` runs a sync immediately and writes a spreadsheet-compatible CSV file into Laravel storage.
+- `POST /api/v1/configuration/backup-syncs/{sync}/run` runs a sync immediately, appends rows to the configured Google Sheet tab, and writes a local spreadsheet-compatible CSV backup artifact.
 
 Scheduled processing is available through:
 
@@ -115,3 +115,10 @@ php artisan backups:run-due
 ```
 
 The scheduler registers this command hourly, so production/local automation should run Laravel's scheduler process.
+
+Google Sheets requirements:
+
+- Enable the Google Sheets API in Google Cloud.
+- Create a service account and JSON key.
+- Upload that JSON key in ProgressOS Configuration.
+- Share the target spreadsheet with the service account `client_email`.
