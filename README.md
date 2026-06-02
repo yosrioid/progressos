@@ -6,6 +6,7 @@ ProgressOS is a Laravel REST API + Vue personal operating system for daily progr
 
 - Laravel app skeleton `v13.8.0`, Laravel framework `v13.12.0`
 - Laravel Sanctum `v4.3.2` for personal API access tokens
+- Google API Client `v2.19.3` for service-account Google Sheets backup sync
 - PHP `8.5.5` locally, compatible with Laravel 13's PHP `8.3+` requirement
 - Vue `3.5.35`
 - Pinia `3.0.4`
@@ -113,7 +114,7 @@ Security checklist:
 
 ## Architecture
 
-- `app/Models`: user-owned domain models for daily progress, work logs, learning entries, milestones, and report snapshots.
+- `app/Models`: user-owned domain models for daily progress, work logs, learning entries, milestones, report snapshots, backup connections, backup sync schedules, and backup run history.
 - `routes/api.php`: Laravel API entrypoint that loads `routes/api/auth.php`, `routes/api/tokens.php`, and `routes/api/v1.php`.
 - `routes/web.php`: Vue SPA catch-all route only.
 - `app/Http/Controllers/Api`: resource-specific same-origin JSON controllers for auth, dashboard, projects, capture, records, reports, CSV export, search, activity, saved views, and references.
@@ -122,7 +123,7 @@ Security checklist:
 - `app/Support/ApiResponse.php`: standard JSON response envelope helpers for item, collection, and paginated responses.
 - `app/Http/Middleware/EnsureApiTokenCan.php`: Sanctum token ability enforcement that still allows first-party browser sessions.
 - `app/Support/ApiQuery.php`: shared search, sorting, pagination, and CSV hardening helpers.
-- `app/Services`: focused services for dashboard aggregation, report generation, and tag syncing.
+- `app/Services`: focused services for dashboard aggregation, report generation, backup CSV export, and tag syncing.
 - `docs/api.md` and `docs/openapi.yaml`: REST API usage notes and starter OpenAPI contract for external clients.
 - `resources/js/vue`: Vue 3 + Pinia + TypeScript SPA with a responsive sidebar/mobile navigation, dashboard cards, record lists, project views, quick capture, and report views.
 - `database/factories` and `database/seeders`: realistic demo data for everyday review workflows.
@@ -141,6 +142,7 @@ Security checklist:
 - Saved views and references: filter presets plus persisted reference links on record details.
 - Work logging flow: quick capture can create a done work log directly into an existing or newly resolved project.
 - Reports: weekly/monthly on-screen reports with real derived data, period picker, trend comparison, charts, and CSV export.
+- Configuration: encrypted Google Sheets service account settings, dynamic daily/weekly/monthly backup sync rows per module, manual run-now Google Sheets sync with local CSV backup artifact, scheduled due-sync command, and backup run history.
 
 ## Verification
 
@@ -153,7 +155,7 @@ curl -I http://127.0.0.1:8000/login
 
 Current verification passed:
 
-- Pest: `24 passed`, `180 assertions`
+- Pest: `27 passed`, `204 assertions`
 - Pint: passed
 - Larastan/PHPStan: passed
 - Vite production build: passed
@@ -164,6 +166,7 @@ Current verification passed:
 ## Known Limitations
 
 - PDF export is intentionally omitted in the MVP; CSV export is implemented cleanly without adding a heavy PDF rendering dependency.
+- Backup sync uses Google service account credentials to append rows to Google Sheets and also writes a local CSV backup artifact. The target spreadsheet must be shared with the configured service account email.
 - The Vue rewrite now includes Vue-native CRUD screens, filters, global search, project-scoped creation shortcuts, profile settings, avatar upload, forgot/reset password screens, saved views, references, dark mode, keyboard shortcuts, and report controls.
 - Milestone current-value auto-updates are manual in the MVP. The next step is linking milestones to specific metrics or tags so progress can be recalculated from logs.
 - Tests run on SQLite in memory. The actual application configuration and verified local run use MySQL.

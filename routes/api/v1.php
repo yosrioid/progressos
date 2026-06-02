@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\ActivityController;
 use App\Http\Controllers\Api\CaptureController;
+use App\Http\Controllers\Api\ConfigurationController;
 use App\Http\Controllers\Api\DailyProgressController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\LearningController;
@@ -22,6 +23,7 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
         Route::get('reports/{period}/snapshots', [ReportController::class, 'snapshots'])->middleware('ability:reports,read');
         Route::get('search', SearchController::class);
         Route::get('activity', ActivityController::class);
+        Route::get('configuration', [ConfigurationController::class, 'show']);
         Route::apiResource('projects', ProjectController::class)->only(['index', 'show']);
         Route::apiResource('daily-progress', DailyProgressController::class)->only(['index', 'show'])->parameters(['daily-progress' => 'dailyProgress']);
         Route::apiResource('work-logs', WorkLogController::class)->only(['index', 'show'])->parameters(['work-logs' => 'workLog']);
@@ -41,6 +43,12 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
         Route::apiResource('milestones', MilestoneController::class)->only(['store', 'update', 'destroy']);
         Route::apiResource('saved-views', SavedViewController::class)->only(['store', 'destroy'])->parameters(['saved-views' => 'savedView']);
         Route::apiResource('references', ReferenceController::class)->only(['store', 'destroy']);
+        Route::put('configuration/backup-connection', [ConfigurationController::class, 'updateConnection']);
+        Route::post('configuration/backup-connection/verify', [ConfigurationController::class, 'verifyConnection']);
+        Route::post('configuration/backup-syncs', [ConfigurationController::class, 'storeSync']);
+        Route::patch('configuration/backup-syncs/{sync}', [ConfigurationController::class, 'updateSync']);
+        Route::delete('configuration/backup-syncs/{sync}', [ConfigurationController::class, 'destroySync']);
+        Route::post('configuration/backup-syncs/{sync}/run', [ConfigurationController::class, 'runSync']);
     });
 
     Route::post('quick-capture', CaptureController::class)
