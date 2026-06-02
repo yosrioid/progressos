@@ -1,20 +1,38 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { api, unwrap } from '../api';
 import { confirmAction, toast } from '../feedback';
+import { timezones, useConfigurationStore } from '../stores/configuration';
 
+const configuration = useConfigurationStore();
 const loading = ref(true);
 const modules = ref<string[]>([]);
 const frequencies = ref<string[]>([]);
 const connection = ref<any>(null);
 const syncs = ref<any[]>([]);
 const runs = ref<any[]>([]);
+const groupSettings = ref<any>({
+  general: { app_name: 'ProgressOS', project_name: 'ProgressOS', tagline: '', timezone: 'Asia/Jakarta' },
+  appearance: { theme: 'system', favicon_url: '' },
+  notifications: { daily_review_enabled: false, weekly_review_enabled: false },
+});
 const connectionForm = ref({ name: 'Google Sheets', spreadsheet_id: '', credentials_json: '' });
 const credentialFileName = ref('');
 const saving = ref(false);
 const loadError = ref('');
 const googleHelpOpen = ref(false);
-const openGroups = ref({ google_oauth: true, sync_data: true, history: false });
+const openGroups = ref({ general: true, appearance: false, google_oauth: true, sync_data: true, notifications: false, history: false });
+const timezonePreview = computed(() => {
+  try {
+    return new Intl.DateTimeFormat('en', {
+      dateStyle: 'full',
+      timeStyle: 'medium',
+      timeZone: groupSettings.value.general.timezone || 'Asia/Jakarta',
+    }).format(new Date());
+  } catch {
+    return 'Invalid timezone';
+  }
+});
 
 function moduleLabel(value: string) {
   return value.replaceAll('_', ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
@@ -35,6 +53,11 @@ async function load() {
     connection.value = config.connection;
     syncs.value = config.syncs.length ? config.syncs : [blankSync()];
     runs.value = config.runs;
+    groupSettings.value = {
+      ...groupSettings.value,
+      ...(config.groups || {}),
+    };
+    configuration.applyGroups(config.groups || {});
     connectionForm.value = {
       name: config.connection?.name || 'Google Sheets',
       spreadsheet_id: config.connection?.spreadsheet_id || '',
@@ -84,6 +107,13 @@ async function saveConnection(showToast = true) {
   }
 }
 
+async function saveSettings(showToast = true) {
+  const data: any = await api.put('/api/v1/configuration/settings', groupSettings.value).then(unwrap);
+  groupSettings.value = { ...groupSettings.value, ...(data.groups || {}) };
+  configuration.applyGroups(data.groups || {});
+  if (showToast) toast({ tone: 'success', title: 'Settings saved', message: 'General configuration values were updated.' });
+}
+
 async function verifyConnection() {
   try {
     const data: any = await api.post('/api/v1/configuration/backup-connection/verify').then(unwrap);
@@ -116,6 +146,7 @@ async function saveSync(sync: any, showToast = true) {
 async function saveAll() {
   saving.value = true;
   try {
+    await saveSettings(false);
     await saveConnection(false);
     for (const sync of syncs.value) {
       await saveSync(sync, false);
@@ -161,6 +192,61 @@ onMounted(load);
       </div>
       <button class="btn btn-primary" :disabled="saving || loading" @click="saveAll">Save Changes</button>
     </div>
+
+    <section class="card overflow-hidden p-0">
+      <button type="button" class="flex w-full items-center justify-between gap-4 border-b border-slate-100 bg-slate-50/70 px-5 py-4 text-left" :aria-expanded="openGroups.general" @click="toggleGroup('general')">
+        <span>
+          <span class="block text-xs font-extrabold uppercase text-teal-700">General</span>
+          <span class="mt-1 block text-lg font-extrabold text-slate-950">Project Identity</span>
+          <span class="mt-1 block text-sm font-medium text-slate-500">Core labels used across the application shell and future exports.</span>
+        </span>
+        <span class="grid h-8 w-8 place-items-center rounded-xl border border-slate-200 bg-white text-slate-500 transition" :class="openGroups.general ? 'rotate-180' : ''">
+          <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6" /></svg>
+        </span>
+      </button>
+      <div v-if="openGroups.general" class="divide-y divide-slate-100">
+        <div class="grid gap-3 px-5 py-4 md:grid-cols-[16rem_1fr] md:items-center">
+          <span class="font-extrabold text-slate-800">Application name</span>
+          <input v-model="groupSettings.general.app_name" class="field" placeholder="ProgressOS" />
+          <span class="font-extrabold text-slate-800">Project name</span>
+          <input v-model="groupSettings.general.project_name" class="field" placeholder="ProgressOS" />
+          <span class="font-extrabold text-slate-800">Tagline</span>
+          <input v-model="groupSettings.general.tagline" class="field" placeholder="Personal operating system" />
+          <span class="font-extrabold text-slate-800">Timezone</span>
+          <div class="space-y-2">
+            <select v-model="groupSettings.general.timezone" class="field">
+              <option v-for="timezone in timezones" :key="timezone" :value="timezone">{{ timezone.replace('_', ' ') }}</option>
+            </select>
+            <p class="rounded-xl border border-teal-100 bg-teal-50 px-3 py-2 text-sm font-bold text-teal-900">{{ timezonePreview }}</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card overflow-hidden p-0">
+      <button type="button" class="flex w-full items-center justify-between gap-4 border-b border-slate-100 bg-slate-50/70 px-5 py-4 text-left" :aria-expanded="openGroups.appearance" @click="toggleGroup('appearance')">
+        <span>
+          <span class="block text-xs font-extrabold uppercase text-teal-700">Appearance</span>
+          <span class="mt-1 block text-lg font-extrabold text-slate-950">Brand & Theme</span>
+          <span class="mt-1 block text-sm font-medium text-slate-500">Visual preferences reserved for app-wide branding.</span>
+        </span>
+        <span class="grid h-8 w-8 place-items-center rounded-xl border border-slate-200 bg-white text-slate-500 transition" :class="openGroups.appearance ? 'rotate-180' : ''">
+          <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6" /></svg>
+        </span>
+      </button>
+      <div v-if="openGroups.appearance" class="divide-y divide-slate-100">
+        <div class="grid gap-3 px-5 py-4 md:grid-cols-[16rem_1fr] md:items-center">
+          <span class="font-extrabold text-slate-800">Theme</span>
+          <select v-model="groupSettings.appearance.theme" class="field">
+            <option value="system">system</option>
+            <option value="light">light</option>
+            <option value="dark">dark</option>
+          </select>
+          <span class="font-extrabold text-slate-800">Favicon URL</span>
+          <input v-model="groupSettings.appearance.favicon_url" class="field" placeholder="https://example.com/favicon.png" />
+        </div>
+      </div>
+    </section>
 
     <section class="card overflow-visible p-0">
       <button type="button" class="flex w-full items-center justify-between gap-4 border-b border-slate-100 bg-slate-50/70 px-5 py-4 text-left" :aria-expanded="openGroups.google_oauth" @click="toggleGroup('google_oauth')">
@@ -244,6 +330,27 @@ onMounted(load);
         </div>
         <div class="flex flex-wrap justify-end gap-2 border-t border-slate-100 bg-slate-50/70 px-5 py-4">
           <button class="btn btn-muted" type="button" @click="verifyConnection">Test settings</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="card overflow-hidden p-0">
+      <button type="button" class="flex w-full items-center justify-between gap-4 border-b border-slate-100 bg-slate-50/70 px-5 py-4 text-left" :aria-expanded="openGroups.notifications" @click="toggleGroup('notifications')">
+        <span>
+          <span class="block text-xs font-extrabold uppercase text-teal-700">Notifications</span>
+          <span class="mt-1 block text-lg font-extrabold text-slate-950">Review Reminders</span>
+          <span class="mt-1 block text-sm font-medium text-slate-500">Stored now for future reminder delivery channels.</span>
+        </span>
+        <span class="grid h-8 w-8 place-items-center rounded-xl border border-slate-200 bg-white text-slate-500 transition" :class="openGroups.notifications ? 'rotate-180' : ''">
+          <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6" /></svg>
+        </span>
+      </button>
+      <div v-if="openGroups.notifications" class="divide-y divide-slate-100">
+        <div class="grid gap-3 px-5 py-4 md:grid-cols-[16rem_1fr] md:items-center">
+          <span class="font-extrabold text-slate-800">Daily review</span>
+          <label class="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm font-bold text-slate-700"><input v-model="groupSettings.notifications.daily_review_enabled" type="checkbox" class="accent-teal-700" />Enabled</label>
+          <span class="font-extrabold text-slate-800">Weekly review</span>
+          <label class="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm font-bold text-slate-700"><input v-model="groupSettings.notifications.weekly_review_enabled" type="checkbox" class="accent-teal-700" />Enabled</label>
         </div>
       </div>
     </section>

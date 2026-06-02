@@ -153,7 +153,7 @@ class AuthController extends Controller
     private function userPayload(User $user): array
     {
         return $user->toArray() + [
-            'avatar_url' => $user->avatar_path ? Storage::disk('public')->url($user->avatar_path) : null,
+            'avatar_url' => $user->avatar_path ? '/storage/'.$user->avatar_path : null,
         ];
     }
 }

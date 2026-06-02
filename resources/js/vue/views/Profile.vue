@@ -2,12 +2,15 @@
 import { ref } from 'vue';
 import { toast } from '../feedback';
 import { useAuthStore } from '../stores/auth';
+import { timezones, useConfigurationStore } from '../stores/configuration';
 
 const auth = useAuthStore();
-const profile = ref({ name: auth.user?.name || '', email: auth.user?.email || '', timezone: auth.user?.timezone || 'Asia/Jakarta', theme: auth.user?.theme || 'system' });
+const configuration = useConfigurationStore();
+const profile = ref({ name: auth.user?.name || '', email: auth.user?.email || '', timezone: auth.user?.timezone || configuration.timezone || 'Asia/Jakarta', theme: auth.user?.theme || 'system' });
 const password = ref({ current_password: '', password: '', password_confirmation: '' });
 const avatar = ref<File | null>(null);
 const avatarPreview = ref('');
+const avatarLoadFailed = ref(false);
 const cropOpen = ref(false);
 const cropArea = ref<HTMLElement | null>(null);
 const cropBox = ref({ x: 56, y: 56, size: 176 });
@@ -49,6 +52,7 @@ async function saveAvatar() {
   payload.append('avatar', new File([cropped], 'avatar.jpg', { type: 'image/jpeg' }));
   try {
     await auth.updateAvatar(payload);
+    avatarLoadFailed.value = false;
     avatar.value = null;
     avatarPreview.value = '';
     cropOpen.value = false;
@@ -58,6 +62,10 @@ async function saveAvatar() {
   } catch (e: any) {
     error.value = e.response?.data?.message || 'Could not update avatar.';
   }
+}
+
+function avatarInitial() {
+  return auth.user?.name?.slice(0, 1) || 'P';
 }
 
 function selectAvatar(event: Event) {
@@ -157,8 +165,8 @@ async function croppedAvatarBlob(): Promise<Blob> {
     <aside class="card h-fit overflow-hidden p-0">
       <div class="bg-gradient-to-r from-teal-50 to-sky-50 p-5">
         <div class="flex items-center gap-4">
-          <img v-if="auth.user?.avatar_url" :src="auth.user.avatar_url" class="h-16 w-16 rounded-2xl object-cover ring-4 ring-white" alt="Current avatar" />
-          <div v-else class="grid h-16 w-16 place-items-center rounded-2xl bg-teal-700 text-2xl font-extrabold text-white">{{ auth.user?.name?.slice(0, 1) || 'P' }}</div>
+          <img v-if="auth.user?.avatar_url && !avatarLoadFailed" :src="auth.user.avatar_url" class="h-16 w-16 rounded-2xl object-cover ring-4 ring-white" alt="Current avatar" @error="avatarLoadFailed = true" />
+          <div v-else class="grid h-16 w-16 place-items-center rounded-2xl bg-teal-700 text-2xl font-extrabold text-white">{{ avatarInitial() }}</div>
           <div class="min-w-0">
             <p class="truncate font-extrabold text-slate-900">{{ auth.user?.name }}</p>
             <p class="truncate text-sm font-semibold text-slate-500">{{ auth.user?.email }}</p>
@@ -179,7 +187,12 @@ async function croppedAvatarBlob(): Promise<Blob> {
       <div class="grid gap-4 p-5 md:grid-cols-2">
         <label><span class="label mb-1">Name</span><input v-model="profile.name" class="field" required /></label>
         <label><span class="label mb-1">Email</span><input v-model="profile.email" class="field" type="email" required /></label>
-        <label><span class="label mb-1">Timezone</span><input v-model="profile.timezone" class="field" required /></label>
+        <label>
+          <span class="label mb-1">Timezone</span>
+          <select v-model="profile.timezone" class="field" required>
+            <option v-for="timezone in timezones" :key="timezone" :value="timezone">{{ timezone.replace('_', ' ') }}</option>
+          </select>
+        </label>
         <div>
           <span class="label mb-1">Theme</span>
           <div class="inline-flex rounded-xl border border-slate-200 bg-white p-1">
@@ -197,8 +210,8 @@ async function croppedAvatarBlob(): Promise<Blob> {
       <div class="grid gap-5 p-5 lg:grid-cols-[10rem_1fr]">
         <div class="relative h-32 w-32 overflow-hidden rounded-3xl border border-slate-200 bg-slate-100">
           <img v-if="avatarPreview" :src="avatarPreview" class="h-full w-full object-cover" alt="Selected avatar preview" />
-          <img v-else-if="auth.user?.avatar_url" :src="auth.user.avatar_url" class="h-full w-full object-cover" alt="Current avatar" />
-          <div v-else class="grid h-full w-full place-items-center bg-teal-100 text-4xl font-extrabold text-teal-800">{{ auth.user?.name?.slice(0, 1) || 'P' }}</div>
+          <img v-else-if="auth.user?.avatar_url && !avatarLoadFailed" :src="auth.user.avatar_url" class="h-full w-full object-cover" alt="Current avatar" @error="avatarLoadFailed = true" />
+          <div v-else class="grid h-full w-full place-items-center bg-teal-100 text-4xl font-extrabold text-teal-800">{{ avatarInitial() }}</div>
         </div>
         <div class="space-y-3">
           <label class="block rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4">

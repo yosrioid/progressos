@@ -43,6 +43,7 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
         Route::apiResource('milestones', MilestoneController::class)->only(['store', 'update', 'destroy']);
         Route::apiResource('saved-views', SavedViewController::class)->only(['store', 'destroy'])->parameters(['saved-views' => 'savedView']);
         Route::apiResource('references', ReferenceController::class)->only(['store', 'destroy']);
+        Route::put('configuration/settings', [ConfigurationController::class, 'updateSettings']);
         Route::put('configuration/backup-connection', [ConfigurationController::class, 'updateConnection']);
         Route::post('configuration/backup-connection/verify', [ConfigurationController::class, 'verifyConnection']);
         Route::post('configuration/backup-syncs', [ConfigurationController::class, 'storeSync']);
