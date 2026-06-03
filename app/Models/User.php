@@ -74,14 +74,9 @@ class User extends Authenticatable
         return $this->hasMany(ReportSnapshot::class);
     }
 
-    public function backupConnections(): HasMany
+    public function configurations(): HasMany
     {
-        return $this->hasMany(BackupConnection::class);
-    }
-
-    public function backupSyncs(): HasMany
-    {
-        return $this->hasMany(BackupSync::class);
+        return $this->hasMany(Configuration::class);
     }
 
     public function backupRuns(): HasMany

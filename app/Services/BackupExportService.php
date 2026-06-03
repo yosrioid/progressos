@@ -3,7 +3,7 @@
 namespace App\Services;
 
 use App\Models\BackupRun;
-use App\Models\BackupSync;
+use App\Models\Configuration;
 use App\Models\DailyProgressEntry;
 use App\Models\LearningEntry;
 use App\Models\Milestone;
@@ -12,7 +12,6 @@ use App\Models\Task;
 use App\Models\User;
 use App\Models\WorkLog;
 use Carbon\CarbonImmutable;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
 use Throwable;
@@ -21,27 +20,26 @@ class BackupExportService
 {
     public function __construct(private readonly GoogleSheetsBackupService $sheets) {}
 
-    public function run(BackupSync $sync): BackupRun
+    public function run(User $user, array $sync, ?array $connection = null): BackupRun
     {
         $run = BackupRun::query()->create([
-            'backup_sync_id' => $sync->id,
-            'user_id' => $sync->user_id,
+            'user_id' => $user->id,
+            'sync_id' => $sync['id'] ?? null,
+            'module' => $sync['module'] ?? null,
+            'destination_sheet_name' => $sync['destination_sheet_name'] ?? null,
             'status' => 'running',
             'started_at' => now(),
         ]);
 
         try {
-            $rows = $this->rowsFor($sync->user, $sync->module);
-            $path = $this->writeCsv($sync, $rows);
-            $connection = $sync->connection;
+            $module = (string) ($sync['module'] ?? '');
+            $rows = $this->rowsFor($user, $module);
+            $path = $this->writeCsv($user, $module, $rows);
+            $connection ??= Configuration::getValue($user, 'sync', 'google_sheets');
             if (! $connection) {
                 throw new \InvalidArgumentException('Backup connection is required before syncing to Google Sheets.');
             }
-            $destination = $this->sheets->append($connection, $sync->destination_sheet_name, $rows);
-            $sync->update([
-                'last_run_at' => now(),
-                'next_run_at' => $this->nextRunAt($sync->frequency),
-            ]);
+            $destination = $this->sheets->append($connection, (string) ($sync['destination_sheet_name'] ?? $module), $rows);
             $run->update([
                 'status' => 'completed',
                 'finished_at' => now(),
@@ -64,16 +62,30 @@ class BackupExportService
     public function runDue(): int
     {
         $count = 0;
-        BackupSync::query()
-            ->where('enabled', true)
-            ->where(fn (Builder $query) => $query->whereNull('next_run_at')->orWhere('next_run_at', '<=', now()))
-            ->with('user')
-            ->chunkById(50, function ($syncs) use (&$count) {
-                foreach ($syncs as $sync) {
-                    $this->run($sync);
+        User::query()->chunkById(50, function ($users) use (&$count) {
+            foreach ($users as $user) {
+                $connection = Configuration::getValue($user, 'sync', 'google_sheets');
+                $syncs = $this->syncsFor($user);
+                $changed = false;
+                foreach ($syncs as $index => $sync) {
+                    if (! ($sync['enabled'] ?? true)) {
+                        continue;
+                    }
+                    $nextRunAt = filled($sync['next_run_at'] ?? null) ? CarbonImmutable::parse($sync['next_run_at']) : null;
+                    if ($nextRunAt && $nextRunAt->gt(now())) {
+                        continue;
+                    }
+                    $this->run($user, $sync, $connection);
+                    $syncs[$index]['last_run_at'] = now()->toISOString();
+                    $syncs[$index]['next_run_at'] = $this->nextRunAt($sync['frequency'] ?? 'daily')->toISOString();
                     $count++;
+                    $changed = true;
                 }
-            });
+                if ($changed) {
+                    Configuration::setValue($user, 'sync', 'backup_schedules', array_values($syncs));
+                }
+            }
+        });
 
         return $count;
     }
@@ -103,10 +115,17 @@ class BackupExportService
         };
     }
 
-    private function writeCsv(BackupSync $sync, array $rows): string
+    public function syncsFor(User $user): array
     {
-        $directory = "backups/user-{$sync->user_id}";
-        $path = $directory.'/'.now()->format('Ymd-His')."-{$sync->module}.csv";
+        $syncs = Configuration::getValue($user, 'sync', 'backup_schedules', []);
+
+        return is_array($syncs) ? $syncs : [];
+    }
+
+    private function writeCsv(User $user, string $module, array $rows): string
+    {
+        $directory = "backups/user-{$user->id}";
+        $path = $directory.'/'.now()->format('Ymd-His')."-{$module}.csv";
         $stream = fopen('php://temp', 'r+');
         foreach ($rows as $row) {
             fputcsv($stream, array_map(fn ($value) => is_array($value) ? json_encode($value) : $value, $row));

@@ -6,8 +6,10 @@ import DatePicker from './components/DatePicker.vue';
 import { dismissToast, feedback, resolveConfirm, toast } from './feedback';
 import { pasteLinkOverSelection } from './linkPaste';
 import { useAuthStore } from './stores/auth';
+import { useConfigurationStore } from './stores/configuration';
 
 const auth = useAuthStore();
+const configuration = useConfigurationStore();
 const router = useRouter();
 const route = useRoute();
 const quick = ref(false);
@@ -76,6 +78,7 @@ const icons: Record<string, string[]> = {
   settings: ['M12 15.5A3.5 3.5 0 1 0 12 8a3.5 3.5 0 0 0 0 7.5ZM19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.04 1.56V21a2 2 0 0 1-4 0v-.08A1.7 1.7 0 0 0 8.96 19.36a1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.56-1.04H3a2 2 0 0 1 0-4h.04A1.7 1.7 0 0 0 4.6 8.96a1.7 1.7 0 0 0-.34-1.87L4.2 7.03A2 2 0 0 1 7.03 4.2l.06.06a1.7 1.7 0 0 0 1.87.34H9a1.7 1.7 0 0 0 1-1.56V3a2 2 0 0 1 4 0v.04a1.7 1.7 0 0 0 1.04 1.56 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87V9a1.7 1.7 0 0 0 1.56 1H21a2 2 0 0 1 0 4h-.04A1.7 1.7 0 0 0 19.4 15Z'],
 };
 const initials = computed(() => (auth.user?.name || 'U').split(' ').map((part) => part[0]).join('').slice(0, 2).toUpperCase());
+const activeTheme = computed(() => configuration.appearance.theme || auth.user?.theme || 'system');
 const commandItems = computed(() => [
   ...navGroups.flatMap((group) => group.items.map((item) => ({ ...item, group: group.label, action: 'navigate' }))),
   { label: 'New Daily Progress', href: '/daily-progress/create', icon: 'calendar', group: 'Create', action: 'navigate' },
@@ -131,6 +134,17 @@ function applyTheme(theme?: string) {
   document.documentElement.classList.toggle('dark', theme === 'dark' || (theme === 'system' && prefersDark));
 }
 
+function applyFavicon(url?: string) {
+  if (!url) return;
+  let link = document.querySelector<HTMLLinkElement>('link[rel="icon"]');
+  if (!link) {
+    link = document.createElement('link');
+    link.rel = 'icon';
+    document.head.appendChild(link);
+  }
+  link.href = url;
+}
+
 function shortcuts(event: KeyboardEvent) {
   const target = event.target as HTMLElement | null;
   const typing = ['INPUT', 'TEXTAREA', 'SELECT'].includes(target?.tagName || '');
@@ -160,7 +174,19 @@ function isActive(href: string) {
   return route.path === href || (href !== '/dashboard' && route.path.startsWith(`${href}/`));
 }
 
-watch(() => auth.user?.theme, (theme) => applyTheme(theme || 'system'), { immediate: true });
+watch(() => auth.user, async (user) => {
+  if (!user) return;
+  try {
+    await configuration.load();
+  } catch {
+    // Configuration is non-critical for shell boot.
+  }
+}, { immediate: true });
+watch(activeTheme, (theme) => applyTheme(theme || 'system'), { immediate: true });
+watch(() => configuration.appearance.favicon_url, (url) => applyFavicon(url), { immediate: true });
+watch(() => configuration.appName, (name) => {
+  document.title = name || 'ProgressOS';
+}, { immediate: true });
 watch(() => route.fullPath, () => {
   mobileMenu.value = false;
   profileMenu.value = false;
@@ -179,8 +205,8 @@ onUnmounted(() => window.removeEventListener('keydown', shortcuts));
           <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewBox="0 0 24 24"><path v-for="path in icons.spark" :key="path" :d="path" /></svg>
         </span>
         <span>
-          <span class="block text-base font-extrabold tracking-tight">ProgressOS</span>
-          <span class="text-xs font-semibold text-slate-500">Personal operating system</span>
+          <span class="block text-base font-extrabold tracking-tight">{{ configuration.projectName }}</span>
+          <span class="text-xs font-semibold text-slate-500">{{ configuration.tagline }}</span>
         </span>
       </RouterLink>
       <nav class="space-y-6">
@@ -214,7 +240,7 @@ onUnmounted(() => window.removeEventListener('keydown', shortcuts));
             <span class="grid h-9 w-9 place-items-center rounded-xl bg-teal-700 text-white">
               <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewBox="0 0 24 24"><path v-for="path in icons.spark" :key="path" :d="path" /></svg>
             </span>
-            <span class="hidden sm:inline">ProgressOS</span>
+            <span class="hidden sm:inline">{{ configuration.projectName }}</span>
           </RouterLink>
           <form class="relative order-last mt-2 w-full min-w-0 sm:order-none sm:mt-0 sm:block sm:flex-1" @submit.prevent="search">
             <svg class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewBox="0 0 24 24"><path v-for="path in icons.search" :key="path" :d="path" /></svg>
@@ -267,7 +293,7 @@ onUnmounted(() => window.removeEventListener('keydown', shortcuts));
             <span class="grid h-10 w-10 place-items-center rounded-2xl bg-teal-700 text-white">
               <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewBox="0 0 24 24"><path v-for="path in icons.spark" :key="path" :d="path" /></svg>
             </span>
-            <span class="font-extrabold">ProgressOS</span>
+            <span class="font-extrabold">{{ configuration.projectName }}</span>
           </RouterLink>
           <button class="btn btn-muted px-3" aria-label="Close menu" @click="mobileMenu = false">
             <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewBox="0 0 24 24"><path v-for="path in icons.close" :key="path" :d="path" /></svg>

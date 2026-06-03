@@ -4,13 +4,12 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class BackupRun extends Model
 {
     public const STATUSES = ['queued', 'running', 'completed', 'failed'];
 
-    protected $fillable = ['backup_sync_id', 'user_id', 'status', 'started_at', 'finished_at', 'rows_exported', 'file_path', 'error_message'];
+    protected $fillable = ['user_id', 'sync_id', 'module', 'destination_sheet_name', 'status', 'started_at', 'finished_at', 'rows_exported', 'file_path', 'error_message'];
 
     protected function casts(): array
     {
@@ -20,12 +19,7 @@ class BackupRun extends Model
         ];
     }
 
-    public function sync(): BelongsTo
-    {
-        return $this->belongsTo(BackupSync::class, 'backup_sync_id');
-    }
-
-    public function user(): BelongsTo
+    public function user()
     {
         return $this->belongsTo(User::class);
     }
