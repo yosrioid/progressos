@@ -6,7 +6,7 @@ This file is the handoff source of truth for continuing ProgressOS when chat con
 
 - Never push directly to `main`.
 - Always work on a feature branch.
-- Current active branch: `rewrite/vue-pinia-rest`.
+- Current active branch: `feature/configuration-registry` (bisa berubah setiap sesi — cek `git branch` dulu).
 - Push only the feature branch, then provide a PR description.
 - Before push, run the relevant verification commands and mention the result.
 - If changing frontend behavior, run Playwright when practical.
@@ -120,12 +120,12 @@ npm run test:e2e
 php artisan route:list --path=api/v1
 ```
 
-Last known passing state:
+Last known passing state (2026-06-03):
 
-- `php artisan test`: 14 passed, 94 assertions
-- `npm run build`: passed
+- `php artisan test`: 38 passed, 357 assertions
+- `npm run build`: passed (118 modules, 285 KB JS)
 - `npm run test:e2e`: 7 passed, 3 skipped
-- `php artisan route:list --path=api`: 48 routes
+- `php artisan route:list --path=api/v1`: 55 routes (termasuk 5 game routes)
 
 If Node is not on PATH under Laravel Herd:
 
@@ -139,6 +139,32 @@ export PATH="/Users/oirsoy/Library/Application Support/Herd/config/nvm/versions/
 - Reports are improved but still use lightweight inline charting instead of a dedicated chart library.
 - API controllers are now split by domain; future backend work should keep new product areas in their own controllers.
 - References can be saved and removed, but richer reference type-specific presentation can still improve.
+- Notification preferences (daily/weekly review toggles) are stored but delivery channel not yet implemented.
+
+## Implemented (terbaru, per 2026-06-03)
+
+- **Sudoku Game** (branch `feature/configuration-registry`, session ini):
+  - Menu baru "Games" di sidebar navigation dengan icon 3x3 grid.
+  - Halaman Games hub (`/games`) dan halaman Sudoku (`/games/sudoku`).
+  - `SudokuGenerator` service: generate puzzle valid dengan backtracking + MRV uniqueness check. 3 level: Easy (40 clues), Medium (32), Hard (26).
+  - `GameSession` model + `game_sessions` table: menyimpan puzzle, solution, user_state, notes, elapsed_seconds, status (active/paused/completed).
+  - `GameRecord` model + `game_records` table: menyimpan personal record per level.
+  - `GameController` dengan endpoints: start session, get active session, save progress, complete session, get records.
+  - Vue `Sudoku.vue`: grid 9x9 interaktif, timer pauseable, mode notes, keyboard navigation (arrows + numbers + N/P), highlight sel terkait, deteksi error real-time, auto-save progress ke backend, resume sesi setelah close browser, halaman selesai dengan rank personal.
+  - Tab visibility auto-pause: timer otomatis pause ketika browser tab tidak aktif.
+  - 10 Pest tests baru untuk seluruh flow game.
+
+- **Configuration Registry** (commit `dea6bea`):
+  - Model `Configuration` menggantikan model `BackupConnection` + `BackupSync` terpisah.
+
+- **Configuration Registry** (commit `dea6bea`, branch `feature/configuration-registry`):
+  - Model `Configuration` menggantikan model `BackupConnection` + `BackupSync` terpisah.
+  - `ConfigurationController` mengelola semua setting (general, appearance, notifications, backup connection, sync schedules, history) dalam satu endpoint grouped.
+  - Pinia store `stores/configuration.ts` untuk setting app-wide (app_name, theme, timezone) yang bisa digunakan di seluruh Vue app.
+  - `Configuration.vue` diperluas dengan accordion sections untuk semua grup config.
+  - `BackupExportService` dan `GoogleSheetsBackupService` diupdate menggunakan model baru.
+  - `Profile.vue` diupdate untuk menggunakan configuration store.
+  - Tests: `ConfigurationControllerTest`, `BackupExportServiceTest`, `GoogleSheetsBackupServiceTest` diupdate.
 
 ## Recommended Next Work
 
@@ -148,7 +174,7 @@ export PATH="/Users/oirsoy/Library/Application Support/Herd/config/nvm/versions/
    - previous-period comparison
    - better chart presentation
 4. Improve linked references with richer type-specific presentation.
-5. Add saved report snapshots and comparison history.
+5. Implement metric-linked milestones with scheduled recalculation.
 
 ## PR Description Template
 

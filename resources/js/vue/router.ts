@@ -5,6 +5,7 @@ import Register from './views/Register.vue';
 import Dashboard from './views/Dashboard.vue';
 import ForgotPassword from './views/ForgotPassword.vue';
 import Configuration from './views/Configuration.vue';
+import Games from './views/Games.vue';
 import Projects from './views/Projects.vue';
 import ProjectShow from './views/ProjectShow.vue';
 import Profile from './views/Profile.vue';
@@ -14,6 +15,7 @@ import Records from './views/Records.vue';
 import Reports from './views/Reports.vue';
 import ResetPassword from './views/ResetPassword.vue';
 import Search from './views/Search.vue';
+import Sudoku from './views/Sudoku.vue';
 
 export const router = createRouter({
   history: createWebHistory(),
@@ -50,6 +52,8 @@ export const router = createRouter({
     { path: '/milestones/:id', component: RecordDetail, props: (route) => ({ type: 'milestones', id: route.params.id }) },
     { path: '/milestones/:id/edit', component: RecordForm, props: (route) => ({ type: 'milestones', id: route.params.id }) },
     { path: '/reports/:period', component: Reports },
+    { path: '/games', component: Games },
+    { path: '/games/sudoku', component: Sudoku },
   ],
 });
 

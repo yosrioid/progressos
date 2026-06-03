@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\CaptureController;
 use App\Http\Controllers\Api\ConfigurationController;
 use App\Http\Controllers\Api\DailyProgressController;
 use App\Http\Controllers\Api\DashboardController;
+use App\Http\Controllers\Api\GameController;
 use App\Http\Controllers\Api\LearningController;
 use App\Http\Controllers\Api\MilestoneController;
 use App\Http\Controllers\Api\ProjectController;
@@ -60,4 +61,12 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
 
     Route::post('reports/{period}/snapshots', [ReportController::class, 'storeSnapshot'])
         ->middleware(['ability:reports,write', 'throttle:api-write']);
+
+    Route::prefix('games/sudoku')->group(function () {
+        Route::get('active', [GameController::class, 'activeSession']);
+        Route::get('records', [GameController::class, 'records']);
+        Route::post('sessions', [GameController::class, 'startSession']);
+        Route::patch('sessions/{session}', [GameController::class, 'saveProgress']);
+        Route::post('sessions/{session}/complete', [GameController::class, 'completeSession']);
+    });
 });
