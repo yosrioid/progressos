@@ -52,6 +52,12 @@ const navGroups = [
     ],
   },
   {
+    label: 'Games',
+    items: [
+      { label: 'Games', href: '/games', icon: 'games' },
+    ],
+  },
+  {
     label: 'System',
     items: [
       { label: 'Configuration', href: '/configuration', icon: 'settings' },
@@ -76,6 +82,7 @@ const icons: Record<string, string[]> = {
   spark: ['M12 3l1.7 5.1L19 10l-5.3 1.9L12 17l-1.7-5.1L5 10l5.3-1.9L12 3Z'],
   alert: ['M12 3 2 21h20L12 3ZM12 9v4M12 17h.01'],
   settings: ['M12 15.5A3.5 3.5 0 1 0 12 8a3.5 3.5 0 0 0 0 7.5ZM19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.04 1.56V21a2 2 0 0 1-4 0v-.08A1.7 1.7 0 0 0 8.96 19.36a1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.56-1.04H3a2 2 0 0 1 0-4h.04A1.7 1.7 0 0 0 4.6 8.96a1.7 1.7 0 0 0-.34-1.87L4.2 7.03A2 2 0 0 1 7.03 4.2l.06.06a1.7 1.7 0 0 0 1.87.34H9a1.7 1.7 0 0 0 1-1.56V3a2 2 0 0 1 4 0v.04a1.7 1.7 0 0 0 1.04 1.56 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87V9a1.7 1.7 0 0 0 1.56 1H21a2 2 0 0 1 0 4h-.04A1.7 1.7 0 0 0 19.4 15Z'],
+  games: ['M5 3h4v4H5V3zm5.5 0h4v4h-4V3zM16 3h4v4h-4V3zM5 8.5h4v4H5v-4zm5.5 0h4v4h-4v-4zm5.5 0h4v4h-4v-4zM5 14h4v4H5v-4zm5.5 0h4v4h-4v-4zm5.5 0h4v4h-4v-4z'],
 };
 const initials = computed(() => (auth.user?.name || 'U').split(' ').map((part) => part[0]).join('').slice(0, 2).toUpperCase());
 const activeTheme = computed(() => configuration.appearance.theme || auth.user?.theme || 'system');
