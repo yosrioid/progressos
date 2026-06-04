@@ -5,9 +5,11 @@ namespace App\Services;
 class SudokuGenerator
 {
     private const CLUE_COUNTS = [
-        'easy' => 40,
+        'easy'   => 40,
         'medium' => 32,
-        'hard' => 26,
+        'hard'   => 26,
+        'expert' => 22,
+        'daily'  => 30,
     ];
 
     public function generate(string $level): array
@@ -17,6 +19,12 @@ class SudokuGenerator
         $puzzle = $this->removeCells($solution, $targetClues);
 
         return ['puzzle' => $puzzle, 'solution' => $solution];
+    }
+
+    public function generateForDate(string $date): array
+    {
+        mt_srand(crc32($date));
+        return $this->generate('daily');
     }
 
     private function generateSolution(): array

@@ -64,6 +64,7 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
 
     Route::prefix('games/sudoku')->group(function () {
         Route::get('active', [GameController::class, 'activeSession']);
+        Route::get('daily', [GameController::class, 'dailyStatus']);
         Route::get('records', [GameController::class, 'records']);
         Route::post('sessions', [GameController::class, 'startSession']);
         Route::patch('sessions/{session}', [GameController::class, 'saveProgress']);

@@ -15,15 +15,19 @@ class GameController extends Controller
     public function startSession(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'level' => ['required', 'in:easy,medium,hard'],
+            'level' => ['required', 'in:easy,medium,hard,expert,daily'],
         ]);
 
+        // Preserve daily sessions — only abandon non-daily active sessions
         GameSession::ownedBy($request->user())
+            ->where('level', '!=', 'daily')
             ->whereIn('status', ['active', 'paused'])
             ->update(['status' => 'abandoned']);
 
         $generator = new SudokuGenerator();
-        $generated = $generator->generate($data['level']);
+        $generated = $data['level'] === 'daily'
+            ? $generator->generateForDate(now()->toDateString())
+            : $generator->generate($data['level']);
 
         $session = GameSession::create([
             'user_id' => $request->user()->id,
@@ -42,12 +46,39 @@ class GameController extends Controller
 
     public function activeSession(Request $request): JsonResponse
     {
+        // Exclude daily sessions — they are managed via dailyStatus
         $session = GameSession::ownedBy($request->user())
+            ->where('level', '!=', 'daily')
             ->whereIn('status', ['active', 'paused'])
             ->latest()
             ->first();
 
         return ApiResponse::ok(['session' => $session ? $this->sessionPayload($session) : null]);
+    }
+
+    public function dailyStatus(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        $completedRecord = GameRecord::ownedBy($user)
+            ->where('type', 'sudoku')
+            ->where('level', 'daily')
+            ->whereDate('completed_at', today())
+            ->orderBy('duration_seconds')
+            ->first();
+
+        $activeSession = GameSession::ownedBy($user)
+            ->where('type', 'sudoku')
+            ->where('level', 'daily')
+            ->whereIn('status', ['active', 'paused'])
+            ->latest()
+            ->first();
+
+        return ApiResponse::ok([
+            'completed_today' => $completedRecord !== null,
+            'record'          => $completedRecord ? $this->recordPayload($completedRecord) : null,
+            'session'         => $activeSession ? $this->sessionPayload($activeSession) : null,
+        ]);
     }
 
     public function saveProgress(Request $request, GameSession $session): JsonResponse
@@ -60,7 +91,7 @@ class GameController extends Controller
             'user_state' => ['nullable', 'array'],
             'notes_state' => ['nullable', 'array'],
             'elapsed_seconds' => ['required', 'integer', 'min:0'],
-            'status' => ['sometimes', 'in:active,paused'],
+            'status' => ['sometimes', 'in:active,paused,abandoned'],
         ]);
 
         $session->update($data);
@@ -127,8 +158,9 @@ class GameController extends Controller
     {
         $user = $request->user();
         $result = [];
+        $totals = [];
 
-        foreach (['easy', 'medium', 'hard'] as $level) {
+        foreach (['easy', 'medium', 'hard', 'expert', 'daily'] as $level) {
             $result[$level] = GameRecord::ownedBy($user)
                 ->where('type', 'sudoku')
                 ->where('level', $level)
@@ -137,9 +169,14 @@ class GameController extends Controller
                 ->get()
                 ->map(fn (GameRecord $r) => $this->recordPayload($r))
                 ->values();
+
+            $totals[$level] = GameRecord::ownedBy($user)
+                ->where('type', 'sudoku')
+                ->where('level', $level)
+                ->count();
         }
 
-        return ApiResponse::ok(['records' => $result]);
+        return ApiResponse::ok(['records' => $result, 'totals' => $totals]);
     }
 
     private function sessionPayload(GameSession $session): array
