@@ -24,7 +24,7 @@ class GameController extends Controller
             ->whereIn('status', ['active', 'paused'])
             ->update(['status' => 'abandoned']);
 
-        $generator = new SudokuGenerator();
+        $generator = new SudokuGenerator;
         $generated = $data['level'] === 'daily'
             ? $generator->generateForDate(now()->toDateString())
             : $generator->generate($data['level']);
@@ -76,8 +76,8 @@ class GameController extends Controller
 
         return ApiResponse::ok([
             'completed_today' => $completedRecord !== null,
-            'record'          => $completedRecord ? $this->recordPayload($completedRecord) : null,
-            'session'         => $activeSession ? $this->sessionPayload($activeSession) : null,
+            'record' => $completedRecord ? $this->recordPayload($completedRecord) : null,
+            'session' => $activeSession ? $this->sessionPayload($activeSession) : null,
         ]);
     }
 

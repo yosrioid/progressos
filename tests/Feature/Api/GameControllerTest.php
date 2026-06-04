@@ -127,7 +127,7 @@ test('it returns personal records grouped by level', function () {
 });
 
 test('sudoku generator produces a valid unique puzzle for all levels', function () {
-    $generator = new SudokuGenerator();
+    $generator = new SudokuGenerator;
 
     foreach (['easy', 'medium', 'hard'] as $level) {
         $result = $generator->generate($level);
