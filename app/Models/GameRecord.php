@@ -6,6 +6,9 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * @property \Illuminate\Support\Carbon|null $completed_at
+ */
 class GameRecord extends Model
 {
     protected $fillable = ['user_id', 'type', 'level', 'duration_seconds', 'completed_at'];
