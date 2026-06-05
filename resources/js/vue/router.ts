@@ -15,6 +15,7 @@ import Records from './views/Records.vue';
 import Reports from './views/Reports.vue';
 import ResetPassword from './views/ResetPassword.vue';
 import Search from './views/Search.vue';
+import Minesweeper from './views/Minesweeper.vue';
 import Sudoku from './views/Sudoku.vue';
 
 export const router = createRouter({
@@ -54,6 +55,7 @@ export const router = createRouter({
     { path: '/reports/:period', component: Reports },
     { path: '/games', component: Games },
     { path: '/games/sudoku', component: Sudoku },
+    { path: '/games/minesweeper', component: Minesweeper },
   ],
 });
 

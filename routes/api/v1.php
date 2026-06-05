@@ -65,6 +65,15 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
     Route::put('configuration/auth', [ConfigurationController::class, 'updateAuthConfig']);
     Route::put('configuration/mail', [ConfigurationController::class, 'updateMailConfig']);
 
+    Route::prefix('games/minesweeper')->group(function () {
+        Route::get('active', [GameController::class, 'activeMinesweeperSession']);
+        Route::get('daily', [GameController::class, 'minesweeperDailyStatus']);
+        Route::get('records', [GameController::class, 'minesweeperRecords']);
+        Route::post('sessions', [GameController::class, 'startMinesweeperSession']);
+        Route::patch('sessions/{session}', [GameController::class, 'saveProgress']);
+        Route::post('sessions/{session}/complete', [GameController::class, 'completeMinesweeperSession']);
+    });
+
     Route::prefix('games/sudoku')->group(function () {
         Route::get('active', [GameController::class, 'activeSession']);
         Route::get('daily', [GameController::class, 'dailyStatus']);
