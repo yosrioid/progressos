@@ -163,9 +163,9 @@ async function croppedAvatarBlob(): Promise<Blob> {
   <p v-if="error" class="mb-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700">{{ error }}</p>
   <div class="grid gap-5 xl:grid-cols-[22rem_1fr]">
     <aside class="card h-fit overflow-hidden p-0">
-      <div class="bg-gradient-to-r from-teal-50 to-sky-50 p-5">
+      <div class="bg-gradient-to-r from-teal-50 to-sky-50 p-5 dark:from-teal-900/20 dark:to-sky-900/20">
         <div class="flex items-center gap-4">
-          <img v-if="auth.user?.avatar_url && !avatarLoadFailed" :src="auth.user.avatar_url" class="h-16 w-16 rounded-2xl object-cover ring-4 ring-white" alt="Current avatar" @error="avatarLoadFailed = true" />
+          <img v-if="auth.user?.avatar_url && !avatarLoadFailed" :src="auth.user.avatar_url" class="h-16 w-16 rounded-2xl object-cover ring-4 ring-white dark:ring-zinc-700" alt="Current avatar" @error="avatarLoadFailed = true" />
           <div v-else class="grid h-16 w-16 place-items-center rounded-2xl bg-teal-700 text-2xl font-extrabold text-white">{{ avatarInitial() }}</div>
           <div class="min-w-0">
             <p class="truncate font-extrabold text-slate-900">{{ auth.user?.name }}</p>
@@ -195,7 +195,7 @@ async function croppedAvatarBlob(): Promise<Blob> {
         </label>
         <div>
           <span class="label mb-1">Theme</span>
-          <div class="inline-flex rounded-xl border border-slate-200 bg-white p-1">
+          <div class="inline-flex rounded-xl border border-slate-200 bg-white p-1 dark:border-zinc-700 dark:bg-zinc-800">
             <button v-for="option in ['light', 'dark', 'system']" :key="option" type="button" class="rounded-lg px-3 py-2 text-sm font-bold capitalize" :class="profile.theme === option ? 'bg-slate-900 text-white' : 'text-slate-500'" @click="profile.theme = option">{{ option }}</button>
           </div>
         </div>

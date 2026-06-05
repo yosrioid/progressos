@@ -22,7 +22,7 @@ async function submit() {
 </script>
 
 <template>
-  <main class="grid min-h-screen place-items-center bg-stone-100 px-4">
+  <main class="grid min-h-screen place-items-center bg-stone-100 px-4 dark:bg-zinc-950">
     <section class="w-full max-w-md">
       <div class="mb-6">
         <h1 class="text-3xl font-semibold">ProgressOS</h1>

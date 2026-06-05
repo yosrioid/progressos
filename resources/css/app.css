@@ -52,6 +52,9 @@
        Avoids catching bg-slate-500, bg-teal-500 etc. */
     .dark .bg-white,
     .dark [class~="bg-white"]                             { background-color: var(--surface) !important; }
+    /* Interactive elements (buttons, links) get slightly elevated bg in dark */
+    .dark button[class~="bg-white"],
+    .dark a[class~="bg-white"]                            { background-color: var(--surface-raised) !important; }
     .dark [class~="bg-slate-50"],
     .dark [class*="bg-slate-50/"]                         { background-color: var(--surface-soft) !important; }
     .dark [class~="bg-slate-100"],

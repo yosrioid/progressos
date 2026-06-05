@@ -29,7 +29,7 @@ function loginWithGoogle() {
 </script>
 
 <template>
-  <main class="grid min-h-screen place-items-center bg-stone-100 px-4">
+  <main class="grid min-h-screen place-items-center bg-stone-100 px-4 dark:bg-zinc-950">
     <section class="w-full max-w-md">
       <div class="mb-6">
         <h1 class="text-3xl font-semibold">ProgressOS</h1>
@@ -43,7 +43,7 @@ function loginWithGoogle() {
         <!-- Google SSO -->
         <button
           type="button"
-          class="flex w-full items-center justify-center gap-3 rounded-xl border border-slate-200 bg-white py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 active:scale-95"
+          class="flex w-full items-center justify-center gap-3 rounded-xl border border-slate-200 bg-white py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 active:scale-95 dark:border-zinc-700 dark:!bg-zinc-800 dark:!text-zinc-200 dark:hover:!bg-zinc-700"
           @click="loginWithGoogle"
         >
           <svg class="h-5 w-5 shrink-0" viewBox="0 0 24 24">
@@ -55,10 +55,10 @@ function loginWithGoogle() {
           Masuk dengan Google
         </button>
 
-        <div class="flex items-center gap-3 text-xs text-slate-400">
-          <div class="h-px flex-1 bg-slate-200"></div>
+        <div class="flex items-center gap-3 text-xs text-slate-400 dark:text-zinc-600">
+          <div class="h-px flex-1 bg-slate-200 dark:bg-zinc-700"></div>
           atau masuk dengan email
-          <div class="h-px flex-1 bg-slate-200"></div>
+          <div class="h-px flex-1 bg-slate-200 dark:bg-zinc-700"></div>
         </div>
 
         <form class="space-y-4" @submit.prevent="submit">
