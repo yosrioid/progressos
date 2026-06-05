@@ -175,6 +175,23 @@ class AuthController extends Controller
             : ApiResponse::ok([], __($status), 422);
     }
 
+    public function unlinkGoogle(Request $request)
+    {
+        $user = $request->user();
+
+        if (! $user->google_id) {
+            return ApiResponse::ok([], 'Akun Google belum ditautkan.', 422);
+        }
+
+        if (! $user->password) {
+            return ApiResponse::ok([], 'Set password terlebih dahulu sebelum menghapus tautan Google, agar kamu tidak terkunci dari akun.', 422);
+        }
+
+        $user->update(['google_id' => null]);
+
+        return ApiResponse::ok(['user' => $this->userPayload($user->fresh())], 'Tautan Google berhasil dihapus.');
+    }
+
     public function logout(Request $request)
     {
         Auth::guard('web')->logout();

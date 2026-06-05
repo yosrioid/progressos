@@ -11,6 +11,15 @@ class SocialAuthController extends Controller
 {
     public function googleRedirect()
     {
+        session(['google_oauth_intent' => 'login']);
+        $this->applyGoogleConfig();
+
+        return Socialite::driver('google')->redirect();
+    }
+
+    public function googleLink()
+    {
+        session(['google_oauth_intent' => 'link']);
         $this->applyGoogleConfig();
 
         return Socialite::driver('google')->redirect();
@@ -19,13 +28,23 @@ class SocialAuthController extends Controller
     public function googleCallback()
     {
         $this->applyGoogleConfig();
+        $intent = session()->pull('google_oauth_intent', 'login');
 
         try {
             $googleUser = Socialite::driver('google')->user();
         } catch (\Throwable) {
-            return redirect('/login?error=google_failed');
+            return $intent === 'link'
+                ? redirect('/profile?error=google_failed')
+                : redirect('/login?error=google_failed');
         }
 
+        return $intent === 'link'
+            ? $this->handleLink($googleUser)
+            : $this->handleLogin($googleUser);
+    }
+
+    private function handleLogin(mixed $googleUser): mixed
+    {
         $user = User::where('google_id', $googleUser->getId())->first()
             ?? User::where('email', $googleUser->getEmail())->first();
 
@@ -43,9 +62,29 @@ class SocialAuthController extends Controller
         return redirect('/dashboard');
     }
 
+    private function handleLink(mixed $googleUser): mixed
+    {
+        $user = Auth::guard('web')->user();
+
+        if (! $user) {
+            return redirect('/login');
+        }
+
+        $taken = User::where('google_id', $googleUser->getId())
+            ->where('id', '!=', $user->id)
+            ->exists();
+
+        if ($taken) {
+            return redirect('/profile?error=google_taken');
+        }
+
+        $user->update(['google_id' => $googleUser->getId()]);
+
+        return redirect('/profile?success=google_linked');
+    }
+
     private function applyGoogleConfig(): void
     {
-        // Single-user app: read Google OAuth credentials from the first user's configuration.
         $user = User::first();
         if (! $user) {
             return;
