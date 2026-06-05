@@ -62,7 +62,6 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
     Route::post('reports/{period}/snapshots', [ReportController::class, 'storeSnapshot'])
         ->middleware(['ability:reports,write', 'throttle:api-write']);
 
-
     Route::put('configuration/auth', [ConfigurationController::class, 'updateAuthConfig']);
     Route::put('configuration/mail', [ConfigurationController::class, 'updateMailConfig']);
 

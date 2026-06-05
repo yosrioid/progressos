@@ -644,11 +644,11 @@ onUnmounted(() => {
       </div>
     </template>
 
-    <!-- ── PLAYING ── -->
-    <template v-else-if="gameState === 'playing'">
+    <!-- ── PLAYING + LOST (board stays visible on loss) ── -->
+    <template v-else-if="gameState === 'playing' || gameState === 'lost'">
 
       <!-- Game header -->
-      <div class="card flex items-center justify-between gap-3 px-4 py-3">
+      <div class="card flex items-center justify-between gap-3 px-4 py-3" :class="gameState === 'lost' ? 'border-red-200 dark:border-red-800/40' : ''">
         <!-- Mine counter -->
         <div class="flex items-center gap-1.5">
           <span class="text-lg">💣</span>
@@ -713,9 +713,10 @@ onUnmounted(() => {
       </div>
 
       <!-- Board -->
-      <div v-else class="overflow-x-auto rounded-2xl">
+      <div v-if="!isPaused" class="overflow-x-auto rounded-2xl" :class="gameState === 'lost' ? 'opacity-90' : ''">
         <div
-          class="mx-auto border-4 border-slate-500 dark:border-zinc-500"
+          class="mx-auto border-4 dark:border-zinc-500"
+          :class="gameState === 'lost' ? 'border-red-400 dark:border-red-700' : 'border-slate-500'"
           :style="{ display: 'grid', gridTemplateColumns: `repeat(${cols}, ${cellPx}px)`, width: `${cols * cellPx}px` }"
         >
           <div
@@ -726,7 +727,7 @@ onUnmounted(() => {
             @click="handleClick(idx - 1)"
             @contextmenu.prevent="handleRightClick(idx - 1)"
             @dblclick="handleDblClick(idx - 1)"
-            @mousedown="mouseOnCell = true"
+            @mousedown="gameState === 'playing' && (mouseOnCell = true)"
             @mouseup="mouseOnCell = false"
             @mouseleave="mouseOnCell = false"
           >
@@ -735,35 +736,30 @@ onUnmounted(() => {
         </div>
       </div>
 
-      <!-- Mobile hint -->
-      <p class="hidden text-center text-xs font-medium text-slate-400 sm:block">
+      <!-- Mobile hint (playing only) -->
+      <p v-if="gameState === 'playing'" class="hidden text-center text-xs font-medium text-slate-400 sm:block">
         Klik kiri: buka · Klik kanan: bendera/tanda tanya · Klik ganda: chord
       </p>
-    </template>
 
-    <!-- ── LOST ── -->
-    <template v-else-if="gameState === 'lost'">
-      <div class="card flex flex-col items-center gap-5 py-10 text-center">
-        <div class="rounded-full bg-red-50 p-5 dark:bg-red-900/20">
-          <span class="text-5xl">💥</span>
-        </div>
-        <div>
-          <h2 class="text-2xl font-black text-red-600 dark:text-red-400">Kena Ranjau!</h2>
-          <p class="mt-1 text-sm font-medium text-slate-500">Lebih hati-hati lain kali.</p>
-        </div>
-        <div class="grid w-full max-w-xs grid-cols-2 gap-3">
-          <div class="rounded-xl bg-slate-50 p-3 text-center dark:bg-slate-800/50">
-            <p class="text-xs font-extrabold uppercase text-slate-400">Waktu</p>
-            <p class="mt-1 font-mono text-xl font-black">{{ formatTime(gameStats.time) }}</p>
+      <!-- ── LOST overlay card (below the board) ── -->
+      <div v-if="gameState === 'lost'" class="card border-red-200 bg-red-50/60 p-5 dark:border-red-800/40 dark:bg-red-900/10">
+        <div class="flex items-center gap-4">
+          <span class="text-4xl">💥</span>
+          <div class="flex-1">
+            <h2 class="text-lg font-black text-red-600 dark:text-red-400">Kena Ranjau!</h2>
+            <p class="text-sm font-semibold text-slate-500">
+              Waktu: <span class="font-mono font-black">{{ formatTime(gameStats.time) }}</span>
+              · Level: <span class="font-bold">{{ parseLevelLabel(levelKey) }}</span>
+              · Ranjau: <span class="font-bold">{{ mineCount }}</span>
+            </p>
           </div>
-          <div class="rounded-xl bg-slate-50 p-3 text-center dark:bg-slate-800/50">
-            <p class="text-xs font-extrabold uppercase text-slate-400">Level</p>
-            <p class="mt-1 text-xl font-black">{{ parseLevelLabel(levelKey) }}</p>
+          <div class="flex shrink-0 gap-2">
+            <button
+              class="btn btn-primary"
+              @click="startNewGame(levelKey.startsWith('custom') ? 'custom' : levelKey as Level)"
+            >Coba lagi</button>
+            <button class="btn btn-muted" @click="backToMenu">Menu</button>
           </div>
-        </div>
-        <div class="flex gap-3">
-          <button class="btn btn-primary" @click="startNewGame(levelKey.startsWith('custom') ? 'custom' : levelKey as Level)">Coba lagi</button>
-          <button class="btn btn-muted" @click="backToMenu">Pilih level</button>
         </div>
       </div>
     </template>
