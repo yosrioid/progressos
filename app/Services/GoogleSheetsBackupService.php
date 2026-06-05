@@ -97,7 +97,7 @@ class GoogleSheetsBackupService
         if (is_array($value)) {
             $encoded = json_encode($value);
 
-            return $encoded === false ? null : $encoded;
+            return $encoded === false ? '' : $encoded;
         }
 
         return is_scalar($value) ? $value : (string) $value;

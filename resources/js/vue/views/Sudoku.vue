@@ -46,6 +46,7 @@ const totals       = ref<Record<string, number>>({ easy: 0, medium: 0, hard: 0, 
 const completionRecord = ref<any>(null);
 const completionRank   = ref<number | null>(null);
 const wasPlayingBeforeHide = ref(false);
+const completing = ref(false);
 const gameStats    = ref({ mistakes: 0, hintsUsed: 0 });
 const showGameMenu = ref(false);
 const pendingResume = ref<any>(null);
@@ -297,6 +298,8 @@ function useHint() {
 
 function handleKeydown(e: KeyboardEvent) {
   if (gameState.value !== 'playing') return;
+  const tag = (e.target as HTMLElement)?.tagName;
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
   const r = selectedRow.value;
   const c = selectedCol.value;
 
@@ -334,7 +337,8 @@ function isBoardFull(): boolean {
 }
 
 async function checkCompletion() {
-  if (!isBoardFull()) return;
+  if (!isBoardFull() || completing.value) return;
+  completing.value = true;
   const fullGrid: Grid = puzzle.value.map((row, r) =>
     row.map((cell, c) => cell ?? userGrid.value[r]?.[c] ?? null)
   );
@@ -359,6 +363,8 @@ async function checkCompletion() {
     }
   } catch {
     toast({ tone: 'error', title: 'Gagal menyimpan', message: 'Selamat! Tapi ada error saat menyimpan record.' });
+  } finally {
+    completing.value = false;
   }
 }
 
@@ -443,6 +449,7 @@ function applySession(session: any) {
   hintsUsed.value = 0;
   history.value = [];
   hintedCells.value = new Set();
+  completing.value = false;
   gameState.value = 'playing';
   if (!isPaused.value) startTimer();
 }
@@ -758,10 +765,11 @@ const totalCompleted = computed(() =>
             >●</span>
           </div>
           <span v-if="saving" class="text-xs font-semibold text-slate-400">↑</span>
-          <span class="font-mono text-lg font-black tabular-nums text-slate-800 dark:text-slate-100">{{ formatTime(elapsedSeconds) }}</span>
+          <span class="font-mono text-sm font-black tabular-nums text-slate-800 sm:text-lg dark:text-slate-100">{{ formatTime(elapsedSeconds) }}</span>
           <button
             class="grid h-8 w-8 place-items-center rounded-xl border border-slate-200 bg-white text-slate-600 transition hover:border-teal-200 hover:text-teal-700 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300"
             :title="isPaused ? 'Lanjutkan (P)' : 'Pause (P)'"
+            :aria-label="isPaused ? 'Lanjutkan permainan' : 'Jeda permainan'"
             @click="togglePause"
           >
             <svg v-if="isPaused" class="h-4 w-4" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
@@ -774,6 +782,8 @@ const totalCompleted = computed(() =>
               class="grid h-8 w-8 place-items-center rounded-xl border border-slate-200 bg-white text-slate-500 transition hover:border-slate-300 hover:text-slate-700 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-400"
               :class="showGameMenu ? 'border-slate-300 bg-slate-50 dark:border-slate-500 dark:bg-slate-700' : ''"
               title="Menu lainnya"
+              aria-label="Menu game"
+              :aria-expanded="showGameMenu"
               @click="showGameMenu = !showGameMenu"
             >
               <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.5" /><circle cx="12" cy="12" r="1.5" /><circle cx="19" cy="12" r="1.5" /></svg>
@@ -939,7 +949,7 @@ const totalCompleted = computed(() =>
             <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24"><path d="M21 6H8L2 12l6 6h13a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2z" /><path d="m15 9-6 6M9 9l6 6" /></svg>
             Hapus
           </button>
-          <p class="shrink-0 text-xs font-medium text-slate-400">← → ↑ ↓ · Tab: lompat · P: jeda</p>
+          <p class="hidden shrink-0 text-xs font-medium text-slate-400 sm:block">← → ↑ ↓ · Tab: lompat · P: jeda</p>
         </div>
       </template>
     </template>
