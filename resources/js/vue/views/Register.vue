@@ -20,7 +20,7 @@ async function submit() {
 </script>
 
 <template>
-  <main class="grid min-h-screen place-items-center bg-stone-100 px-4">
+  <main class="grid min-h-screen place-items-center bg-stone-100 px-4 dark:bg-zinc-950">
     <form class="card w-full max-w-md space-y-4 p-6" @submit.prevent="submit">
       <h1 class="text-2xl font-semibold">Create ProgressOS account</h1>
       <p v-if="error" class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{{ error }}</p>

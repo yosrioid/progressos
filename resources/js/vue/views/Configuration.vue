@@ -17,11 +17,17 @@ const groupSettings = ref<any>({
   notifications: { daily_review_enabled: false, weekly_review_enabled: false },
 });
 const connectionForm = ref({ name: 'Google Sheets', spreadsheet_id: '', credentials_json: '' });
+const authForm = ref({ google_sso_enabled: false, client_id: '', client_secret: '' });
+const mailForm = ref({ mailer: 'log', from_address: '', from_name: '', api_key: '', host: '', port: 587, username: '', password: '' });
+const authConfig = ref<any>({ google_sso_enabled: false, client_id: '', has_client_secret: false });
+const mailConfig = ref<any>({ mailer: 'log', from_address: '', from_name: '', has_api_key: false, host: '', port: 587, username: '', has_password: false });
 const credentialFileName = ref('');
 const saving = ref(false);
 const loadError = ref('');
 const googleHelpOpen = ref(false);
-const openGroups = ref({ general: true, appearance: false, google_oauth: true, sync_data: true, notifications: false, history: false });
+const googleSsoHelpOpen = ref(false);
+const resendHelpOpen = ref(false);
+const openGroups = ref({ general: true, appearance: false, auth: true, mail: true, google_oauth: false, sync_data: false, notifications: false, history: false });
 const timezonePreview = computed(() => {
   try {
     return new Intl.DateTimeFormat('en', {
@@ -53,16 +59,17 @@ async function load() {
     connection.value = config.connection;
     syncs.value = config.syncs.length ? config.syncs : [blankSync()];
     runs.value = config.runs;
-    groupSettings.value = {
-      ...groupSettings.value,
-      ...(config.groups || {}),
-    };
+    groupSettings.value = { ...groupSettings.value, ...(config.groups || {}) };
     configuration.applyGroups(config.groups || {});
     connectionForm.value = {
       name: config.connection?.name || 'Google Sheets',
       spreadsheet_id: config.connection?.spreadsheet_id || '',
       credentials_json: '',
     };
+    authConfig.value = config.auth_config || authConfig.value;
+    authForm.value = { ...authForm.value, google_sso_enabled: authConfig.value.google_sso_enabled, client_id: authConfig.value.client_id, client_secret: '' };
+    mailConfig.value = config.mail_config || mailConfig.value;
+    mailForm.value = { ...mailForm.value, mailer: mailConfig.value.mailer, from_address: mailConfig.value.from_address, from_name: mailConfig.value.from_name, host: mailConfig.value.host, port: mailConfig.value.port, username: mailConfig.value.username, api_key: '', password: '' };
   } catch (error: any) {
     loadError.value = error.response?.data?.message || 'Could not load configuration. Please refresh or sign in again.';
     syncs.value = [blankSync()];
@@ -143,15 +150,32 @@ async function saveSync(sync: any, showToast = true) {
   if (showToast) toast({ tone: 'success', title: 'Sync saved', message: `${moduleLabel(sync.module)} backup is configured.` });
 }
 
+async function saveAuthConfig(showToast = true) {
+  const data: any = await api.put('/api/v1/configuration/auth', authForm.value).then(unwrap);
+  authConfig.value = data.auth_config;
+  authForm.value.client_secret = '';
+  if (showToast) toast({ tone: 'success', title: 'SSO settings saved', message: 'Google login settings were updated.' });
+}
+
+async function saveMailConfig(showToast = true) {
+  const data: any = await api.put('/api/v1/configuration/mail', mailForm.value).then(unwrap);
+  mailConfig.value = data.mail_config;
+  mailForm.value.api_key = '';
+  mailForm.value.password = '';
+  if (showToast) toast({ tone: 'success', title: 'Email settings saved', message: 'Mail delivery settings were updated.' });
+}
+
 async function saveAll() {
   saving.value = true;
   try {
     await saveSettings(false);
+    await saveAuthConfig(false);
+    await saveMailConfig(false);
     await saveConnection(false);
     for (const sync of syncs.value) {
       await saveSync(sync, false);
     }
-    toast({ tone: 'success', title: 'Configuration saved', message: 'Connection and sync schedules were updated.' });
+    toast({ tone: 'success', title: 'Configuration saved', message: 'All settings were updated.' });
   } catch {
     toast({ tone: 'error', title: 'Save failed', message: 'Review the highlighted configuration values and try again.' });
   } finally {
@@ -248,6 +272,157 @@ onMounted(load);
       </div>
     </section>
 
+    <!-- ── Auth / SSO ── -->
+    <section class="card overflow-visible p-0">
+      <button type="button" class="flex w-full items-center justify-between gap-4 border-b border-slate-100 bg-slate-50/70 px-5 py-4 text-left" :aria-expanded="openGroups.auth" @click="toggleGroup('auth')">
+        <span>
+          <span class="block text-xs font-extrabold uppercase text-teal-700">Authentication</span>
+          <span class="mt-1 block text-lg font-extrabold text-slate-950">Login & SSO</span>
+          <span class="mt-1 block text-sm font-medium text-slate-500">Google OAuth credentials for one-click login.</span>
+        </span>
+        <span class="flex shrink-0 items-center gap-3">
+          <span class="pill" :class="authConfig.google_sso_enabled && authConfig.has_client_secret ? 'pill-green' : 'pill-slate'">{{ authConfig.google_sso_enabled && authConfig.has_client_secret ? 'active' : 'not configured' }}</span>
+          <span class="grid h-8 w-8 place-items-center rounded-xl border border-slate-200 bg-white text-slate-500 transition" :class="openGroups.auth ? 'rotate-180' : ''">
+            <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6" /></svg>
+          </span>
+        </span>
+      </button>
+      <div v-if="openGroups.auth">
+        <div class="divide-y divide-slate-100">
+          <div class="grid gap-3 px-5 py-4 md:grid-cols-[16rem_1fr] md:items-center">
+            <span class="font-extrabold text-slate-800">Enable Google SSO</span>
+            <label class="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm font-bold text-slate-700">
+              <input v-model="authForm.google_sso_enabled" type="checkbox" class="accent-teal-700" />
+              Tampilkan tombol "Masuk dengan Google" di halaman login
+            </label>
+          </div>
+          <div class="grid gap-3 px-5 py-4 md:grid-cols-[16rem_1fr] md:items-start">
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="font-extrabold text-slate-800">Google Client ID</span>
+                <div class="relative">
+                  <button type="button" class="grid h-7 w-7 place-items-center rounded-full border border-slate-200 bg-white text-xs font-black text-slate-500 hover:border-teal-200 hover:text-teal-700" aria-label="Cara mendapat Client ID" @click="googleSsoHelpOpen = !googleSsoHelpOpen">?</button>
+                  <div v-if="googleSsoHelpOpen" class="absolute left-0 z-20 mt-2 w-[min(22rem,calc(100vw-2rem))] rounded-2xl border border-slate-200 bg-white p-4 text-sm font-medium leading-6 text-slate-600 shadow-2xl shadow-slate-950/10">
+                    <p class="font-extrabold text-slate-900">Cara mendapat Client ID & Secret</p>
+                    <ol class="mt-2 list-decimal space-y-1.5 pl-5">
+                      <li>Buka <span class="font-bold">console.cloud.google.com</span>, buat atau pilih project.</li>
+                      <li>Masuk ke <span class="font-bold">APIs & Services → OAuth consent screen</span>, pilih External, isi nama app.</li>
+                      <li>Buka <span class="font-bold">APIs & Services → Credentials → Create Credentials → OAuth 2.0 Client IDs</span>.</li>
+                      <li>Pilih tipe <span class="font-bold">Web application</span>.</li>
+                      <li>Di "Authorized redirect URIs" tambahkan: <span class="break-all font-mono font-bold">https://yourdomain.com/auth/google/callback</span></li>
+                      <li>Copy <span class="font-bold">Client ID</span> dan <span class="font-bold">Client Secret</span> ke sini.</li>
+                    </ol>
+                  </div>
+                </div>
+              </div>
+              <p class="text-xs font-semibold text-slate-500">Dari Google Cloud Console.</p>
+            </div>
+            <input v-model="authForm.client_id" class="field" placeholder="123456789-abc...apps.googleusercontent.com" />
+          </div>
+          <div class="grid gap-3 px-5 py-4 md:grid-cols-[16rem_1fr] md:items-center">
+            <div>
+              <span class="font-extrabold text-slate-800">Google Client Secret</span>
+              <p class="text-xs font-semibold text-slate-500">{{ authConfig.has_client_secret ? 'Sudah tersimpan. Isi untuk mengganti.' : 'Belum diisi.' }}</p>
+            </div>
+            <input v-model="authForm.client_secret" class="field" type="password" placeholder="GOCSPX-..." autocomplete="new-password" />
+          </div>
+        </div>
+        <div class="flex justify-end border-t border-slate-100 bg-slate-50/70 px-5 py-4">
+          <button class="btn btn-muted" type="button" @click="saveAuthConfig()">Simpan pengaturan SSO</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Email / SMTP ── -->
+    <section class="card overflow-visible p-0">
+      <button type="button" class="flex w-full items-center justify-between gap-4 border-b border-slate-100 bg-slate-50/70 px-5 py-4 text-left" :aria-expanded="openGroups.mail" @click="toggleGroup('mail')">
+        <span>
+          <span class="block text-xs font-extrabold uppercase text-teal-700">Email</span>
+          <span class="mt-1 block text-lg font-extrabold text-slate-950">Pengiriman Email</span>
+          <span class="mt-1 block text-sm font-medium text-slate-500">Konfigurasi untuk forgot password dan notifikasi.</span>
+        </span>
+        <span class="flex shrink-0 items-center gap-3">
+          <span class="pill" :class="mailConfig.mailer !== 'log' && (mailConfig.has_api_key || mailConfig.host) ? 'pill-green' : 'pill-slate'">{{ mailConfig.mailer !== 'log' && (mailConfig.has_api_key || mailConfig.host) ? mailConfig.mailer : 'log only' }}</span>
+          <span class="grid h-8 w-8 place-items-center rounded-xl border border-slate-200 bg-white text-slate-500 transition" :class="openGroups.mail ? 'rotate-180' : ''">
+            <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6" /></svg>
+          </span>
+        </span>
+      </button>
+      <div v-if="openGroups.mail">
+        <div class="divide-y divide-slate-100">
+          <div class="grid gap-3 px-5 py-4 md:grid-cols-[16rem_1fr] md:items-center">
+            <span class="font-extrabold text-slate-800">Mailer</span>
+            <select v-model="mailForm.mailer" class="field">
+              <option value="log">log (development only)</option>
+              <option value="resend">Resend (gratis 3.000/bulan)</option>
+              <option value="smtp">SMTP</option>
+            </select>
+          </div>
+          <div class="grid gap-3 px-5 py-4 md:grid-cols-[16rem_1fr] md:items-center">
+            <span class="font-extrabold text-slate-800">From address</span>
+            <input v-model="mailForm.from_address" class="field" type="email" placeholder="noreply@domain.com" />
+          </div>
+          <div class="grid gap-3 px-5 py-4 md:grid-cols-[16rem_1fr] md:items-center">
+            <span class="font-extrabold text-slate-800">From name</span>
+            <input v-model="mailForm.from_name" class="field" placeholder="ProgressOS" />
+          </div>
+
+          <!-- Resend fields -->
+          <template v-if="mailForm.mailer === 'resend'">
+            <div class="grid gap-3 px-5 py-4 md:grid-cols-[16rem_1fr] md:items-start">
+              <div>
+                <div class="flex items-center gap-2">
+                  <span class="font-extrabold text-slate-800">Resend API Key</span>
+                  <div class="relative">
+                    <button type="button" class="grid h-7 w-7 place-items-center rounded-full border border-slate-200 bg-white text-xs font-black text-slate-500 hover:border-teal-200 hover:text-teal-700" aria-label="Cara mendapat Resend API key" @click="resendHelpOpen = !resendHelpOpen">?</button>
+                    <div v-if="resendHelpOpen" class="absolute left-0 z-20 mt-2 w-[min(22rem,calc(100vw-2rem))] rounded-2xl border border-slate-200 bg-white p-4 text-sm font-medium leading-6 text-slate-600 shadow-2xl shadow-slate-950/10">
+                      <p class="font-extrabold text-slate-900">Setup Resend (gratis, 3.000 email/bulan)</p>
+                      <ol class="mt-2 list-decimal space-y-1.5 pl-5">
+                        <li>Daftar di <span class="font-bold">resend.com</span>.</li>
+                        <li>Buka <span class="font-bold">Domains</span> → tambahkan domain kamu → verifikasi DNS.</li>
+                        <li>Buka <span class="font-bold">API Keys</span> → Create API Key.</li>
+                        <li>Paste API key di sini. Format: <span class="font-mono font-bold">re_xxxxxxxx</span></li>
+                        <li>Isi From address dengan email dari domain yang sudah diverifikasi.</li>
+                      </ol>
+                    </div>
+                  </div>
+                </div>
+                <p class="text-xs font-semibold text-slate-500">{{ mailConfig.has_api_key ? 'Sudah tersimpan. Isi untuk mengganti.' : 'Belum diisi.' }}</p>
+              </div>
+              <input v-model="mailForm.api_key" class="field" type="password" placeholder="re_xxxxxxxxxxxx" autocomplete="new-password" />
+            </div>
+          </template>
+
+          <!-- SMTP fields -->
+          <template v-if="mailForm.mailer === 'smtp'">
+            <div class="grid gap-3 px-5 py-4 md:grid-cols-[16rem_1fr] md:items-center">
+              <span class="font-extrabold text-slate-800">SMTP Host</span>
+              <input v-model="mailForm.host" class="field" placeholder="smtp.example.com" />
+            </div>
+            <div class="grid gap-3 px-5 py-4 md:grid-cols-[16rem_1fr] md:items-center">
+              <span class="font-extrabold text-slate-800">SMTP Port</span>
+              <input v-model.number="mailForm.port" class="field" type="number" placeholder="587" />
+            </div>
+            <div class="grid gap-3 px-5 py-4 md:grid-cols-[16rem_1fr] md:items-center">
+              <span class="font-extrabold text-slate-800">Username</span>
+              <input v-model="mailForm.username" class="field" placeholder="user@example.com" />
+            </div>
+            <div class="grid gap-3 px-5 py-4 md:grid-cols-[16rem_1fr] md:items-center">
+              <div>
+                <span class="font-extrabold text-slate-800">Password</span>
+                <p class="text-xs font-semibold text-slate-500">{{ mailConfig.has_password ? 'Sudah tersimpan. Isi untuk mengganti.' : 'Belum diisi.' }}</p>
+              </div>
+              <input v-model="mailForm.password" class="field" type="password" autocomplete="new-password" />
+            </div>
+          </template>
+        </div>
+        <div class="flex justify-end border-t border-slate-100 bg-slate-50/70 px-5 py-4">
+          <button class="btn btn-muted" type="button" @click="saveMailConfig()">Simpan pengaturan email</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Google Sheets (Backup Destination) ── -->
     <section class="card overflow-visible p-0">
       <button type="button" class="flex w-full items-center justify-between gap-4 border-b border-slate-100 bg-slate-50/70 px-5 py-4 text-left" :aria-expanded="openGroups.google_oauth" @click="toggleGroup('google_oauth')">
         <span class="min-w-0">

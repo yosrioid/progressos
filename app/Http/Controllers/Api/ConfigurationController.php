@@ -23,19 +23,69 @@ class ConfigurationController extends Controller
                 'available_modules' => Configuration::SYNC_MODULES,
                 'frequencies' => Configuration::SYNC_FREQUENCIES,
                 'groups' => $this->groups($request),
-                'sections' => [
-                    'general' => true,
-                    'appearance' => true,
-                    'google_oauth' => true,
-                    'sync_data' => true,
-                    'notifications' => true,
-                    'history' => true,
-                ],
+                'auth_config' => $this->authConfigPayload($request),
+                'mail_config' => $this->mailConfigPayload($request),
                 'connection' => $this->connectionPayload($this->googleConnection($request)),
                 'syncs' => collect($this->syncs($request))->map(fn (array $sync) => $this->syncPayload($sync))->values(),
                 'runs' => BackupRun::ownedBy($user)->latest()->limit(12)->get()->map(fn (BackupRun $run) => $this->runPayload($run)),
             ],
         ]);
+    }
+
+    public function updateAuthConfig(Request $request)
+    {
+        $data = $request->validate([
+            'google_sso_enabled' => ['sometimes', 'boolean'],
+            'client_id' => ['nullable', 'string', 'max:500'],
+            'client_secret' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        $existing = Configuration::getValue($request->user(), 'auth', 'google_oauth', []);
+        $config = array_merge(is_array($existing) ? $existing : [], [
+            'enabled' => $data['google_sso_enabled'] ?? ($existing['enabled'] ?? false),
+            'client_id' => $data['client_id'] ?? ($existing['client_id'] ?? ''),
+        ]);
+        if (filled($data['client_secret'] ?? null)) {
+            $config['client_secret'] = $data['client_secret'];
+        }
+
+        Configuration::setValue($request->user(), 'auth', 'google_oauth', $config, encrypted: true);
+
+        return ApiResponse::ok(['auth_config' => $this->authConfigPayload($request)], 'Google SSO settings saved.');
+    }
+
+    public function updateMailConfig(Request $request)
+    {
+        $data = $request->validate([
+            'mailer' => ['required', 'in:log,resend,smtp'],
+            'from_address' => ['nullable', 'email', 'max:255'],
+            'from_name' => ['nullable', 'string', 'max:120'],
+            'api_key' => ['nullable', 'string', 'max:500'],
+            'host' => ['nullable', 'string', 'max:255'],
+            'port' => ['nullable', 'integer'],
+            'username' => ['nullable', 'string', 'max:255'],
+            'password' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $existing = Configuration::getValue($request->user(), 'mail', 'smtp', []);
+        $config = array_merge(is_array($existing) ? $existing : [], [
+            'mailer' => $data['mailer'],
+            'from_address' => $data['from_address'] ?? ($existing['from_address'] ?? ''),
+            'from_name' => $data['from_name'] ?? ($existing['from_name'] ?? ''),
+        ]);
+        if (filled($data['api_key'] ?? null)) {
+            $config['api_key'] = $data['api_key'];
+        }
+        if (filled($data['host'] ?? null)) {
+            $config['host'] = $data['host'];
+            $config['port'] = $data['port'] ?? 587;
+            $config['username'] = $data['username'] ?? '';
+            $config['password'] = $data['password'] ?? ($existing['password'] ?? '');
+        }
+
+        Configuration::setValue($request->user(), 'mail', 'smtp', $config, encrypted: true);
+
+        return ApiResponse::ok(['mail_config' => $this->mailConfigPayload($request)], 'Email settings saved.');
     }
 
     public function updateSettings(Request $request)
@@ -289,6 +339,35 @@ class ConfigurationController extends Controller
             'file_path' => $run->file_path,
             'error_message' => $run->error_message,
             'created_at' => $this->iso($run->created_at),
+        ];
+    }
+
+    private function authConfigPayload(Request $request): array
+    {
+        $config = Configuration::getValue($request->user(), 'auth', 'google_oauth', []);
+        $config = is_array($config) ? $config : [];
+
+        return [
+            'google_sso_enabled' => (bool) ($config['enabled'] ?? false),
+            'client_id' => $config['client_id'] ?? '',
+            'has_client_secret' => filled($config['client_secret'] ?? null),
+        ];
+    }
+
+    private function mailConfigPayload(Request $request): array
+    {
+        $config = Configuration::getValue($request->user(), 'mail', 'smtp', []);
+        $config = is_array($config) ? $config : [];
+
+        return [
+            'mailer' => $config['mailer'] ?? 'log',
+            'from_address' => $config['from_address'] ?? '',
+            'from_name' => $config['from_name'] ?? '',
+            'has_api_key' => filled($config['api_key'] ?? null),
+            'host' => $config['host'] ?? '',
+            'port' => $config['port'] ?? 587,
+            'username' => $config['username'] ?? '',
+            'has_password' => filled($config['password'] ?? null),
         ];
     }
 
