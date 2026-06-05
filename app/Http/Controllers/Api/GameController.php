@@ -106,7 +106,8 @@ class GameController extends Controller
         }
 
         $data = $request->validate([
-            'user_state' => ['required', 'array'],
+            'user_state' => ['required', 'array', 'size:9'],
+            'user_state.*' => ['array', 'size:9'],
             'elapsed_seconds' => ['required', 'integer', 'min:1'],
         ]);
 

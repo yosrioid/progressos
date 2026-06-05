@@ -13,6 +13,7 @@ use App\Models\User;
 use App\Models\WorkLog;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Throwable;
 
@@ -46,11 +47,17 @@ class BackupExportService
                 'rows_exported' => max(count($rows) - 1, 0),
                 'file_path' => "{$destination} | local CSV: {$path}",
             ]);
+        } catch (\InvalidArgumentException $exception) {
+            $run->update([
+                'status' => 'failed',
+                'finished_at' => now(),
+                'error_message' => '[config] '.$exception->getMessage(),
+            ]);
         } catch (Throwable $exception) {
             $run->update([
                 'status' => 'failed',
                 'finished_at' => now(),
-                'error_message' => $exception->getMessage(),
+                'error_message' => '[sync] '.$exception->getMessage(),
             ]);
         }
 
@@ -66,7 +73,6 @@ class BackupExportService
             foreach ($users as $user) {
                 $connection = Configuration::getValue($user, 'sync', 'google_sheets');
                 $syncs = $this->syncsFor($user);
-                $changed = false;
                 foreach ($syncs as $index => $sync) {
                     if (! ($sync['enabled'] ?? true)) {
                         continue;
@@ -75,14 +81,13 @@ class BackupExportService
                     if ($nextRunAt && $nextRunAt->gt(now())) {
                         continue;
                     }
-                    $this->run($user, $sync, $connection);
-                    $syncs[$index]['last_run_at'] = now()->toISOString();
-                    $syncs[$index]['next_run_at'] = $this->nextRunAt($sync['frequency'] ?? 'daily')->toISOString();
+                    DB::transaction(function () use ($user, $sync, $connection, &$syncs, $index) {
+                        $this->run($user, $sync, $connection);
+                        $syncs[$index]['last_run_at'] = now()->toISOString();
+                        $syncs[$index]['next_run_at'] = $this->nextRunAt($sync['frequency'] ?? 'daily')->toISOString();
+                        Configuration::setValue($user, 'sync', 'backup_schedules', array_values($syncs));
+                    });
                     $count++;
-                    $changed = true;
-                }
-                if ($changed) {
-                    Configuration::setValue($user, 'sync', 'backup_schedules', array_values($syncs));
                 }
             }
         });
@@ -127,12 +132,15 @@ class BackupExportService
         $directory = "backups/user-{$user->id}";
         $path = $directory.'/'.now()->format('Ymd-His')."-{$module}.csv";
         $stream = fopen('php://temp', 'r+');
-        foreach ($rows as $row) {
-            fputcsv($stream, array_map(fn ($value) => is_array($value) ? json_encode($value) : $value, $row));
+        try {
+            foreach ($rows as $row) {
+                fputcsv($stream, array_map(fn ($value) => is_array($value) ? json_encode($value) : $value, $row));
+            }
+            rewind($stream);
+            Storage::put($path, stream_get_contents($stream));
+        } finally {
+            fclose($stream);
         }
-        rewind($stream);
-        Storage::put($path, stream_get_contents($stream));
-        fclose($stream);
 
         return $path;
     }
