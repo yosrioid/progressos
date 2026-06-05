@@ -95,7 +95,6 @@ class ConfigurationController extends Controller
             'general.project_name' => ['nullable', 'string', 'max:120'],
             'general.tagline' => ['nullable', 'string', 'max:180'],
             'general.timezone' => ['nullable', 'string', 'max:80'],
-            'appearance.theme' => ['nullable', 'in:system,light,dark'],
             'appearance.favicon_url' => ['nullable', 'string', 'max:500'],
             'notifications.daily_review_enabled' => ['sometimes', 'boolean'],
             'notifications.weekly_review_enabled' => ['sometimes', 'boolean'],
@@ -103,7 +102,9 @@ class ConfigurationController extends Controller
 
         foreach (['general', 'appearance', 'notifications'] as $group) {
             if (array_key_exists($group, $data)) {
-                Configuration::setValue($request->user(), $group, 'settings', array_replace($this->defaultGroupSettings($group), $data[$group]));
+                $stored = Configuration::getValue($request->user(), $group, 'settings', []);
+                $stored = is_array($stored) ? $stored : [];
+                Configuration::setValue($request->user(), $group, 'settings', array_replace($this->defaultGroupSettings($group), $stored, $data[$group]));
             }
         }
 

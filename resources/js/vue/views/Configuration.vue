@@ -251,8 +251,8 @@ onMounted(load);
       <button type="button" class="flex w-full items-center justify-between gap-4 border-b border-slate-100 bg-slate-50/70 px-5 py-4 text-left" :aria-expanded="openGroups.appearance" @click="toggleGroup('appearance')">
         <span>
           <span class="block text-xs font-extrabold uppercase text-teal-700">Appearance</span>
-          <span class="mt-1 block text-lg font-extrabold text-slate-950">Brand & Theme</span>
-          <span class="mt-1 block text-sm font-medium text-slate-500">Visual preferences reserved for app-wide branding.</span>
+          <span class="mt-1 block text-lg font-extrabold text-slate-950">Brand</span>
+          <span class="mt-1 block text-sm font-medium text-slate-500">Visual branding. Theme diatur lewat tombol di topbar.</span>
         </span>
         <span class="grid h-8 w-8 place-items-center rounded-xl border border-slate-200 bg-white text-slate-500 transition" :class="openGroups.appearance ? 'rotate-180' : ''">
           <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6" /></svg>
@@ -260,12 +260,6 @@ onMounted(load);
       </button>
       <div v-if="openGroups.appearance" class="divide-y divide-slate-100">
         <div class="grid gap-3 px-5 py-4 md:grid-cols-[16rem_1fr] md:items-center">
-          <span class="font-extrabold text-slate-800">Theme</span>
-          <select v-model="groupSettings.appearance.theme" class="field">
-            <option value="system">system</option>
-            <option value="light">light</option>
-            <option value="dark">dark</option>
-          </select>
           <span class="font-extrabold text-slate-800">Favicon URL</span>
           <input v-model="groupSettings.appearance.favicon_url" class="field" placeholder="https://example.com/favicon.png" />
         </div>

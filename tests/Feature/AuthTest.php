@@ -32,8 +32,7 @@ it('updates profile and password through the REST API', function () {
         'name' => 'Updated User',
         'email' => 'updated@example.com',
         'timezone' => 'Asia/Jakarta',
-        'theme' => 'dark',
-    ])->assertOk()->assertJsonPath('user.theme', 'dark');
+    ])->assertOk()->assertJsonPath('user.name', 'Updated User');
 
     $this->actingAs($user)->putJson('/api/profile/password', [
         'current_password' => 'password',

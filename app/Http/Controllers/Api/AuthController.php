@@ -72,7 +72,6 @@ class AuthController extends Controller
             'name' => ['required', 'string', 'max:120'],
             'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($request->user()->id)],
             'timezone' => ['required', 'timezone'],
-            'theme' => ['required', Rule::in(['light', 'dark', 'system'])],
         ]);
 
         $request->user()->update($data);
