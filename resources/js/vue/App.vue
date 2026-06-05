@@ -141,6 +141,13 @@ function applyTheme(theme?: string) {
   document.documentElement.classList.toggle('dark', theme === 'dark' || (theme === 'system' && prefersDark));
 }
 
+async function cycleTheme() {
+  const next: Record<string, string> = { system: 'light', light: 'dark', dark: 'system' };
+  const newTheme = next[activeTheme.value] ?? 'system';
+  configuration.applyGroups({ appearance: { ...configuration.appearance, theme: newTheme } });
+  api.put('/api/v1/configuration/settings', { appearance: { theme: newTheme } }).catch(() => {});
+}
+
 function applyFavicon(url?: string) {
   if (!url) return;
   let link = document.querySelector<HTMLLinkElement>('link[rel="icon"]');
@@ -205,29 +212,33 @@ onUnmounted(() => window.removeEventListener('keydown', shortcuts));
 
 <template>
   <RouterView v-if="isGuest" />
-  <div v-else class="min-h-screen bg-[#f7f8fa] text-slate-950 lg:flex">
-    <aside class="hidden border-r border-slate-200 bg-white/90 px-4 py-5 shadow-[12px_0_40px_rgb(15_23_42/0.035)] backdrop-blur lg:fixed lg:inset-y-0 lg:block lg:w-72">
+  <div v-else class="min-h-screen text-slate-950 dark:text-zinc-100 lg:flex">
+    <!-- Desktop sidebar -->
+    <aside class="hidden border-r border-slate-200 bg-white/95 px-4 py-5 shadow-[12px_0_40px_rgb(15_23_42/0.035)] backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/95 dark:shadow-[12px_0_40px_rgb(0_0_0/0.3)] lg:fixed lg:inset-y-0 lg:block lg:w-72">
       <RouterLink to="/dashboard" class="mb-7 flex items-center gap-3">
         <span class="grid h-10 w-10 place-items-center rounded-2xl bg-teal-700 text-white shadow-lg shadow-teal-900/10">
           <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewBox="0 0 24 24"><path v-for="path in icons.spark" :key="path" :d="path" /></svg>
         </span>
         <span>
           <span class="block text-base font-extrabold tracking-tight">{{ configuration.projectName }}</span>
-          <span class="text-xs font-semibold text-slate-500">{{ configuration.tagline }}</span>
+          <span class="text-xs font-semibold text-slate-500 dark:text-zinc-500">{{ configuration.tagline }}</span>
         </span>
       </RouterLink>
       <nav class="space-y-6">
         <section v-for="group in navGroups" :key="group.label">
-          <p class="mb-2 px-3 text-[11px] font-extrabold uppercase text-slate-400">{{ group.label }}</p>
+          <p class="mb-2 px-3 text-[11px] font-extrabold uppercase text-slate-400 dark:text-zinc-600">{{ group.label }}</p>
           <div class="space-y-1">
             <RouterLink
               v-for="item in group.items"
               :key="item.href"
               :to="item.href"
-              class="group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-bold text-slate-600 transition hover:bg-slate-100 hover:text-slate-950"
-              :class="isActive(item.href) ? 'bg-teal-50 text-teal-800 shadow-[inset_0_0_0_1px_rgb(20_184_166/0.18)]' : ''"
+              class="group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-bold text-slate-600 transition hover:bg-slate-100 hover:text-slate-950 dark:text-zinc-400 dark:hover:bg-zinc-800/60 dark:hover:text-zinc-100"
+              :class="isActive(item.href) ? 'bg-teal-50 text-teal-800 shadow-[inset_0_0_0_1px_rgb(20_184_166/0.18)] dark:bg-teal-500/10 dark:text-teal-400 dark:shadow-[inset_0_0_0_1px_rgb(20_184_166/0.12)]' : ''"
             >
-              <span class="grid h-8 w-8 place-items-center rounded-lg bg-slate-100 text-slate-500 transition group-hover:bg-white group-hover:text-teal-700" :class="isActive(item.href) ? 'bg-white text-teal-700' : ''">
+              <span
+                class="grid h-8 w-8 place-items-center rounded-lg bg-slate-100 text-slate-500 transition group-hover:bg-white group-hover:text-teal-700 dark:bg-zinc-800 dark:text-zinc-500 dark:group-hover:bg-zinc-700 dark:group-hover:text-teal-400"
+                :class="isActive(item.href) ? 'bg-white text-teal-700 dark:bg-zinc-800 dark:text-teal-400' : ''"
+              >
                 <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewBox="0 0 24 24"><path v-for="path in icons[item.icon]" :key="path" :d="path" /></svg>
               </span>
               {{ item.label }}
@@ -236,8 +247,10 @@ onUnmounted(() => window.removeEventListener('keydown', shortcuts));
         </section>
       </nav>
     </aside>
+
     <main class="min-w-0 flex-1 lg:pl-72">
-      <header class="sticky top-0 z-30 border-b border-slate-200 bg-[#f7f8fa]/90 px-3 py-3 backdrop-blur-xl sm:px-5">
+      <!-- Topbar -->
+      <header class="sticky top-0 z-30 border-b border-slate-200 bg-[#f7f8fa]/90 px-3 py-3 backdrop-blur-xl dark:border-zinc-800 dark:bg-zinc-950/90 sm:px-5">
         <div class="mx-auto flex max-w-7xl flex-wrap items-center gap-2 sm:flex-nowrap">
           <button class="btn btn-muted px-3 lg:hidden" aria-label="Open menu" @click="mobileMenu = true">
             <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewBox="0 0 24 24"><path v-for="path in icons.menu" :key="path" :d="path" /></svg>
@@ -249,38 +262,55 @@ onUnmounted(() => window.removeEventListener('keydown', shortcuts));
             </span>
             <span class="hidden sm:inline">{{ configuration.projectName }}</span>
           </RouterLink>
+          <!-- Search -->
           <form class="relative order-last mt-2 w-full min-w-0 sm:order-none sm:mt-0 sm:block sm:flex-1" @submit.prevent="search">
-            <svg class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewBox="0 0 24 24"><path v-for="path in icons.search" :key="path" :d="path" /></svg>
+            <svg class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 dark:text-zinc-500" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewBox="0 0 24 24"><path v-for="path in icons.search" :key="path" :d="path" /></svg>
             <input ref="searchInput" v-model="query" class="field h-11 pl-9" placeholder="Search everything" aria-label="Search everything" />
-            <button type="button" class="absolute right-2 top-1/2 hidden -translate-y-1/2 rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-bold text-slate-400 md:block" @click="commandOpen = true">Cmd K</button>
+            <button type="button" class="absolute right-2 top-1/2 hidden -translate-y-1/2 rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-bold text-slate-400 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-500 md:block" @click="commandOpen = true">Cmd K</button>
           </form>
+          <!-- Theme toggle -->
+          <button
+            class="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-slate-200 bg-white text-slate-500 transition hover:border-teal-200 hover:text-teal-700 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:border-teal-700 dark:hover:text-teal-400"
+            :title="activeTheme === 'light' ? 'Light mode' : activeTheme === 'dark' ? 'Dark mode' : 'System theme'"
+            aria-label="Toggle theme"
+            @click="cycleTheme"
+          >
+            <!-- Sun: light -->
+            <svg v-if="activeTheme === 'light'" class="h-4 w-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+            <!-- Moon: dark -->
+            <svg v-else-if="activeTheme === 'dark'" class="h-4 w-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+            <!-- Monitor: system -->
+            <svg v-else class="h-4 w-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+          </button>
+          <!-- Quick add -->
           <button class="btn btn-primary px-3 sm:px-4" title="Quick add" aria-label="Quick add" @click="quick = true">
             <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24"><path v-for="path in icons.plus" :key="path" :d="path" /></svg>
             <span class="hidden sm:inline">Quick Add</span>
           </button>
+          <!-- Profile -->
           <div class="relative">
-            <button class="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-2.5 text-sm font-bold text-slate-700 shadow-sm transition hover:border-teal-200 hover:text-teal-800" aria-label="Open profile menu" aria-haspopup="menu" :aria-expanded="profileMenu" @click="profileMenu = !profileMenu">
+            <button class="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-2.5 text-sm font-bold text-slate-700 shadow-sm transition hover:border-teal-200 hover:text-teal-800 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:border-teal-700 dark:hover:text-teal-300" aria-label="Open profile menu" aria-haspopup="menu" :aria-expanded="profileMenu" @click="profileMenu = !profileMenu">
               <img v-if="auth.user?.avatar_url" :src="auth.user.avatar_url" class="h-8 w-8 rounded-lg object-cover" alt="" />
-              <span v-else class="grid h-8 w-8 place-items-center rounded-lg bg-slate-900 text-xs font-extrabold text-white">{{ initials }}</span>
+              <span v-else class="grid h-8 w-8 place-items-center rounded-lg bg-slate-900 text-xs font-extrabold text-white dark:bg-zinc-700">{{ initials }}</span>
               <span class="hidden max-w-32 truncate md:block">{{ auth.user?.name || 'Profile' }}</span>
             </button>
             <button v-if="profileMenu" class="fixed inset-0 z-10 cursor-default" tabindex="-1" aria-label="Close profile menu" @click="profileMenu = false"></button>
-            <div v-if="profileMenu" class="absolute right-0 z-20 mt-2 w-64 overflow-hidden rounded-2xl border border-slate-200 bg-white p-2 shadow-2xl shadow-slate-900/10" role="menu">
-              <div class="border-b border-slate-100 px-3 py-3">
+            <div v-if="profileMenu" class="absolute right-0 z-20 mt-2 w-64 overflow-hidden rounded-2xl border border-slate-200 bg-white p-2 shadow-2xl shadow-slate-900/10 dark:border-zinc-800 dark:bg-zinc-900 dark:shadow-black/30" role="menu">
+              <div class="border-b border-slate-100 px-3 py-3 dark:border-zinc-800">
                 <div class="flex items-center gap-3">
                   <img v-if="auth.user?.avatar_url" :src="auth.user.avatar_url" class="h-10 w-10 rounded-xl object-cover" alt="" />
-                  <span v-else class="grid h-10 w-10 place-items-center rounded-xl bg-slate-900 text-xs font-extrabold text-white">{{ initials }}</span>
+                  <span v-else class="grid h-10 w-10 place-items-center rounded-xl bg-slate-900 text-xs font-extrabold text-white dark:bg-zinc-700">{{ initials }}</span>
                   <div class="min-w-0">
-                    <p class="truncate text-sm font-extrabold text-slate-900">{{ auth.user?.name }}</p>
-                    <p class="truncate text-xs font-semibold text-slate-500">{{ auth.user?.email }}</p>
+                    <p class="truncate text-sm font-extrabold text-slate-900 dark:text-zinc-100">{{ auth.user?.name }}</p>
+                    <p class="truncate text-xs font-semibold text-slate-500 dark:text-zinc-500">{{ auth.user?.email }}</p>
                   </div>
                 </div>
               </div>
-              <RouterLink to="/profile" class="mt-2 flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-100" role="menuitem">
-                <svg class="h-4 w-4 text-slate-400" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewBox="0 0 24 24"><path v-for="path in icons.user" :key="path" :d="path" /></svg>
+              <RouterLink to="/profile" class="mt-2 flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-100 dark:text-zinc-300 dark:hover:bg-zinc-800" role="menuitem">
+                <svg class="h-4 w-4 text-slate-400 dark:text-zinc-600" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewBox="0 0 24 24"><path v-for="path in icons.user" :key="path" :d="path" /></svg>
                 Profile settings
               </RouterLink>
-              <button class="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-bold text-red-700 hover:bg-red-50" role="menuitem" @click="logout">
+              <button class="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-bold text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20" role="menuitem" @click="logout">
                 <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewBox="0 0 24 24"><path v-for="path in icons.logout" :key="path" :d="path" /></svg>
                 Logout
               </button>
@@ -292,15 +322,17 @@ onUnmounted(() => window.removeEventListener('keydown', shortcuts));
         <RouterView />
       </section>
     </main>
+
+    <!-- Mobile menu drawer -->
     <div v-if="mobileMenu" class="fixed inset-0 z-40 lg:hidden" role="dialog" aria-modal="true" aria-label="Navigation menu">
-      <button class="absolute inset-0 bg-slate-950/35 backdrop-blur-[2px]" aria-label="Close menu" @click="mobileMenu = false"></button>
-      <aside class="relative h-full w-[min(22rem,88vw)] overflow-y-auto border-r border-slate-200 bg-white p-4 shadow-2xl">
+      <button class="absolute inset-0 bg-slate-950/40 backdrop-blur-[2px]" aria-label="Close menu" @click="mobileMenu = false"></button>
+      <aside class="relative h-full w-[min(22rem,88vw)] overflow-y-auto border-r border-slate-200 bg-white p-4 shadow-2xl dark:border-zinc-800 dark:bg-zinc-900">
         <div class="mb-6 flex items-center justify-between">
           <RouterLink to="/dashboard" class="flex items-center gap-3">
             <span class="grid h-10 w-10 place-items-center rounded-2xl bg-teal-700 text-white">
               <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewBox="0 0 24 24"><path v-for="path in icons.spark" :key="path" :d="path" /></svg>
             </span>
-            <span class="font-extrabold">{{ configuration.projectName }}</span>
+            <span class="font-extrabold dark:text-zinc-100">{{ configuration.projectName }}</span>
           </RouterLink>
           <button class="btn btn-muted px-3" aria-label="Close menu" @click="mobileMenu = false">
             <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewBox="0 0 24 24"><path v-for="path in icons.close" :key="path" :d="path" /></svg>
@@ -308,16 +340,16 @@ onUnmounted(() => window.removeEventListener('keydown', shortcuts));
         </div>
         <nav class="space-y-6">
           <section v-for="group in navGroups" :key="group.label">
-            <p class="mb-2 px-3 text-[11px] font-extrabold uppercase text-slate-400">{{ group.label }}</p>
+            <p class="mb-2 px-3 text-[11px] font-extrabold uppercase text-slate-400 dark:text-zinc-600">{{ group.label }}</p>
             <div class="space-y-1">
               <RouterLink
                 v-for="item in group.items"
                 :key="item.href"
                 :to="item.href"
-                class="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-bold text-slate-600 hover:bg-slate-100"
-                :class="isActive(item.href) ? 'bg-teal-50 text-teal-800' : ''"
+                class="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-bold text-slate-600 hover:bg-slate-100 dark:text-zinc-400 dark:hover:bg-zinc-800"
+                :class="isActive(item.href) ? 'bg-teal-50 text-teal-800 dark:bg-teal-500/10 dark:text-teal-400' : ''"
               >
-                <span class="grid h-8 w-8 place-items-center rounded-lg bg-slate-100" :class="isActive(item.href) ? 'bg-white text-teal-700' : 'text-slate-500'">
+                <span class="grid h-8 w-8 place-items-center rounded-lg dark:bg-zinc-800" :class="isActive(item.href) ? 'bg-white text-teal-700 dark:text-teal-400' : 'bg-slate-100 text-slate-500 dark:text-zinc-500'">
                   <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewBox="0 0 24 24"><path v-for="path in icons[item.icon]" :key="path" :d="path" /></svg>
                 </span>
                 {{ item.label }}
@@ -327,12 +359,14 @@ onUnmounted(() => window.removeEventListener('keydown', shortcuts));
         </nav>
       </aside>
     </div>
-    <div v-if="quick" class="fixed inset-0 z-40 grid place-items-center bg-slate-950/45 p-4 backdrop-blur-[2px]" role="dialog" aria-modal="true" aria-labelledby="quick-add-title">
-      <form class="card w-full max-w-xl overflow-hidden p-0 shadow-2xl shadow-slate-950/10" @submit.prevent="submitQuick">
-        <div class="border-b border-slate-100 bg-slate-50/70 px-5 py-4">
+
+    <!-- Quick add modal -->
+    <div v-if="quick" class="fixed inset-0 z-40 grid place-items-center bg-slate-950/50 p-4 backdrop-blur-[2px]" role="dialog" aria-modal="true" aria-labelledby="quick-add-title">
+      <form class="card w-full max-w-xl overflow-hidden p-0 shadow-2xl" @submit.prevent="submitQuick">
+        <div class="border-b border-slate-100 bg-slate-50/70 px-5 py-4 dark:border-zinc-800 dark:bg-zinc-900/60">
           <div class="flex items-center justify-between gap-3">
             <div>
-              <p class="text-xs font-extrabold uppercase text-teal-700">Capture</p>
+              <p class="text-xs font-extrabold uppercase text-teal-700 dark:text-teal-500">Capture</p>
               <h2 id="quick-add-title" class="text-lg font-extrabold">Quick Add</h2>
             </div>
             <button type="button" class="btn btn-muted px-3" aria-label="Close quick add" @click="quick = false">
@@ -348,71 +382,85 @@ onUnmounted(() => window.removeEventListener('keydown', shortcuts));
           <input v-model="quickForm.duration_minutes" class="field" type="number" min="1" />
           <textarea v-model="quickForm.notes" class="field min-h-28 sm:col-span-2" placeholder="Notes" @paste="handleQuickNotesPaste" />
         </div>
-        <div class="flex justify-end border-t border-slate-100 bg-slate-50/70 px-5 py-4"><button class="btn btn-primary">Capture</button></div>
+        <div class="flex justify-end border-t border-slate-100 bg-slate-50/70 px-5 py-4 dark:border-zinc-800 dark:bg-zinc-900/60">
+          <button class="btn btn-primary">Capture</button>
+        </div>
       </form>
     </div>
+
+    <!-- FAB mobile -->
     <button class="fixed bottom-4 right-4 z-30 grid h-14 w-14 place-items-center rounded-2xl bg-teal-700 text-white shadow-2xl shadow-teal-900/25 sm:hidden" aria-label="Open floating action" @click="quick = true">
       <svg class="h-6 w-6" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24"><path v-for="path in icons.plus" :key="path" :d="path" /></svg>
     </button>
-    <div v-if="commandOpen" class="fixed inset-0 z-50 grid place-items-start bg-slate-950/40 p-3 pt-20 backdrop-blur-[2px] sm:p-6 sm:pt-24" role="dialog" aria-modal="true" aria-labelledby="command-title">
+
+    <!-- Command palette -->
+    <div v-if="commandOpen" class="fixed inset-0 z-50 grid place-items-start bg-slate-950/50 p-3 pt-20 backdrop-blur-[2px] sm:p-6 sm:pt-24" role="dialog" aria-modal="true" aria-labelledby="command-title">
       <button class="absolute inset-0 cursor-default" aria-label="Close command palette" @click="commandOpen = false"></button>
-      <section class="relative mx-auto w-full max-w-2xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl shadow-slate-950/15">
-        <div class="border-b border-slate-100 p-3">
+      <section class="relative mx-auto w-full max-w-2xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl shadow-slate-950/15 dark:border-zinc-800 dark:bg-zinc-900 dark:shadow-black/40">
+        <div class="border-b border-slate-100 p-3 dark:border-zinc-800">
           <h2 id="command-title" class="sr-only">Command palette</h2>
           <div class="relative">
-            <svg class="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewBox="0 0 24 24"><path v-for="path in icons.search" :key="path" :d="path" /></svg>
-            <input v-model="commandQuery" class="field h-12 border-0 bg-slate-50 pl-10 text-base" placeholder="Jump to a page or create something" autofocus @keydown.enter.prevent="filteredCommands[0] && runCommand(filteredCommands[0])" />
+            <svg class="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400 dark:text-zinc-500" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewBox="0 0 24 24"><path v-for="path in icons.search" :key="path" :d="path" /></svg>
+            <input v-model="commandQuery" class="field h-12 border-0 bg-slate-50 pl-10 text-base dark:bg-zinc-800" placeholder="Jump to a page or create something" autofocus @keydown.enter.prevent="filteredCommands[0] && runCommand(filteredCommands[0])" />
           </div>
         </div>
         <div class="max-h-[24rem] overflow-y-auto p-2">
-          <button v-for="item in filteredCommands" :key="`${item.group}-${item.label}`" class="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left hover:bg-slate-100" @click="runCommand(item)">
-            <span class="grid h-9 w-9 place-items-center rounded-xl bg-slate-100 text-slate-500">
+          <button v-for="item in filteredCommands" :key="`${item.group}-${item.label}`" class="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left hover:bg-slate-100 dark:hover:bg-zinc-800" @click="runCommand(item)">
+            <span class="grid h-9 w-9 place-items-center rounded-xl bg-slate-100 text-slate-500 dark:bg-zinc-800 dark:text-zinc-400">
               <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewBox="0 0 24 24"><path v-for="path in icons[item.icon]" :key="path" :d="path" /></svg>
             </span>
             <span class="min-w-0 flex-1">
-              <span class="block truncate text-sm font-extrabold text-slate-900">{{ item.label }}</span>
-              <span class="text-xs font-bold uppercase text-slate-400">{{ item.group }}</span>
+              <span class="block truncate text-sm font-extrabold text-slate-900 dark:text-zinc-100">{{ item.label }}</span>
+              <span class="text-xs font-bold uppercase text-slate-400 dark:text-zinc-600">{{ item.group }}</span>
             </span>
           </button>
-          <div v-if="filteredCommands.length === 0" class="p-8 text-center text-sm font-semibold text-slate-500">No matching command.</div>
+          <div v-if="filteredCommands.length === 0" class="p-8 text-center text-sm font-semibold text-slate-500 dark:text-zinc-500">No matching command.</div>
         </div>
       </section>
     </div>
+
+    <!-- Toasts -->
     <div class="fixed right-3 top-3 z-50 grid w-[min(24rem,calc(100vw-1.5rem))] gap-2 sm:right-5 sm:top-5">
-      <div v-for="item in feedback.toasts" :key="item.id" class="rounded-2xl border bg-white p-4 shadow-2xl shadow-slate-950/10" :class="item.tone === 'success' ? 'border-teal-200' : item.tone === 'error' ? 'border-red-200' : 'border-slate-200'">
+      <div
+        v-for="item in feedback.toasts"
+        :key="item.id"
+        class="rounded-2xl border bg-white p-4 shadow-2xl shadow-slate-950/10 dark:bg-zinc-900 dark:shadow-black/30"
+        :class="item.tone === 'success' ? 'border-teal-200 dark:border-teal-800' : item.tone === 'error' ? 'border-red-200 dark:border-red-900' : 'border-slate-200 dark:border-zinc-800'"
+      >
         <div class="flex items-start justify-between gap-3">
           <div class="flex gap-3">
-            <span class="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-xl" :class="item.tone === 'success' ? 'bg-teal-50 text-teal-700' : item.tone === 'error' ? 'bg-red-50 text-red-700' : 'bg-slate-100 text-slate-600'">
+            <span class="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-xl" :class="item.tone === 'success' ? 'bg-teal-50 text-teal-700 dark:bg-teal-900/40 dark:text-teal-400' : item.tone === 'error' ? 'bg-red-50 text-red-700 dark:bg-red-900/40 dark:text-red-400' : 'bg-slate-100 text-slate-600 dark:bg-zinc-800 dark:text-zinc-400'">
               <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24"><path v-for="path in icons[item.tone === 'error' ? 'alert' : 'check']" :key="path" :d="path" /></svg>
             </span>
             <div>
-            <p class="font-semibold" :class="item.tone === 'success' ? 'text-teal-800' : item.tone === 'error' ? 'text-red-700' : 'text-slate-800'">{{ item.title }}</p>
-            <p v-if="item.message" class="mt-1 text-sm text-slate-500">{{ item.message }}</p>
+              <p class="font-semibold" :class="item.tone === 'success' ? 'text-teal-800 dark:text-teal-300' : item.tone === 'error' ? 'text-red-700 dark:text-red-400' : 'text-slate-800 dark:text-zinc-200'">{{ item.title }}</p>
+              <p v-if="item.message" class="mt-1 text-sm text-slate-500 dark:text-zinc-500">{{ item.message }}</p>
             </div>
           </div>
-          <button class="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700" aria-label="Dismiss notification" @click="dismissToast(item.id)">
+          <button class="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:text-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-300" aria-label="Dismiss notification" @click="dismissToast(item.id)">
             <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewBox="0 0 24 24"><path v-for="path in icons.close" :key="path" :d="path" /></svg>
           </button>
         </div>
       </div>
     </div>
-    <div v-if="feedback.confirm.open" class="fixed inset-0 z-50 grid place-items-center bg-slate-950/45 p-4 backdrop-blur-[2px]" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
-      <section class="card w-full max-w-md overflow-hidden p-0 shadow-2xl shadow-slate-950/15">
-        <div class="border-b border-slate-100 bg-slate-50/70 px-5 py-4">
+    <!-- Confirm dialog -->
+    <div v-if="feedback.confirm.open" class="fixed inset-0 z-50 grid place-items-center bg-slate-950/50 p-4 backdrop-blur-[2px]" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
+      <section class="card w-full max-w-md overflow-hidden p-0 shadow-2xl">
+        <div class="border-b border-slate-100 bg-slate-50/70 px-5 py-4 dark:border-zinc-800 dark:bg-zinc-900/60">
           <div class="flex items-start gap-3">
-            <span class="grid h-10 w-10 shrink-0 place-items-center rounded-2xl" :class="feedback.confirm.danger ? 'bg-red-50 text-red-700' : 'bg-teal-50 text-teal-700'">
+            <span class="grid h-10 w-10 shrink-0 place-items-center rounded-2xl" :class="feedback.confirm.danger ? 'bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-400' : 'bg-teal-50 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400'">
               <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewBox="0 0 24 24"><path v-for="path in icons[feedback.confirm.danger ? 'alert' : 'check']" :key="path" :d="path" /></svg>
             </span>
             <div>
-              <p class="text-xs font-extrabold uppercase" :class="feedback.confirm.danger ? 'text-red-700' : 'text-teal-700'">{{ feedback.confirm.danger ? 'Needs confirmation' : 'Confirm action' }}</p>
+              <p class="text-xs font-extrabold uppercase" :class="feedback.confirm.danger ? 'text-red-700 dark:text-red-400' : 'text-teal-700 dark:text-teal-500'">{{ feedback.confirm.danger ? 'Needs confirmation' : 'Confirm action' }}</p>
               <h2 id="confirm-title" class="mt-1 text-xl font-extrabold">{{ feedback.confirm.title }}</h2>
             </div>
           </div>
         </div>
         <div class="px-5 py-4">
-          <p class="mt-2 text-sm leading-6 text-slate-600">{{ feedback.confirm.message }}</p>
+          <p class="mt-2 text-sm leading-6 text-slate-600 dark:text-zinc-400">{{ feedback.confirm.message }}</p>
         </div>
-        <div class="flex justify-end gap-2 border-t border-slate-100 bg-slate-50/70 px-5 py-4">
+        <div class="flex justify-end gap-2 border-t border-slate-100 bg-slate-50/70 px-5 py-4 dark:border-zinc-800 dark:bg-zinc-900/60">
           <button class="btn btn-muted" @click="resolveConfirm(false)">Cancel</button>
           <button class="btn" :class="feedback.confirm.danger ? 'border border-red-200 bg-red-600 text-white hover:bg-red-700' : 'btn-primary'" @click="resolveConfirm(true)">{{ feedback.confirm.confirmLabel }}</button>
         </div>
