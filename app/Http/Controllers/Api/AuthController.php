@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Configuration;
 use App\Models\User;
 use App\Support\ApiResponse;
 use Illuminate\Http\Request;
@@ -111,11 +112,47 @@ class AuthController extends Controller
     public function forgotPassword(Request $request)
     {
         $request->validate(['email' => ['required', 'email']]);
+        $this->applyMailConfig($request->string('email')->toString());
         $status = Password::sendResetLink($request->only('email'));
 
         return $status === Password::RESET_LINK_SENT
             ? ApiResponse::ok([], __($status))
             : ApiResponse::ok([], __($status), 422);
+    }
+
+    private function applyMailConfig(string $email): void
+    {
+        $user = User::where('email', $email)->first() ?? User::first();
+        if (! $user) {
+            return;
+        }
+
+        $config = Configuration::getValue($user, 'mail', 'smtp');
+        if (! is_array($config) || ($config['mailer'] ?? 'log') === 'log') {
+            return;
+        }
+
+        if ($config['mailer'] === 'resend' && filled($config['api_key'] ?? null)) {
+            config([
+                'mail.default' => 'resend',
+                'services.resend.key' => $config['api_key'],
+            ]);
+        } elseif ($config['mailer'] === 'smtp' && filled($config['host'] ?? null)) {
+            config([
+                'mail.default' => 'smtp',
+                'mail.mailers.smtp.host' => $config['host'],
+                'mail.mailers.smtp.port' => $config['port'] ?? 587,
+                'mail.mailers.smtp.username' => $config['username'] ?? '',
+                'mail.mailers.smtp.password' => $config['password'] ?? '',
+            ]);
+        }
+
+        if (filled($config['from_address'] ?? null)) {
+            config([
+                'mail.from.address' => $config['from_address'],
+                'mail.from.name' => $config['from_name'] ?? config('app.name'),
+            ]);
+        }
     }
 
     public function resetPassword(Request $request)
