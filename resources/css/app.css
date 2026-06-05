@@ -47,28 +47,46 @@
     /* ── Global dark overrides for hardcoded Tailwind classes ── */
     /* These handle all view files that don't have explicit dark: classes */
 
-    /* Backgrounds */
-    .dark .bg-white           { background-color: var(--surface) !important; }
-    .dark .bg-slate-50        { background-color: var(--surface-soft) !important; }
-    .dark .bg-slate-100       { background-color: var(--surface-raised) !important; }
-    .dark .bg-stone-100       { background-color: var(--page) !important; }
-    .dark .bg-zinc-50         { background-color: var(--surface-soft) !important; }
+    /* Backgrounds — exact class OR opacity variant (bg-slate-50/70 etc.)
+       Using [class~="x"] for exact word match + [class*="x/"] for slash-opacity.
+       Avoids catching bg-slate-500, bg-teal-500 etc. */
+    .dark .bg-white,
+    .dark [class~="bg-white"]                             { background-color: var(--surface) !important; }
+    .dark [class~="bg-slate-50"],
+    .dark [class*="bg-slate-50/"]                         { background-color: var(--surface-soft) !important; }
+    .dark [class~="bg-slate-100"],
+    .dark [class*="bg-slate-100/"]                        { background-color: var(--surface-raised) !important; }
+    .dark .bg-stone-100                                   { background-color: var(--page) !important; }
+    .dark .bg-zinc-50                                     { background-color: var(--surface-soft) !important; }
 
-    /* Colored tinted backgrounds → muted dark equivalents */
-    .dark [class*="bg-teal-50"]   { background-color: rgb(13 78 70 / 0.25) !important; }
-    .dark [class*="bg-sky-50"]    { background-color: rgb(7 69 113 / 0.25) !important; }
-    .dark [class*="bg-rose-50"]   { background-color: rgb(100 19 45 / 0.25) !important; }
-    .dark [class*="bg-red-50"]    { background-color: rgb(100 19 19 / 0.25) !important; }
-    .dark [class*="bg-orange-50"] { background-color: rgb(124 42 18 / 0.25) !important; }
-    .dark [class*="bg-purple-50"] { background-color: rgb(60 22 119 / 0.25) !important; }
-    .dark [class*="bg-indigo-50"] { background-color: rgb(38 36 110 / 0.25) !important; }
-    .dark [class*="bg-amber-50"]  { background-color: rgb(113 69 10 / 0.25) !important; }
-    .dark [class*="bg-yellow-50"] { background-color: rgb(100 78 10 / 0.25) !important; }
-    .dark [class*="bg-teal-100"]  { background-color: rgb(13 78 70 / 0.3) !important; }
+    /* Colored tinted backgrounds → muted dark equivalents
+       [class~="bg-X-50"] = exact, [class*="bg-X-50/"] = opacity variants only (no bg-X-500) */
+    .dark [class~="bg-teal-50"],
+    .dark [class*="bg-teal-50/"]   { background-color: rgb(13 78 70 / 0.25) !important; }
+    .dark [class~="bg-sky-50"],
+    .dark [class*="bg-sky-50/"]    { background-color: rgb(7 69 113 / 0.25) !important; }
+    .dark [class~="bg-rose-50"],
+    .dark [class*="bg-rose-50/"]   { background-color: rgb(100 19 45 / 0.25) !important; }
+    .dark [class~="bg-red-50"],
+    .dark [class*="bg-red-50/"]    { background-color: rgb(100 19 19 / 0.25) !important; }
+    .dark [class~="bg-orange-50"],
+    .dark [class*="bg-orange-50/"] { background-color: rgb(124 42 18 / 0.25) !important; }
+    .dark [class~="bg-purple-50"],
+    .dark [class*="bg-purple-50/"] { background-color: rgb(60 22 119 / 0.25) !important; }
+    .dark [class~="bg-indigo-50"],
+    .dark [class*="bg-indigo-50/"] { background-color: rgb(38 36 110 / 0.25) !important; }
+    .dark [class~="bg-amber-50"],
+    .dark [class*="bg-amber-50/"]  { background-color: rgb(113 69 10 / 0.25) !important; }
+    .dark [class~="bg-yellow-50"],
+    .dark [class*="bg-yellow-50/"] { background-color: rgb(100 78 10 / 0.25) !important; }
+    .dark [class~="bg-teal-100"],
+    .dark [class*="bg-teal-100/"]  { background-color: rgb(13 78 70 / 0.3) !important; }
+    .dark [class~="bg-sky-100"],
+    .dark [class*="bg-sky-100/"]   { background-color: rgb(7 69 113 / 0.3) !important; }
 
     /* Hover backgrounds */
-    .dark [class*="hover:bg-teal-50"]:hover   { background-color: rgb(13 78 70 / 0.3) !important; }
-    .dark [class*="hover:bg-red-50"]:hover    { background-color: rgb(100 19 19 / 0.3) !important; }
+    .dark [class*="hover:bg-teal-50"]:hover   { background-color: rgb(13 78 70 / 0.35) !important; }
+    .dark [class*="hover:bg-red-50"]:hover    { background-color: rgb(100 19 19 / 0.35) !important; }
     .dark [class*="hover:bg-slate-50"]:hover  { background-color: var(--surface-soft) !important; }
     .dark [class*="hover:bg-slate-100"]:hover { background-color: var(--surface-raised) !important; }
 
