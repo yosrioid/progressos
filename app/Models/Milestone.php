@@ -22,11 +22,11 @@ class Milestone extends Model
 
     public const SOURCE_TYPES = ['manual', 'work_log_count', 'work_log_minutes', 'learning_minutes', 'daily_progress_streak', 'task_done_count'];
 
-    protected $fillable = ['user_id', 'title', 'category', 'target_type', 'source_type', 'source_filter', 'target_value', 'current_value', 'start_date', 'end_date', 'status', 'notes'];
+    protected $fillable = ['user_id', 'title', 'category', 'target_type', 'source_type', 'source_filter', 'target_value', 'current_value', 'start_date', 'end_date', 'status', 'notes', 'completed_at'];
 
     protected function casts(): array
     {
-        return ['start_date' => 'date', 'end_date' => 'date', 'target_value' => 'decimal:2', 'current_value' => 'decimal:2'];
+        return ['start_date' => 'date', 'end_date' => 'date', 'target_value' => 'decimal:2', 'current_value' => 'decimal:2', 'completed_at' => 'datetime'];
     }
 
     public function user(): BelongsTo

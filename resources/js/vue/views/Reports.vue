@@ -22,6 +22,10 @@ function exportHref() {
   return `/api/v1/reports/${route.params.period}/export${date.value ? `?date=${encodeURIComponent(date.value)}` : ''}`;
 }
 
+function exportPdfHref() {
+  return `/api/v1/reports/${route.params.period}/export-pdf${date.value ? `?date=${encodeURIComponent(date.value)}` : ''}`;
+}
+
 watch(() => route.fullPath, load);
 onMounted(load);
 </script>
@@ -37,6 +41,7 @@ onMounted(load);
         <input v-model="date" class="field w-auto" type="date" />
         <button class="btn btn-primary" @click="applyDate">Apply</button>
         <a class="btn btn-muted" :href="exportHref()">Export CSV</a>
+        <a class="btn btn-muted" :href="exportPdfHref()" target="_blank">Export PDF</a>
       </div>
     </div>
     <div class="mb-5 grid gap-3 md:grid-cols-3"><div class="card p-4"><p class="label">Completed work</p><p class="mt-2 text-2xl font-semibold">{{ report.completed_work_logs.length }}</p></div><div class="card p-4"><p class="label">Open blockers</p><p class="mt-2 text-2xl font-semibold text-rose-800">{{ report.open_blockers.length }}</p></div><div class="card p-4"><p class="label">Learning</p><p class="mt-2 text-2xl font-semibold">{{ minutes(report.learning_totals.minutes) }}</p></div></div>

@@ -3,6 +3,7 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router';
 import { api } from './api';
 import DatePicker from './components/DatePicker.vue';
+import WorkTimer from './components/WorkTimer.vue';
 import { dismissToast, feedback, resolveConfirm, toast } from './feedback';
 import { pasteLinkOverSelection } from './linkPaste';
 import { useAuthStore } from './stores/auth';
@@ -14,6 +15,11 @@ const router = useRouter();
 const route = useRoute();
 const quick = ref(false);
 const mobileMenu = ref(false);
+const overdueCount = ref(0);
+const shortcutsOpen = ref(false);
+const notifOpen = ref(false);
+const notifUnread = ref(0);
+const notifications = ref<any[]>([]);
 const profileMenu = ref(false);
 const commandOpen = ref(false);
 const commandQuery = ref('');
@@ -28,6 +34,9 @@ const navGroups = [
       { label: 'Dashboard', href: '/dashboard', icon: 'dashboard' },
       { label: 'Search', href: '/search', icon: 'search' },
       { label: 'Projects', href: '/projects', icon: 'folder' },
+      { label: 'Activity', href: '/activity', icon: 'chart' },
+      { label: 'Analytics', href: '/analytics', icon: 'chart' },
+      { label: 'Docs', href: '/docs', icon: 'docs' },
     ],
   },
   {
@@ -36,6 +45,7 @@ const navGroups = [
       { label: 'Daily Progress', href: '/daily-progress', icon: 'calendar' },
       { label: 'Work Logs', href: '/work-logs', icon: 'briefcase' },
       { label: 'Tasks', href: '/tasks', icon: 'check' },
+      { label: 'Task Board', href: '/tasks/board', icon: 'check' },
     ],
   },
   {
@@ -43,12 +53,15 @@ const navGroups = [
     items: [
       { label: 'Learning', href: '/learning', icon: 'book' },
       { label: 'Milestones', href: '/milestones', icon: 'target' },
+      { label: 'Goals & OKR', href: '/goals', icon: 'target' },
+      { label: 'Habits', href: '/habits', icon: 'check' },
     ],
   },
   {
     label: 'Review',
     items: [
-      { label: 'Weekly Report', href: '/reports/weekly', icon: 'chart' },
+      { label: 'Weekly Review', href: '/weekly-review', icon: 'chart' },
+      { label: 'Reports', href: '/reports/weekly', icon: 'chart' },
     ],
   },
   {
@@ -64,6 +77,20 @@ const navGroups = [
     ],
   },
 ];
+function loadCollapsed(): Record<string, boolean> {
+  try {
+    const saved = localStorage.getItem('nav-collapsed');
+    return saved ? JSON.parse(saved) : {};
+  } catch {
+    return {};
+  }
+}
+const collapsedGroups = ref<Record<string, boolean>>(loadCollapsed());
+function toggleNavGroup(label: string) {
+  collapsedGroups.value[label] = !collapsedGroups.value[label];
+  localStorage.setItem('nav-collapsed', JSON.stringify(collapsedGroups.value));
+}
+
 const icons: Record<string, string[]> = {
   dashboard: ['M4 13h6V4H4v9Zm10 7h6V4h-6v16ZM4 20h6v-5H4v5Zm10 0h6v-5h-6v5Z'],
   search: ['m21 21-4.35-4.35M10.8 18a7.2 7.2 0 1 1 0-14.4 7.2 7.2 0 0 1 0 14.4Z'],
@@ -83,6 +110,8 @@ const icons: Record<string, string[]> = {
   alert: ['M12 3 2 21h20L12 3ZM12 9v4M12 17h.01'],
   settings: ['M12 15.5A3.5 3.5 0 1 0 12 8a3.5 3.5 0 0 0 0 7.5ZM19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.04 1.56V21a2 2 0 0 1-4 0v-.08A1.7 1.7 0 0 0 8.96 19.36a1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.56-1.04H3a2 2 0 0 1 0-4h.04A1.7 1.7 0 0 0 4.6 8.96a1.7 1.7 0 0 0-.34-1.87L4.2 7.03A2 2 0 0 1 7.03 4.2l.06.06a1.7 1.7 0 0 0 1.87.34H9a1.7 1.7 0 0 0 1-1.56V3a2 2 0 0 1 4 0v.04a1.7 1.7 0 0 0 1.04 1.56 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87V9a1.7 1.7 0 0 0 1.56 1H21a2 2 0 0 1 0 4h-.04A1.7 1.7 0 0 0 19.4 15Z'],
   games: ['M5 3h4v4H5V3zm5.5 0h4v4h-4V3zM16 3h4v4h-4V3zM5 8.5h4v4H5v-4zm5.5 0h4v4h-4v-4zm5.5 0h4v4h-4v-4zM5 14h4v4H5v-4zm5.5 0h4v4h-4v-4zm5.5 0h4v4h-4v-4z'],
+  chevron: ['m6 9 6 6 6-6'],
+  docs: ['M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z', 'M14 2v6h6M16 13H8M16 17H8M10 9H8'],
 };
 const initials = computed(() => (auth.user?.name || 'U').split(' ').map((part) => part[0]).join('').slice(0, 2).toUpperCase());
 const activeTheme = computed(() => configuration.appearance.theme || auth.user?.theme || 'system');
@@ -94,6 +123,7 @@ const commandItems = computed(() => [
   { label: 'New Learning Entry', href: '/learning/create', icon: 'book', group: 'Create', action: 'navigate' },
   { label: 'New Milestone', href: '/milestones/create', icon: 'target', group: 'Create', action: 'navigate' },
   { label: 'Open Quick Add', href: '#quick-add', icon: 'plus', group: 'Action', action: 'quick' },
+  { label: 'Weekly Review', href: '/weekly-review', icon: 'chart', group: 'Review', action: 'navigate' },
   { label: 'Configuration', href: '/configuration', icon: 'settings', group: 'System', action: 'navigate' },
   { label: 'Profile Settings', href: '/profile', icon: 'user', group: 'Account', action: 'navigate' },
 ]);
@@ -103,12 +133,62 @@ const filteredCommands = computed(() => {
 });
 
 async function submitQuick() {
-  await api.post('/api/v1/quick-capture', quickForm.value);
+  const res = await api.post('/api/v1/quick-capture', quickForm.value).then((r) => r.data);
+  const path: string | null = res.data?.record_path ?? null;
   quick.value = false;
-  toast({ tone: 'success', title: 'Captured', message: 'Your quick entry has been saved.' });
+  toast({
+    tone: 'success',
+    title: 'Captured',
+    message: path ? `Tersimpan. <a href="${path}" class="font-bold underline">Lihat record →</a>` : 'Tersimpan.',
+  });
   quickForm.value.title = '';
   quickForm.value.notes = '';
-  await router.push('/dashboard');
+  if (path) await router.push(path);
+  else await router.push('/dashboard');
+}
+
+async function loadOverdueCount() {
+  try {
+    const res = await api.get('/api/v1/tasks/overdue-count').then((r) => r.data);
+    overdueCount.value = res.count ?? 0;
+  } catch {
+    overdueCount.value = 0;
+  }
+}
+
+async function loadNotifications() {
+  try {
+    const res = await api.get('/api/v1/notifications').then((r) => r.data);
+    notifications.value = res.notifications ?? [];
+    notifUnread.value = res.unread_count ?? 0;
+  } catch {
+    // non-critical
+  }
+}
+
+async function toggleNotif() {
+  notifOpen.value = !notifOpen.value;
+  if (notifOpen.value) await loadNotifications();
+}
+
+async function markNotifRead(n: any) {
+  if (n.read_at) return;
+  await api.patch(`/api/v1/notifications/${n.id}/read`);
+  n.read_at = new Date().toISOString();
+  notifUnread.value = Math.max(0, notifUnread.value - 1);
+  if (n.action_url) { notifOpen.value = false; router.push(n.action_url); }
+}
+
+async function markAllNotifRead() {
+  await api.post('/api/v1/notifications/mark-all-read');
+  notifications.value.forEach((n) => { n.read_at = new Date().toISOString(); });
+  notifUnread.value = 0;
+}
+
+async function clearAllNotif() {
+  await api.delete('/api/v1/notifications');
+  notifications.value = [];
+  notifUnread.value = 0;
 }
 
 async function logout() {
@@ -120,6 +200,14 @@ async function logout() {
 
 function search() {
   if (query.value.trim()) router.push(`/search?q=${encodeURIComponent(query.value.trim())}`);
+}
+
+function onTimerLog(payload: { title: string; minutes: number }) {
+  quickForm.value.type = 'work_log';
+  quickForm.value.title = payload.title;
+  quickForm.value.duration_minutes = payload.minutes;
+  quickForm.value.date = new Date().toISOString().slice(0, 10);
+  quick.value = true;
 }
 
 async function runCommand(item: any) {
@@ -167,6 +255,7 @@ function shortcuts(event: KeyboardEvent) {
     mobileMenu.value = false;
     profileMenu.value = false;
     commandOpen.value = false;
+    shortcutsOpen.value = false;
   }
   if (typing) return;
   if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
@@ -182,6 +271,10 @@ function shortcuts(event: KeyboardEvent) {
     event.preventDefault();
     quick.value = true;
   }
+  if (event.key === '?') {
+    event.preventDefault();
+    shortcutsOpen.value = true;
+  }
 }
 
 function isActive(href: string) {
@@ -195,7 +288,10 @@ watch(() => auth.user, async (user) => {
   } catch {
     // Configuration is non-critical for shell boot.
   }
+  loadOverdueCount();
+  loadNotifications();
 }, { immediate: true });
+watch(() => route.fullPath, () => { if (auth.user) { loadOverdueCount(); loadNotifications(); } });
 watch(activeTheme, (theme) => applyTheme(theme || 'system'), { immediate: true });
 watch(() => configuration.appearance.favicon_url, (url) => applyFavicon(url), { immediate: true });
 watch(() => configuration.appName, (name) => {
@@ -214,8 +310,8 @@ onUnmounted(() => window.removeEventListener('keydown', shortcuts));
   <RouterView v-if="isGuest" />
   <div v-else class="min-h-screen text-slate-950 dark:text-zinc-100 lg:flex">
     <!-- Desktop sidebar -->
-    <aside class="hidden border-r border-slate-200 bg-white/95 px-4 py-5 shadow-[12px_0_40px_rgb(15_23_42/0.035)] backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/95 dark:shadow-[12px_0_40px_rgb(0_0_0/0.3)] lg:fixed lg:inset-y-0 lg:block lg:w-72">
-      <RouterLink to="/dashboard" class="mb-7 flex items-center gap-3">
+    <aside class="hidden flex-col border-r border-slate-200 bg-white/95 shadow-[12px_0_40px_rgb(15_23_42/0.035)] backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/95 dark:shadow-[12px_0_40px_rgb(0_0_0/0.3)] lg:fixed lg:inset-y-0 lg:flex lg:w-72">
+      <RouterLink to="/dashboard" class="shrink-0 px-4 pb-4 pt-5 flex items-center gap-3">
         <span class="grid h-10 w-10 place-items-center rounded-2xl bg-teal-700 text-white shadow-lg shadow-teal-900/10">
           <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewBox="0 0 24 24"><path v-for="path in icons.spark" :key="path" :d="path" /></svg>
         </span>
@@ -224,10 +320,16 @@ onUnmounted(() => window.removeEventListener('keydown', shortcuts));
           <span class="text-xs font-semibold text-slate-500 dark:text-zinc-500">{{ configuration.tagline }}</span>
         </span>
       </RouterLink>
-      <nav class="space-y-6">
-        <section v-for="group in navGroups" :key="group.label">
-          <p class="mb-2 px-3 text-[11px] font-extrabold uppercase text-slate-400 dark:text-zinc-600">{{ group.label }}</p>
-          <div class="space-y-1">
+      <nav class="flex-1 space-y-1 overflow-y-auto px-4 pb-5">
+        <section v-for="group in navGroups" :key="group.label" class="mb-1">
+          <button
+            class="mb-0.5 flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-[11px] font-extrabold uppercase text-slate-400 transition hover:bg-slate-50 hover:text-slate-600 dark:hover:bg-zinc-800/40 dark:text-zinc-600 dark:hover:text-zinc-400"
+            @click="toggleNavGroup(group.label)"
+          >
+            {{ group.label }}
+            <svg class="h-3 w-3 transition-transform duration-150" :class="collapsedGroups[group.label] ? '-rotate-90' : ''" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" viewBox="0 0 24 24"><path v-for="path in icons.chevron" :key="path" :d="path" /></svg>
+          </button>
+          <div v-show="!collapsedGroups[group.label]" class="space-y-1">
             <RouterLink
               v-for="item in group.items"
               :key="item.href"
@@ -241,7 +343,8 @@ onUnmounted(() => window.removeEventListener('keydown', shortcuts));
               >
                 <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewBox="0 0 24 24"><path v-for="path in icons[item.icon]" :key="path" :d="path" /></svg>
               </span>
-              {{ item.label }}
+              <span class="flex-1">{{ item.label }}</span>
+              <span v-if="item.href === '/tasks' && overdueCount > 0" class="ml-auto rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-extrabold text-white">{{ overdueCount > 9 ? '9+' : overdueCount }}</span>
             </RouterLink>
           </div>
         </section>
@@ -268,6 +371,53 @@ onUnmounted(() => window.removeEventListener('keydown', shortcuts));
             <input ref="searchInput" v-model="query" class="field h-11 pl-9" placeholder="Search everything" aria-label="Search everything" />
             <button type="button" class="absolute right-2 top-1/2 hidden -translate-y-1/2 rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-bold text-slate-400 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-500 md:block" @click="commandOpen = true">Cmd K</button>
           </form>
+          <!-- Keyboard shortcut hints -->
+          <div class="hidden items-center gap-1.5 xl:flex">
+            <kbd class="rounded border border-slate-200 bg-white px-1.5 py-0.5 text-[10px] font-bold text-slate-400 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-500" title="Quick add">N</kbd>
+            <kbd class="rounded border border-slate-200 bg-white px-1.5 py-0.5 text-[10px] font-bold text-slate-400 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-500" title="Focus search">/</kbd>
+            <kbd class="rounded border border-slate-200 bg-white px-1.5 py-0.5 text-[10px] font-bold text-slate-400 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-500" title="Command palette">⌘K</kbd>
+          </div>
+          <!-- Work timer -->
+          <WorkTimer class="hidden sm:flex" @log="onTimerLog" />
+          <!-- Notification bell -->
+          <div class="relative">
+            <button
+              @click="toggleNotif"
+              class="relative grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-slate-200 bg-white text-slate-500 transition hover:border-amber-200 hover:text-amber-600 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:border-amber-600 dark:hover:text-amber-400"
+              aria-label="Notifications"
+            >
+              <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+              <span v-if="notifUnread > 0" class="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-extrabold text-white">{{ notifUnread > 9 ? '9+' : notifUnread }}</span>
+            </button>
+            <button v-if="notifOpen" class="fixed inset-0 z-10 cursor-default" tabindex="-1" @click="notifOpen = false"></button>
+            <div v-if="notifOpen" class="absolute right-0 z-20 mt-2 w-80 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl shadow-slate-900/10 dark:border-zinc-800 dark:bg-zinc-900 dark:shadow-black/30">
+              <div class="flex items-center justify-between border-b border-slate-100 px-4 py-3 dark:border-zinc-800">
+                <span class="text-sm font-extrabold text-slate-900 dark:text-zinc-100">Notifikasi</span>
+                <div class="flex gap-2">
+                  <button v-if="notifUnread > 0" @click="markAllNotifRead" class="text-xs text-teal-600 hover:underline dark:text-teal-400">Baca semua</button>
+                  <button v-if="notifications.length" @click="clearAllNotif" class="text-xs text-red-500 hover:underline">Hapus semua</button>
+                </div>
+              </div>
+              <div v-if="!notifications.length" class="py-8 text-center text-sm text-slate-400 dark:text-zinc-500">Tidak ada notifikasi</div>
+              <div v-else class="max-h-96 overflow-y-auto divide-y divide-slate-100 dark:divide-zinc-800">
+                <button
+                  v-for="n in notifications"
+                  :key="n.id"
+                  @click="markNotifRead(n)"
+                  :class="['w-full text-left px-4 py-3 transition hover:bg-slate-50 dark:hover:bg-zinc-800/60', !n.read_at ? 'bg-amber-50 dark:bg-amber-900/10' : '']"
+                >
+                  <div class="flex items-start gap-2">
+                    <span class="mt-0.5 text-base leading-none">{{ { task_overdue: '⚠️', task_due_soon: '📅', milestone_completed: '🎉', habit_streak: '🔥' }[n.type] || '🔔' }}</span>
+                    <div class="flex-1 min-w-0">
+                      <p class="text-xs font-bold text-slate-800 dark:text-zinc-200">{{ n.title }}</p>
+                      <p v-if="n.body" class="text-xs text-slate-500 dark:text-zinc-400 mt-0.5 truncate">{{ n.body }}</p>
+                    </div>
+                    <span v-if="!n.read_at" class="mt-1 h-2 w-2 rounded-full bg-amber-500 flex-shrink-0"></span>
+                  </div>
+                </button>
+              </div>
+            </div>
+          </div>
           <!-- Theme toggle -->
           <button
             class="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-slate-200 bg-white text-slate-500 transition hover:border-teal-200 hover:text-teal-700 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:border-teal-700 dark:hover:text-teal-400"
@@ -338,10 +488,16 @@ onUnmounted(() => window.removeEventListener('keydown', shortcuts));
             <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewBox="0 0 24 24"><path v-for="path in icons.close" :key="path" :d="path" /></svg>
           </button>
         </div>
-        <nav class="space-y-6">
-          <section v-for="group in navGroups" :key="group.label">
-            <p class="mb-2 px-3 text-[11px] font-extrabold uppercase text-slate-400 dark:text-zinc-600">{{ group.label }}</p>
-            <div class="space-y-1">
+        <nav class="space-y-1">
+          <section v-for="group in navGroups" :key="group.label" class="mb-1">
+            <button
+              class="mb-0.5 flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-[11px] font-extrabold uppercase text-slate-400 transition hover:bg-slate-50 hover:text-slate-600 dark:hover:bg-zinc-800/40 dark:text-zinc-600 dark:hover:text-zinc-400"
+              @click="toggleNavGroup(group.label)"
+            >
+              {{ group.label }}
+              <svg class="h-3 w-3 transition-transform duration-150" :class="collapsedGroups[group.label] ? '-rotate-90' : ''" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" viewBox="0 0 24 24"><path v-for="path in icons.chevron" :key="path" :d="path" /></svg>
+            </button>
+            <div v-show="!collapsedGroups[group.label]" class="space-y-1">
               <RouterLink
                 v-for="item in group.items"
                 :key="item.href"
@@ -442,6 +598,21 @@ onUnmounted(() => window.removeEventListener('keydown', shortcuts));
           </button>
         </div>
       </div>
+    </div>
+    <!-- Keyboard shortcuts modal -->
+    <div v-if="shortcutsOpen" class="fixed inset-0 z-50 grid place-items-center bg-slate-950/50 p-4 backdrop-blur-[2px]" @click.self="shortcutsOpen = false">
+      <section class="w-full max-w-md overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-zinc-800 dark:bg-zinc-900">
+        <div class="flex items-center justify-between border-b border-slate-100 px-5 py-4 dark:border-zinc-800">
+          <h2 class="font-extrabold">Keyboard Shortcuts</h2>
+          <button class="text-slate-400 hover:text-slate-700" @click="shortcutsOpen = false">✕</button>
+        </div>
+        <div class="divide-y divide-slate-100 p-2 dark:divide-zinc-800">
+          <div v-for="[keys, desc] in [['N', 'Quick add'], ['/', 'Focus search'], ['⌘K', 'Command palette'], ['?', 'This shortcuts modal'], ['Esc', 'Close modal / overlay']]" :key="String(keys)" class="flex items-center justify-between px-3 py-2.5">
+            <span class="text-sm font-semibold text-slate-700 dark:text-zinc-300">{{ desc }}</span>
+            <kbd class="rounded border border-slate-200 bg-slate-100 px-2 py-1 text-xs font-bold text-slate-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-400">{{ keys }}</kbd>
+          </div>
+        </div>
+      </section>
     </div>
     <!-- Confirm dialog -->
     <div v-if="feedback.confirm.open" class="fixed inset-0 z-50 grid place-items-center bg-slate-950/50 p-4 backdrop-blur-[2px]" role="dialog" aria-modal="true" aria-labelledby="confirm-title">

@@ -55,6 +55,40 @@ class DashboardData
                 'daily_progress' => $this->streak($user->dailyProgressEntries()->pluck('date')->map->toDateString()->all()),
                 'learning' => $this->streak($user->learningEntries()->pluck('date')->map->toDateString()->all()),
             ],
+            'focus' => [
+                'overdue_tasks' => $user->tasks()
+                    ->whereIn('status', ['todo', 'in_progress', 'blocked'])
+                    ->whereNotNull('due_date')
+                    ->whereDate('due_date', '<', $today)
+                    ->orderBy('due_date')
+                    ->take(5)
+                    ->get(['id', 'title', 'status', 'priority', 'due_date']),
+                'next_actions' => $user->learningEntries()
+                    ->whereNotNull('next_action')
+                    ->where('next_action', '!=', '')
+                    ->orderByDesc('date')
+                    ->take(5)
+                    ->get(['id', 'topic', 'category', 'next_action', 'date']),
+                'behind_milestones' => $user->milestones()
+                    ->where('status', 'active')
+                    ->whereNotNull('end_date')
+                    ->whereDate('end_date', '>', $today)
+                    ->get()
+                    ->map(fn ($m) => $m->toArray() + ['progress_percent' => $m->progressPercent()])
+                    ->filter(function ($m) {
+                        if (! $m['start_date'] || $m['current_value'] <= 0) {
+                            return false;
+                        }
+                        $elapsed = max(1, (int) now()->diffInDays($m['start_date']));
+                        $rate = $m['current_value'] / $elapsed;
+                        $remaining = $m['target_value'] - $m['current_value'];
+                        $daysLeft = (int) now()->diffInDays($m['end_date']);
+
+                        return $rate > 0 && ceil($remaining / $rate) > $daysLeft;
+                    })
+                    ->take(3)
+                    ->values(),
+            ],
         ];
     }
 

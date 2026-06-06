@@ -22,6 +22,7 @@ class WorkLogRequest extends FormRequest
             'resolution_or_outcome' => ['nullable', 'string'],
             'estimated_duration' => ['nullable', 'integer', 'min:0', 'max:100000'],
             'actual_duration' => ['nullable', 'integer', 'min:0', 'max:100000'],
+            'task_id' => ['nullable', 'integer', 'exists:tasks,id'],
             'tags' => ['nullable', 'array'],
             'tags.*' => ['string', 'max:40'],
         ];

@@ -16,6 +16,7 @@ const loading = ref(true);
 const saving = ref(false);
 const error = ref('');
 const errors = ref<Record<string, string[]>>({});
+const taskOptions = ref<{ id: number; title: string; status: string }[]>([]);
 const isEdit = computed(() => Boolean(props.id));
 const formSections = computed(() => {
   const fields = config.value.fields;
@@ -79,7 +80,13 @@ async function submit() {
   }
 }
 
-onMounted(load);
+onMounted(async () => {
+  await load();
+  if (props.type === 'work-logs') {
+    const data = await api.get('/api/v1/tasks', { params: { status: 'todo,in_progress', per_page: 100, sort: 'created_at', direction: 'desc' } }).then(unwrap);
+    taskOptions.value = (data.tasks?.data || []).map((t: any) => ({ id: t.id, title: t.title, status: t.status }));
+  }
+});
 </script>
 
 <template>
@@ -115,6 +122,12 @@ onMounted(load);
             <input v-model="form[field.key]" type="checkbox" />
           </label>
           <DatePicker v-else-if="field.type === 'date'" v-model="form[field.key]" :label="field.label" :required="field.required" />
+          <div v-else-if="field.type === 'task-link'" class="relative">
+            <select v-model="form[field.key]" class="field">
+              <option value="">— no linked task —</option>
+              <option v-for="t in taskOptions" :key="t.id" :value="t.id">{{ t.title }} ({{ t.status.replaceAll('_', ' ') }})</option>
+            </select>
+          </div>
           <input v-else v-model="form[field.key]" class="field" :type="inputType(field)" :required="field.required" />
           <span v-if="errors[field.key]?.[0]" class="mt-1 block text-sm font-semibold text-red-700">{{ errors[field.key][0] }}</span>
         </label>

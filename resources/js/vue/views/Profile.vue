@@ -6,7 +6,7 @@ import { timezones, useConfigurationStore } from '../stores/configuration';
 
 const auth = useAuthStore();
 const configuration = useConfigurationStore();
-const profile = ref({ name: auth.user?.name || '', email: auth.user?.email || '', timezone: auth.user?.timezone || configuration.timezone || 'Asia/Jakarta', theme: auth.user?.theme || 'system' });
+const profile = ref({ name: auth.user?.name || '', email: auth.user?.email || '', timezone: auth.user?.timezone || configuration.timezone || 'Asia/Jakarta' });
 const password = ref({ current_password: '', password: '', password_confirmation: '' });
 const avatar = ref<File | null>(null);
 const avatarPreview = ref('');
@@ -175,7 +175,6 @@ async function croppedAvatarBlob(): Promise<Blob> {
       </div>
       <div class="space-y-3 p-5 text-sm font-semibold text-slate-600">
         <div class="flex justify-between"><span>Timezone</span><span class="text-slate-900">{{ profile.timezone }}</span></div>
-        <div class="flex justify-between"><span>Theme</span><span class="capitalize text-slate-900">{{ profile.theme }}</span></div>
       </div>
     </aside>
     <div class="grid gap-5">
@@ -193,12 +192,6 @@ async function croppedAvatarBlob(): Promise<Blob> {
             <option v-for="timezone in timezones" :key="timezone" :value="timezone">{{ timezone.replace('_', ' ') }}</option>
           </select>
         </label>
-        <div>
-          <span class="label mb-1">Theme</span>
-          <div class="inline-flex rounded-xl border border-slate-200 bg-white p-1 dark:border-zinc-700 dark:bg-zinc-800">
-            <button v-for="option in ['light', 'dark', 'system']" :key="option" type="button" class="rounded-lg px-3 py-2 text-sm font-bold capitalize" :class="profile.theme === option ? 'bg-slate-900 text-white' : 'text-slate-500'" @click="profile.theme = option">{{ option }}</button>
-          </div>
-        </div>
       </div>
       <div class="flex justify-end border-t border-slate-100 bg-slate-50/70 px-5 py-4"><button class="btn btn-primary">Save profile</button></div>
     </form>
