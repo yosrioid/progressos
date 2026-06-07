@@ -40,14 +40,22 @@ class HabitController extends Controller
             ->groupBy('habit_id')
             ->map(fn ($logs) => $logs->pluck('date')->map(fn ($d) => $d->toDateString())->toArray());
 
-        $data = $habits->map(function ($habit) use ($today, $recentLogs, $heatmapLogs) {
+        // Load all logs (for streak) in one query — sorted desc per habit
+        $allLogsGrouped = $request->user()->habitLogs()
+            ->whereIn('habit_id', $habits->pluck('id'))
+            ->orderByDesc('date')
+            ->get(['habit_id', 'date'])
+            ->groupBy('habit_id')
+            ->map(fn ($logs) => $logs->pluck('date')->map(fn ($d) => $d->toDateString())->toArray());
+
+        $data = $habits->map(function ($habit) use ($today, $recentLogs, $heatmapLogs, $allLogsGrouped) {
             $logs = $recentLogs[$habit->id] ?? collect();
             $todayDone = $logs->contains(fn ($l) => $l->date->toDateString() === $today);
             $weekDates = $logs->pluck('date')->map(fn ($d) => $d->toDateString())->toArray();
             $heatmap = $heatmapLogs[$habit->id] ?? [];
+            $allDates = $allLogsGrouped[$habit->id] ?? [];
 
-            // Compute streak from ordered logs
-            $allDates = $habit->logs()->orderByDesc('date')->pluck('date')->map(fn ($d) => $d->toDateString())->toArray();
+            // Compute streak (no extra query — allDates already loaded)
             $streak = 0;
             $check = $today;
             foreach ($allDates as $date) {
@@ -129,7 +137,7 @@ class HabitController extends Controller
     {
         $this->authorize('update', $habit);
         $data = $request->validate([
-            'date' => ['nullable', 'date'],
+            'date' => ['nullable', 'date_format:Y-m-d'],
             'notes' => ['nullable', 'string'],
         ]);
         $date = $data['date'] ?? Carbon::today()->toDateString();

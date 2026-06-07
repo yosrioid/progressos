@@ -297,8 +297,12 @@ async function submitForm() {
 
 async function confirmDelete(habit: Habit) {
   if (!confirm(`Hapus habit "${habit.name}"? Semua log akan ikut terhapus.`)) return
-  await api.delete(`/api/v1/habits/${habit.id}`)
-  await load()
+  try {
+    await api.delete(`/api/v1/habits/${habit.id}`)
+    await load()
+  } catch (e: any) {
+    alert(e?.response?.data?.message ?? 'Gagal menghapus habit')
+  }
 }
 
 onMounted(load)

@@ -140,8 +140,7 @@ async function submitQuick() {
     title: 'Captured',
     message: path ? `Tersimpan. <a href="${path}" class="font-bold underline">Lihat record →</a>` : 'Tersimpan.',
   });
-  quickForm.value.title = '';
-  quickForm.value.notes = '';
+  quickForm.value = { type: 'work_log', title: '', project_name: '', duration_minutes: 30, notes: '', date: new Date().toISOString().slice(0, 10) };
   if (path) await router.push(path);
   else await router.push('/dashboard');
 }

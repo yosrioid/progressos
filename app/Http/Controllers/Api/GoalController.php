@@ -106,6 +106,7 @@ class GoalController extends Controller
     public function updateKeyResult(Request $request, Goal $goal, KeyResult $keyResult)
     {
         $this->authorize('update', $goal);
+        abort_if($keyResult->goal_id !== $goal->id, 403);
         $data = $request->validate([
             'title' => ['sometimes', 'required', 'string', 'max:255'],
             'metric_type' => ['nullable', 'in:percentage,number,boolean'],
@@ -129,6 +130,7 @@ class GoalController extends Controller
     public function destroyKeyResult(Goal $goal, KeyResult $keyResult)
     {
         $this->authorize('update', $goal);
+        abort_if($keyResult->goal_id !== $goal->id, 403);
         $keyResult->delete();
 
         return response()->noContent();

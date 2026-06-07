@@ -50,6 +50,9 @@ async function moveTask(task: any, fromCol: string, toStatus: string) {
     board.value[fromCol] = board.value[fromCol].filter((t: any) => t.id !== task.id);
     board.value[toStatus] = [{ ...task, status: toStatus }, ...board.value[toStatus]];
     toast({ tone: 'success', title: 'Status diupdate', message: `${task.title} → ${toStatus.replaceAll('_', ' ')}` });
+  } catch (e: any) {
+    const msg = e?.response?.data?.message ?? 'Gagal memindahkan task';
+    toast({ tone: 'error', title: 'Error', message: msg });
   } finally {
     updatingId.value = null;
   }

@@ -267,7 +267,12 @@ async function submitGoalForm() {
 
 async function deleteGoal(goal: Goal) {
   if (!confirm(`Hapus goal "${goal.title}"?`)) return
-  await api.delete(`/api/v1/goals/${goal.id}`); await load()
+  try {
+    await api.delete(`/api/v1/goals/${goal.id}`)
+    await load()
+  } catch (e: any) {
+    alert(e?.response?.data?.message ?? 'Gagal menghapus goal')
+  }
 }
 
 function openKrForm(goal: Goal, kr?: KeyResult) {
@@ -300,14 +305,25 @@ async function submitKrForm() {
 
 async function toggleKrDone(goal: Goal, kr: KeyResult) {
   const newStatus = kr.status === 'done' ? 'active' : 'done'
-  await api.patch(`/api/v1/goals/${goal.id}/key-results/${kr.id}`, { status: newStatus })
-  await load(); expandedGoalId.value = goal.id
+  const prev = kr.status
+  kr.status = newStatus
+  try {
+    await api.patch(`/api/v1/goals/${goal.id}/key-results/${kr.id}`, { status: newStatus })
+    await load(); expandedGoalId.value = goal.id
+  } catch (e: any) {
+    kr.status = prev
+    alert(e?.response?.data?.message ?? 'Gagal mengubah status')
+  }
 }
 
 async function deleteKr(goal: Goal, kr: KeyResult) {
   if (!confirm('Hapus key result ini?')) return
-  await api.delete(`/api/v1/goals/${goal.id}/key-results/${kr.id}`)
-  await load(); expandedGoalId.value = goal.id
+  try {
+    await api.delete(`/api/v1/goals/${goal.id}/key-results/${kr.id}`)
+    await load(); expandedGoalId.value = goal.id
+  } catch (e: any) {
+    alert(e?.response?.data?.message ?? 'Gagal menghapus key result')
+  }
 }
 
 onMounted(load)
