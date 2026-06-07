@@ -12,12 +12,13 @@ use Illuminate\Support\Carbon;
  */
 class GameRecord extends Model
 {
-    protected $fillable = ['user_id', 'type', 'level', 'duration_seconds', 'completed_at'];
+    protected $fillable = ['user_id', 'type', 'level', 'duration_seconds', 'metadata', 'completed_at'];
 
     protected function casts(): array
     {
         return [
             'duration_seconds' => 'integer',
+            'metadata' => 'array',
             'completed_at' => 'datetime',
         ];
     }

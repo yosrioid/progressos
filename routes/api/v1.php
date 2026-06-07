@@ -109,6 +109,36 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
     Route::put('configuration/auth', [ConfigurationController::class, 'updateAuthConfig']);
     Route::put('configuration/mail', [ConfigurationController::class, 'updateMailConfig']);
 
+    Route::prefix('games/2048')->group(function () {
+        Route::get('active', [GameController::class, 'active2048Session']);
+        Route::get('daily', [GameController::class, 'daily2048Status']);
+        Route::get('records', [GameController::class, 'records2048']);
+        Route::post('sessions', [GameController::class, 'start2048Session']);
+        Route::patch('sessions/{session}', [GameController::class, 'saveProgress']);
+        Route::post('sessions/{session}/complete', [GameController::class, 'complete2048Session']);
+    });
+
+    Route::prefix('games/memory')->group(function () {
+        Route::get('active', [GameController::class, 'activeMemorySession']);
+        Route::get('daily', [GameController::class, 'memoryDailyStatus']);
+        Route::get('records', [GameController::class, 'memoryRecords']);
+        Route::post('sessions', [GameController::class, 'startMemorySession']);
+        Route::patch('sessions/{session}', [GameController::class, 'saveProgress']);
+        Route::post('sessions/{session}/complete', [GameController::class, 'completeMemorySession']);
+    });
+
+    Route::prefix('games/melody')->group(function () {
+        Route::get('records', [GameController::class, 'melodyRecords']);
+        Route::post('sessions', [GameController::class, 'startMelodySession']);
+        Route::post('sessions/{session}/complete', [GameController::class, 'completeMelodySession']);
+    });
+
+    Route::prefix('games/pitch')->group(function () {
+        Route::get('records', [GameController::class, 'pitchRecords']);
+        Route::post('sessions', [GameController::class, 'startPitchSession']);
+        Route::post('sessions/{session}/complete', [GameController::class, 'completePitchSession']);
+    });
+
     Route::prefix('games/minesweeper')->group(function () {
         Route::get('active', [GameController::class, 'activeMinesweeperSession']);
         Route::get('daily', [GameController::class, 'minesweeperDailyStatus']);
