@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Task;
+use App\Models\WorkLog;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
 
@@ -55,12 +57,15 @@ class StandupController extends Controller
         $lines[] = '';
         $lines[] = '### ✅ Kemarin / Selesai';
         foreach ($doneLogs as $l) {
+            /** @var WorkLog $l */
             $lines[] = "- {$l->title}".($l->project_name ? " [{$l->project_name}]" : '');
         }
         foreach ($doneToday as $l) {
+            /** @var WorkLog $l */
             $lines[] = "- {$l->title}".($l->project_name ? " [{$l->project_name}]" : '');
         }
         foreach ($completedTasks as $t) {
+            /** @var Task $t */
             $lines[] = "- ✓ Task: {$t->title}";
         }
         if ($doneLogs->isEmpty() && $doneToday->isEmpty() && $completedTasks->isEmpty()) {
@@ -69,6 +74,7 @@ class StandupController extends Controller
         $lines[] = '';
         $lines[] = '### 📋 Hari ini';
         foreach ($todayTasks as $t) {
+            /** @var Task $t */
             $prefix = $t->status === 'in_progress' ? '🔄' : '▫';
             $lines[] = "{$prefix} {$t->title}";
         }
@@ -77,11 +83,11 @@ class StandupController extends Controller
         }
         $lines[] = '';
         $lines[] = '### 🚧 Blocker';
-        $allBlockers = $blockers->merge($blockerTasks->map(fn ($t) => (object) ['title' => $t->title, 'project_name' => null]));
-        foreach ($allBlockers as $b) {
-            $lines[] = "- ⛔ {$b->title}";
+        $allBlockerTitles = $blockers->pluck('title')->merge($blockerTasks->pluck('title'));
+        foreach ($allBlockerTitles as $title) {
+            $lines[] = "- ⛔ {$title}";
         }
-        if ($allBlockers->isEmpty()) {
+        if ($allBlockerTitles->isEmpty()) {
             $lines[] = '- Tidak ada blocker';
         }
 
@@ -90,7 +96,7 @@ class StandupController extends Controller
             'done_logs' => $doneLogs->merge($doneToday)->values(),
             'completed_tasks' => $completedTasks->values(),
             'today_tasks' => $todayTasks->values(),
-            'blockers' => $allBlockers->values(),
+            'blockers' => $blockers->merge($blockerTasks)->values(),
             'text' => implode("\n", $lines),
         ]);
     }

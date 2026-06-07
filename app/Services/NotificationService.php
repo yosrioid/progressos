@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\InAppNotification;
+use App\Models\Task;
 use App\Models\User;
 use Illuminate\Support\Facades\Log;
 
@@ -10,6 +11,7 @@ class NotificationService
 {
     public function generateOverdueTaskNotifications(User $user): int
     {
+        /** @var \Illuminate\Database\Eloquent\Collection<int, Task> $overdue */
         $overdue = $user->tasks()
             ->whereNotIn('status', ['done', 'cancelled'])
             ->whereNotNull('due_date')
@@ -46,6 +48,7 @@ class NotificationService
 
     public function generateDueSoonNotifications(User $user): int
     {
+        /** @var \Illuminate\Database\Eloquent\Collection<int, Task> $dueSoon */
         $dueSoon = $user->tasks()
             ->whereNotIn('status', ['done', 'cancelled'])
             ->whereNotNull('due_date')

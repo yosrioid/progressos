@@ -48,7 +48,7 @@ class HabitController extends Controller
             ->groupBy('habit_id')
             ->map(fn ($logs) => $logs->pluck('date')->map(fn ($d) => $d->toDateString())->toArray());
 
-        $data = $habits->map(function ($habit) use ($today, $recentLogs, $heatmapLogs, $allLogsGrouped) {
+        $data = $habits->map(function (Habit $habit) use ($today, $recentLogs, $heatmapLogs, $allLogsGrouped) {
             $logs = $recentLogs[$habit->id] ?? collect();
             $todayDone = $logs->contains(fn ($l) => $l->date->toDateString() === $today);
             $weekDates = $logs->pluck('date')->map(fn ($d) => $d->toDateString())->toArray();

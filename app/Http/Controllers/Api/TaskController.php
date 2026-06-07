@@ -44,7 +44,7 @@ class TaskController extends Controller
                 ->when($status === 'done', fn ($q) => $q->orderByDesc('completed_at')->limit(20))
                 ->when($status !== 'done', fn ($q) => $q->orderBy('due_date')->limit(50))
                 ->get(['id', 'title', 'priority', 'status', 'due_date', 'project_id', 'completed_at'])
-                ->map(fn ($t) => [
+                ->map(fn (Task $t) => [
                     'id' => $t->id,
                     'title' => $t->title,
                     'priority' => $t->priority,

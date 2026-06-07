@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\LearningEntryRequest;
 use App\Http\Resources\LearningEntryResource;
 use App\Models\LearningEntry;
+use App\Models\Milestone;
 use App\Services\MilestoneProgressSync;
 use App\Support\ApiQuery;
 use App\Support\ApiResponse;
@@ -85,7 +86,7 @@ class LearningController extends Controller
             ->where('status', 'active')
             ->where('source_type', 'learning_minutes')
             ->get()
-            ->filter(function ($milestone) use ($learning) {
+            ->filter(function (Milestone $milestone) use ($learning) {
                 $filter = trim((string) $milestone->source_filter);
                 if (! $filter) {
                     return true;
@@ -95,7 +96,7 @@ class LearningController extends Controller
                     || str_contains(strtolower($learning->topic), strtolower($filter));
             })
             ->values()
-            ->map(fn ($m) => [
+            ->map(fn (Milestone $m) => [
                 'id' => $m->id,
                 'title' => $m->title,
                 'current_value' => (float) $m->current_value,

@@ -2,11 +2,16 @@
 
 namespace App\Models;
 
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
+/**
+ * @property Carbon|null $start_date
+ * @property Carbon|null $end_date
+ */
 class Goal extends Model
 {
     protected $fillable = [
@@ -35,7 +40,7 @@ class Goal extends Model
         if ($krs->isEmpty()) {
             return 0;
         }
-        $total = $krs->sum(function ($kr) {
+        $total = $krs->sum(function (KeyResult $kr) {
             if ($kr->metric_type === 'boolean') {
                 return $kr->current_value >= 1 ? 100 : 0;
             }

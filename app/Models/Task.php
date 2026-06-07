@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\Auditable;
+use App\Models\Project;
 use Carbon\Carbon;
 use Database\Factories\TaskFactory;
 use Illuminate\Database\Eloquent\Builder;
@@ -13,6 +14,12 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
+/**
+ * @property Carbon|null $due_date
+ * @property Carbon|null $completed_at
+ * @property Carbon|null $recurrence_ends_at
+ * @property-read Project|null $project
+ */
 class Task extends Model
 {
     /** @use HasFactory<TaskFactory> */

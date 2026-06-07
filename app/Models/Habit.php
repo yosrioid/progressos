@@ -7,6 +7,18 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
+/**
+ * @property int $id
+ * @property string $name
+ * @property string|null $description
+ * @property string $color
+ * @property string $icon
+ * @property string $frequency
+ * @property int[]|null $target_days
+ * @property bool $active
+ * @property bool $archived
+ * @property int $order
+ */
 class Habit extends Model
 {
     protected $fillable = [

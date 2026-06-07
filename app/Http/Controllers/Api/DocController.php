@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\DocRequest;
 use App\Http\Resources\DocResource;
 use App\Models\Doc;
+use App\Models\DocFile;
 use App\Support\ApiQuery;
 use App\Support\ApiResponse;
 use Illuminate\Http\Request;
@@ -62,6 +63,7 @@ class DocController extends Controller
         $this->authorize('delete', $doc);
 
         foreach ($doc->files as $file) {
+            /** @var DocFile $file */
             Storage::disk('local')->delete($file->path);
         }
         $doc->delete();
