@@ -52,8 +52,12 @@ class DashboardData
                 'created_at' => $log->created_at,
             ]),
             'streaks' => [
-                'daily_progress' => $this->streak($user->dailyProgressEntries()->pluck('date')->map->toDateString()->all()),
-                'learning' => $this->streak($user->learningEntries()->pluck('date')->map->toDateString()->all()),
+                'daily_progress' => $this->streak(
+                    $user->dailyProgressEntries()->whereDate('date', '>=', now()->subDays(400))->pluck('date')->map->toDateString()->all()
+                ),
+                'learning' => $this->streak(
+                    $user->learningEntries()->whereDate('date', '>=', now()->subDays(400))->pluck('date')->map->toDateString()->all()
+                ),
             ],
             'focus' => [
                 'overdue_tasks' => $user->tasks()
@@ -92,16 +96,35 @@ class DashboardData
         ];
     }
 
+    /** 3 grouped queries instead of 3 × $days individual queries. */
     private function activity(User $user, CarbonImmutable $start, int $days): array
     {
-        return collect(range(0, $days - 1))->map(function ($offset) use ($user, $start) {
+        $from = $start->toDateString();
+        $to = $start->addDays($days - 1)->toDateString();
+
+        $work = $user->workLogs()
+            ->selectRaw('DATE(date) as d, COUNT(*) as n')
+            ->whereDate('date', '>=', $from)->whereDate('date', '<=', $to)
+            ->groupByRaw('DATE(date)')->pluck('n', 'd');
+
+        $learning = $user->learningEntries()
+            ->selectRaw('DATE(date) as d, COUNT(*) as n')
+            ->whereDate('date', '>=', $from)->whereDate('date', '<=', $to)
+            ->groupByRaw('DATE(date)')->pluck('n', 'd');
+
+        $progress = $user->dailyProgressEntries()
+            ->selectRaw('DATE(date) as d, COUNT(*) as n')
+            ->whereDate('date', '>=', $from)->whereDate('date', '<=', $to)
+            ->groupByRaw('DATE(date)')->pluck('n', 'd');
+
+        return collect(range(0, $days - 1))->map(function (int $offset) use ($start, $work, $learning, $progress) {
             $date = $start->addDays($offset)->toDateString();
 
             return [
                 'date' => $date,
-                'work' => $user->workLogs()->whereDate('date', $date)->count(),
-                'learning' => $user->learningEntries()->whereDate('date', $date)->count(),
-                'progress' => $user->dailyProgressEntries()->whereDate('date', $date)->count(),
+                'work' => (int) ($work[$date] ?? 0),
+                'learning' => (int) ($learning[$date] ?? 0),
+                'progress' => (int) ($progress[$date] ?? 0),
             ];
         })->all();
     }

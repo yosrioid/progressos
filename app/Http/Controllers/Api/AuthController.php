@@ -112,16 +112,15 @@ class AuthController extends Controller
     {
         $request->validate(['email' => ['required', 'email']]);
         $this->applyMailConfig($request->string('email')->toString());
-        $status = Password::sendResetLink($request->only('email'));
+        Password::sendResetLink($request->only('email'));
 
-        return $status === Password::RESET_LINK_SENT
-            ? ApiResponse::ok([], __($status))
-            : ApiResponse::ok([], __($status), 422);
+        // Always return 200 with a generic message — prevents email enumeration
+        return ApiResponse::ok([], __('passwords.sent'));
     }
 
     private function applyMailConfig(string $email): void
     {
-        $user = User::where('email', $email)->first() ?? User::first();
+        $user = User::where('email', $email)->first();
         if (! $user) {
             return;
         }

@@ -56,10 +56,15 @@ function href(key: string, item: any) {
   return `/${key}/${item.id}`;
 }
 
+function escapeHtml(str: string) {
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
 function highlight(text: string, term: string) {
-  if (!term.trim()) return text;
+  const safe = escapeHtml(text);
+  if (!term.trim()) return safe;
   const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  return text.replace(new RegExp(`(${escaped})`, 'gi'), '<mark class="bg-yellow-100 dark:bg-yellow-800/50 rounded px-0.5">$1</mark>');
+  return safe.replace(new RegExp(`(${escapeHtml(escaped)})`, 'gi'), '<mark class="bg-yellow-100 dark:bg-yellow-800/50 rounded px-0.5">$1</mark>');
 }
 
 function loadRecent() {

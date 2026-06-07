@@ -25,6 +25,15 @@ const refTypeIcons: Record<string, string> = {
   other: 'M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z',
 };
 
+function safeUrl(url: string): string | null {
+  try {
+    const parsed = new URL(url);
+    return ['http:', 'https:'].includes(parsed.protocol) ? url : null;
+  } catch {
+    return null;
+  }
+}
+
 const refsByType = computed(() => {
   const refs = record.value?.references || [];
   const groups: Record<string, any[]> = {};
@@ -384,7 +393,11 @@ onMounted(load);
             </div>
             <div class="grid gap-2">
               <div v-for="reference in refs" :key="reference.id" class="flex flex-col gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-3 dark:border-zinc-700 dark:bg-zinc-800/50 sm:flex-row sm:items-center sm:justify-between">
-                <div class="min-w-0"><a class="font-semibold text-teal-700 underline dark:text-teal-400" :href="reference.url" target="_blank" rel="noreferrer">{{ reference.label }}</a><p class="mt-0.5 truncate text-xs text-slate-500 dark:text-zinc-500">{{ reference.notes || reference.url }}</p></div>
+                <div class="min-w-0">
+                  <a v-if="safeUrl(reference.url)" class="font-semibold text-teal-700 underline dark:text-teal-400" :href="safeUrl(reference.url)!" target="_blank" rel="noreferrer noopener">{{ reference.label }}</a>
+                  <span v-else class="font-semibold text-slate-400">{{ reference.label }}</span>
+                  <p class="mt-0.5 truncate text-xs text-slate-500 dark:text-zinc-500">{{ reference.notes || reference.url }}</p>
+                </div>
                 <button class="btn btn-muted shrink-0" @click="removeReference(reference)">Remove</button>
               </div>
             </div>
