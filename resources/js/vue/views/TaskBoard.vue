@@ -11,6 +11,10 @@ const loading = ref(true);
 const updatingId = ref<number | null>(null);
 const openMenuId = ref<number | null>(null);
 
+// Drag state
+const dragging = ref<{ task: any; fromCol: string } | null>(null);
+const dragOverCol = ref<string | null>(null);
+
 const columns = [
   { key: 'todo', label: 'To Do', color: 'border-slate-300 dark:border-zinc-600', headBg: 'bg-slate-100 dark:bg-zinc-800', dot: 'bg-slate-400' },
   { key: 'in_progress', label: 'In Progress', color: 'border-sky-300 dark:border-sky-700', headBg: 'bg-sky-50 dark:bg-sky-900/30', dot: 'bg-sky-500' },
@@ -45,12 +49,16 @@ async function moveTask(task: any, fromCol: string, toStatus: string) {
   if (fromCol === toStatus || updatingId.value) return;
   openMenuId.value = null;
   updatingId.value = task.id;
+  // Optimistic move
+  board.value[fromCol] = board.value[fromCol].filter((t: any) => t.id !== task.id);
+  board.value[toStatus] = [{ ...task, status: toStatus }, ...board.value[toStatus]];
   try {
     await api.patch(`/api/v1/tasks/${task.id}/status`, { status: toStatus });
-    board.value[fromCol] = board.value[fromCol].filter((t: any) => t.id !== task.id);
-    board.value[toStatus] = [{ ...task, status: toStatus }, ...board.value[toStatus]];
     toast({ tone: 'success', title: 'Status diupdate', message: `${task.title} → ${toStatus.replaceAll('_', ' ')}` });
   } catch (e: any) {
+    // Revert on failure
+    board.value[toStatus] = board.value[toStatus].filter((t: any) => t.id !== task.id);
+    board.value[fromCol] = [{ ...task, status: fromCol }, ...board.value[fromCol]];
     const msg = e?.response?.data?.message ?? 'Gagal memindahkan task';
     toast({ tone: 'error', title: 'Error', message: msg });
   } finally {
@@ -68,6 +76,39 @@ function closeMenus() {
 
 function isOverdue(task: any) {
   return task.overdue;
+}
+
+// ── Drag and drop ──────────────────────────────────────────────────
+function onDragStart(event: DragEvent, task: any, fromCol: string) {
+  dragging.value = { task, fromCol };
+  if (event.dataTransfer) {
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/plain', String(task.id));
+  }
+  closeMenus();
+}
+
+function onDragEnd() {
+  dragging.value = null;
+  dragOverCol.value = null;
+}
+
+function onDragOver(event: DragEvent, colKey: string) {
+  event.preventDefault();
+  if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
+  dragOverCol.value = colKey;
+}
+
+function onDragLeave(colKey: string) {
+  if (dragOverCol.value === colKey) dragOverCol.value = null;
+}
+
+function onDrop(colKey: string) {
+  dragOverCol.value = null;
+  if (!dragging.value) return;
+  const { task, fromCol } = dragging.value;
+  dragging.value = null;
+  if (fromCol !== colKey) moveTask(task, fromCol, colKey);
 }
 
 onMounted(load);
@@ -92,7 +133,15 @@ onMounted(load);
     </div>
 
     <div v-else class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-      <div v-for="col in columns" :key="col.key" class="flex flex-col rounded-2xl border" :class="col.color">
+      <div
+        v-for="col in columns"
+        :key="col.key"
+        class="flex flex-col rounded-2xl border transition-colors"
+        :class="[col.color, dragOverCol === col.key ? 'ring-2 ring-teal-400 ring-offset-1' : '']"
+        @dragover="onDragOver($event, col.key)"
+        @dragleave="onDragLeave(col.key)"
+        @drop="onDrop(col.key)"
+      >
         <!-- Column header -->
         <div class="flex items-center justify-between rounded-t-2xl px-3 py-2.5" :class="col.headBg">
           <div class="flex items-center gap-2">
@@ -107,13 +156,28 @@ onMounted(load);
           <div
             v-for="task in board[col.key]"
             :key="task.id"
+            draggable="true"
             class="group rounded-xl border border-slate-100 bg-white p-3 shadow-sm transition hover:border-teal-200 hover:shadow-md dark:border-zinc-700 dark:bg-zinc-900 dark:hover:border-teal-700"
+            :class="[
+              dragging?.task.id === task.id ? 'opacity-40 scale-95' : '',
+              updatingId === task.id ? 'animate-pulse' : '',
+            ]"
+            @dragstart="onDragStart($event, task, col.key)"
+            @dragend="onDragEnd"
           >
             <div class="flex items-start justify-between gap-1">
-              <p
-                class="flex-1 cursor-pointer text-sm font-extrabold leading-snug text-slate-800 hover:text-teal-700 dark:text-zinc-200 dark:hover:text-teal-400"
-                @click="router.push(`/tasks/${task.id}`)"
-              >{{ task.title }}</p>
+              <!-- Drag handle + title -->
+              <div class="flex min-w-0 flex-1 items-start gap-1.5">
+                <span class="mt-0.5 flex-shrink-0 cursor-grab text-slate-300 active:cursor-grabbing dark:text-zinc-600" title="Drag untuk pindahkan">
+                  <svg class="h-3.5 w-3.5" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M7 4a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm0 4a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm0 4a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm6-8a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm0 4a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm0 4a1 1 0 1 1-2 0 1 1 0 0 1 2 0z"/>
+                  </svg>
+                </span>
+                <p
+                  class="flex-1 cursor-pointer text-sm font-extrabold leading-snug text-slate-800 hover:text-teal-700 dark:text-zinc-200 dark:hover:text-teal-400"
+                  @click="router.push(`/tasks/${task.id}`)"
+                >{{ task.title }}</p>
+              </div>
 
               <!-- Status picker button -->
               <div class="relative flex-shrink-0">
@@ -142,7 +206,7 @@ onMounted(load);
                       class="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-semibold text-slate-700 transition hover:bg-slate-50 dark:text-zinc-300 dark:hover:bg-zinc-800"
                       @click="moveTask(task, col.key, opt.key)"
                     >
-                      <span class="h-2 w-2 rounded-full flex-shrink-0" :class="opt.dot"></span>
+                      <span class="h-2 w-2 flex-shrink-0 rounded-full" :class="opt.dot"></span>
                       {{ opt.label }}
                     </button>
                   </div>
@@ -158,7 +222,16 @@ onMounted(load);
               </span>
             </div>
           </div>
-          <p v-if="!board[col.key]?.length" class="py-8 text-center text-xs font-semibold text-slate-300 dark:text-zinc-600">Kosong</p>
+
+          <!-- Drop zone hint saat drag aktif -->
+          <div
+            v-if="dragging && dragging.fromCol !== col.key && !board[col.key]?.length"
+            class="flex h-16 items-center justify-center rounded-xl border-2 border-dashed border-teal-300 text-xs font-semibold text-teal-400 dark:border-teal-700 dark:text-teal-600"
+          >
+            Drop di sini
+          </div>
+
+          <p v-else-if="!board[col.key]?.length && !dragging" class="py-8 text-center text-xs font-semibold text-slate-300 dark:text-zinc-600">Kosong</p>
         </div>
       </div>
     </div>
