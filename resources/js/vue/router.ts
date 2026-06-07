@@ -23,6 +23,8 @@ import Analytics from './views/Analytics.vue';
 import Goals from './views/Goals.vue';
 import Habits from './views/Habits.vue';
 import TaskBoard from './views/TaskBoard.vue';
+import Game2048 from './views/Game2048.vue';
+import MemoryMatch from './views/MemoryMatch.vue';
 import Minesweeper from './views/Minesweeper.vue';
 import Sudoku from './views/Sudoku.vue';
 import WeeklyReview from './views/WeeklyReview.vue';
@@ -75,6 +77,8 @@ export const router = createRouter({
     { path: '/games', component: Games },
     { path: '/games/sudoku', component: Sudoku },
     { path: '/games/minesweeper', component: Minesweeper },
+    { path: '/games/2048', component: Game2048 },
+    { path: '/games/memory', component: MemoryMatch },
   ],
 });
 
