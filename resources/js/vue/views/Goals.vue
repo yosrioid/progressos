@@ -233,7 +233,7 @@ function toggleExpand(id: number) {
 async function load() {
   loading.value = true
   try {
-    const res = await api.get('/goals')
+    const res = await api.get('/api/v1/goals')
     goals.value = res.data.goals
   } finally {
     loading.value = false
@@ -256,9 +256,9 @@ async function submitGoalForm() {
   goalSaving.value = true; goalFormError.value = ''
   try {
     if (editingGoal.value) {
-      await api.patch(`/goals/${editingGoal.value.id}`, goalForm.value)
+      await api.patch(`/api/v1/goals/${editingGoal.value.id}`, goalForm.value)
     } else {
-      await api.post('/goals', goalForm.value)
+      await api.post('/api/v1/goals', goalForm.value)
     }
     closeGoalForm(); await load()
   } catch (e: any) { goalFormError.value = e?.response?.data?.message ?? 'Gagal' }
@@ -267,7 +267,7 @@ async function submitGoalForm() {
 
 async function deleteGoal(goal: Goal) {
   if (!confirm(`Hapus goal "${goal.title}"?`)) return
-  await api.delete(`/goals/${goal.id}`); await load()
+  await api.delete(`/api/v1/goals/${goal.id}`); await load()
 }
 
 function openKrForm(goal: Goal, kr?: KeyResult) {
@@ -288,9 +288,9 @@ async function submitKrForm() {
   if (payload.metric_type === 'boolean') { payload.current_value = krBoolDone.value ? 1 : 0; payload.target_value = 1 }
   try {
     if (editingKr.value) {
-      await api.patch(`/goals/${activeGoalForKr.value!.id}/key-results/${editingKr.value.id}`, payload)
+      await api.patch(`/api/v1/goals/${activeGoalForKr.value!.id}/key-results/${editingKr.value.id}`, payload)
     } else {
-      await api.post(`/goals/${activeGoalForKr.value!.id}/key-results`, payload)
+      await api.post(`/api/v1/goals/${activeGoalForKr.value!.id}/key-results`, payload)
     }
     closeKrForm(); await load()
     expandedGoalId.value = activeGoalForKr.value?.id ?? null
@@ -300,13 +300,13 @@ async function submitKrForm() {
 
 async function toggleKrDone(goal: Goal, kr: KeyResult) {
   const newStatus = kr.status === 'done' ? 'active' : 'done'
-  await api.patch(`/goals/${goal.id}/key-results/${kr.id}`, { status: newStatus })
+  await api.patch(`/api/v1/goals/${goal.id}/key-results/${kr.id}`, { status: newStatus })
   await load(); expandedGoalId.value = goal.id
 }
 
 async function deleteKr(goal: Goal, kr: KeyResult) {
   if (!confirm('Hapus key result ini?')) return
-  await api.delete(`/goals/${goal.id}/key-results/${kr.id}`)
+  await api.delete(`/api/v1/goals/${goal.id}/key-results/${kr.id}`)
   await load(); expandedGoalId.value = goal.id
 }
 

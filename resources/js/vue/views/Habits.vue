@@ -229,7 +229,7 @@ function getHeatmap(habit: Habit) {
 async function load() {
   loading.value = true
   try {
-    const res = await api.get('/habits')
+    const res = await api.get('/api/v1/habits')
     habits.value = res.data.habits
     today.value = res.data.today
   } finally {
@@ -243,7 +243,7 @@ async function toggleToday(habit: Habit) {
   if (prev) {
     habit.streak = Math.max(0, habit.streak - 1)
     try {
-      await api.delete(`/habits/${habit.id}/log?date=${today.value}`)
+      await api.delete(`/api/v1/habits/${habit.id}/log?date=${today.value}`)
     } catch {
       habit.today_done = prev
     }
@@ -251,7 +251,7 @@ async function toggleToday(habit: Habit) {
     habit.streak += 1
     habit.week_dates = [...habit.week_dates, today.value]
     try {
-      await api.post(`/habits/${habit.id}/log`, { date: today.value })
+      await api.post(`/api/v1/habits/${habit.id}/log`, { date: today.value })
     } catch {
       habit.today_done = prev
       habit.streak -= 1
@@ -282,9 +282,9 @@ async function submitForm() {
   formError.value = ''
   try {
     if (editingHabit.value) {
-      await api.patch(`/habits/${editingHabit.value.id}`, form.value)
+      await api.patch(`/api/v1/habits/${editingHabit.value.id}`, form.value)
     } else {
-      await api.post('/habits', form.value)
+      await api.post('/api/v1/habits', form.value)
     }
     closeForm()
     await load()
@@ -297,7 +297,7 @@ async function submitForm() {
 
 async function confirmDelete(habit: Habit) {
   if (!confirm(`Hapus habit "${habit.name}"? Semua log akan ikut terhapus.`)) return
-  await api.delete(`/habits/${habit.id}`)
+  await api.delete(`/api/v1/habits/${habit.id}`)
   await load()
 }
 

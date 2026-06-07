@@ -32,7 +32,6 @@ const navGroups = [
     label: 'Overview',
     items: [
       { label: 'Dashboard', href: '/dashboard', icon: 'dashboard' },
-      { label: 'Search', href: '/search', icon: 'search' },
       { label: 'Projects', href: '/projects', icon: 'folder' },
       { label: 'Activity', href: '/activity', icon: 'chart' },
       { label: 'Analytics', href: '/analytics', icon: 'chart' },
@@ -278,7 +277,12 @@ function shortcuts(event: KeyboardEvent) {
 }
 
 function isActive(href: string) {
-  return route.path === href || (href !== '/dashboard' && route.path.startsWith(`${href}/`));
+  if (route.path === href) return true;
+  if (href === '/dashboard') return false;
+  if (!route.path.startsWith(href + '/')) return false;
+  // Don't highlight a shorter prefix if a more specific nav item matches
+  const allHrefs = navGroups.flatMap((g) => g.items.map((i) => i.href));
+  return !allHrefs.some((h) => h !== href && h.length > href.length && route.path.startsWith(h));
 }
 
 watch(() => auth.user, async (user) => {
