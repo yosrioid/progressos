@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\DailyProgressRequest;
 use App\Http\Resources\DailyProgressResource;
 use App\Models\DailyProgressEntry;
+use App\Services\MilestoneProgressSync;
 use App\Services\TagSyncer;
 use App\Support\ApiQuery;
 use App\Support\ApiResponse;
@@ -43,18 +44,19 @@ class DailyProgressController extends Controller
         return ApiResponse::item('entry', new DailyProgressResource($dailyProgress->load(['tags', 'references'])));
     }
 
-    public function store(DailyProgressRequest $request, TagSyncer $tags)
+    public function store(DailyProgressRequest $request, TagSyncer $tags, MilestoneProgressSync $sync)
     {
         $data = $request->validated();
         $tagNames = $data['tags'] ?? [];
         unset($data['tags']);
         $entry = $request->user()->dailyProgressEntries()->create($data);
         $tags->daily($entry, $request->user(), $tagNames);
+        $sync->syncFor($request->user());
 
         return ApiResponse::item('entry', new DailyProgressResource($entry->load('tags')), 201, 'Daily progress created.');
     }
 
-    public function update(DailyProgressRequest $request, DailyProgressEntry $dailyProgress, TagSyncer $tags)
+    public function update(DailyProgressRequest $request, DailyProgressEntry $dailyProgress, TagSyncer $tags, MilestoneProgressSync $sync)
     {
         $this->authorize('update', $dailyProgress);
         $data = $request->validated();
@@ -62,14 +64,16 @@ class DailyProgressController extends Controller
         unset($data['tags']);
         $dailyProgress->update($data);
         $tags->daily($dailyProgress, $request->user(), $tagNames);
+        $sync->syncFor($request->user());
 
         return ApiResponse::item('entry', new DailyProgressResource($dailyProgress->fresh()->load(['tags', 'references'])), 200, 'Daily progress updated.');
     }
 
-    public function destroy(Request $request, DailyProgressEntry $dailyProgress)
+    public function destroy(Request $request, DailyProgressEntry $dailyProgress, MilestoneProgressSync $sync)
     {
         $this->authorize('delete', $dailyProgress);
         $dailyProgress->delete();
+        $sync->syncFor($request->user());
 
         return response()->noContent();
     }

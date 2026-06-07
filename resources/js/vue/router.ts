@@ -15,8 +15,17 @@ import Records from './views/Records.vue';
 import Reports from './views/Reports.vue';
 import ResetPassword from './views/ResetPassword.vue';
 import Search from './views/Search.vue';
+import DocDetail from './views/DocDetail.vue';
+import DocForm from './views/DocForm.vue';
+import Docs from './views/Docs.vue';
+import Activity from './views/Activity.vue';
+import Analytics from './views/Analytics.vue';
+import Goals from './views/Goals.vue';
+import Habits from './views/Habits.vue';
+import TaskBoard from './views/TaskBoard.vue';
 import Minesweeper from './views/Minesweeper.vue';
 import Sudoku from './views/Sudoku.vue';
+import WeeklyReview from './views/WeeklyReview.vue';
 
 export const router = createRouter({
   history: createWebHistory(),
@@ -52,7 +61,17 @@ export const router = createRouter({
     { path: '/milestones/create', component: RecordForm, props: { type: 'milestones' } },
     { path: '/milestones/:id', component: RecordDetail, props: (route) => ({ type: 'milestones', id: route.params.id }) },
     { path: '/milestones/:id/edit', component: RecordForm, props: (route) => ({ type: 'milestones', id: route.params.id }) },
+    { path: '/activity', component: Activity },
+    { path: '/analytics', component: Analytics },
+    { path: '/habits', component: Habits },
+    { path: '/goals', component: Goals },
+    { path: '/tasks/board', component: TaskBoard },
+    { path: '/weekly-review', component: WeeklyReview },
     { path: '/reports/:period', component: Reports },
+    { path: '/docs', component: Docs },
+    { path: '/docs/create', component: DocForm },
+    { path: '/docs/:id', component: DocDetail },
+    { path: '/docs/:id/edit', component: DocForm },
     { path: '/games', component: Games },
     { path: '/games/sudoku', component: Sudoku },
     { path: '/games/minesweeper', component: Minesweeper },

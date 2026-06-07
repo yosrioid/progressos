@@ -1,7 +1,7 @@
 export type Field = {
   key: string;
   label: string;
-  type?: 'text' | 'date' | 'number' | 'textarea' | 'select' | 'tags' | 'checkbox';
+  type?: 'text' | 'date' | 'number' | 'textarea' | 'select' | 'tags' | 'checkbox' | 'task-link' | 'project-autocomplete' | 'project-select';
   options?: string[];
   required?: boolean;
   span?: 'full';
@@ -49,10 +49,11 @@ export const configs: Record<string, RecordConfig> = {
     payloadKey: 'log',
     listKey: 'logs',
     endpoint: '/api/v1/work-logs',
-    defaults: { date: today(), project_name: '', ticket_code: '', title: '', category: 'feature', status: 'done', priority: 'medium', estimated_duration: '', actual_duration: '', description: '', resolution_or_outcome: '', tags: '' },
+    defaults: { date: today(), project_name: '', task_id: '', ticket_code: '', title: '', category: 'feature', status: 'done', priority: 'medium', estimated_duration: '', actual_duration: '', description: '', resolution_or_outcome: '', tags: '' },
     fields: [
       { key: 'date', label: 'Date', type: 'date', required: true },
-      { key: 'project_name', label: 'Project', required: true },
+      { key: 'project_name', label: 'Project', type: 'project-autocomplete', required: true },
+      { key: 'task_id', label: 'Linked Task (optional)', type: 'task-link' },
       { key: 'ticket_code', label: 'Ticket' },
       { key: 'title', label: 'Title', required: true, span: 'full' },
       { key: 'category', label: 'Category', type: 'select', options: ['bug', 'feature', 'research', 'testing', 'setup', 'meeting', 'documentation', 'refactor', 'other'] },
@@ -72,13 +73,16 @@ export const configs: Record<string, RecordConfig> = {
     payloadKey: 'task',
     listKey: 'tasks',
     endpoint: '/api/v1/tasks',
-    defaults: { title: '', project_id: '', status: 'todo', priority: 'medium', due_date: today(), notes: '' },
+    defaults: { title: '', project_id: '', status: 'todo', priority: 'medium', due_date: today(), notes: '', recurrence_rule: '', recurrence_interval: 1, recurrence_ends_at: '' },
     fields: [
       { key: 'title', label: 'Title', required: true, span: 'full' },
-      { key: 'project_id', label: 'Project ID', type: 'number' },
+      { key: 'project_id', label: 'Project', type: 'project-select' },
       { key: 'due_date', label: 'Due date', type: 'date' },
       { key: 'status', label: 'Status', type: 'select', options: ['todo', 'in_progress', 'done', 'blocked'] },
       { key: 'priority', label: 'Priority', type: 'select', options: ['low', 'medium', 'high', 'urgent'] },
+      { key: 'recurrence_rule', label: 'Recurrence', type: 'select', options: ['', 'daily', 'weekly', 'monthly', 'yearly'] },
+      { key: 'recurrence_interval', label: 'Every N', type: 'number' },
+      { key: 'recurrence_ends_at', label: 'Ends on', type: 'date' },
       { key: 'notes', label: 'Notes', type: 'textarea', span: 'full' },
     ],
   },
@@ -129,7 +133,7 @@ export function normalizeForForm(config: RecordConfig, record?: any) {
   const form = { ...config.defaults, ...(record || {}) };
   if (Array.isArray(form.completed_items)) form.completed_items = form.completed_items.join('\n');
   if (Array.isArray(form.tags)) form.tags = form.tags.map((tag: any) => tag.name || tag).join(', ');
-  for (const key of ['date', 'due_date', 'start_date', 'end_date']) {
+  for (const key of ['date', 'due_date', 'start_date', 'end_date', 'recurrence_ends_at']) {
     if (form[key]) form[key] = String(form[key]).slice(0, 10);
   }
   return form;
@@ -139,8 +143,8 @@ export function serialize(config: RecordConfig, form: Record<string, any>) {
   const payload: Record<string, any> = { ...form };
   if ('completed_items' in payload) payload.completed_items = String(payload.completed_items || '').split('\n').map((item) => item.trim()).filter(Boolean);
   if ('tags' in payload) payload.tags = String(payload.tags || '').split(',').map((item) => item.trim()).filter(Boolean);
-  for (const key of ['project_id', 'actual_duration', 'estimated_duration', 'duration_minutes', 'rating']) {
-    if (payload[key] === '') payload[key] = null;
+  for (const key of ['project_id', 'task_id', 'actual_duration', 'estimated_duration', 'duration_minutes', 'rating']) {
+    if (payload[key] === '' || payload[key] === 0) payload[key] = null;
     else if (payload[key] !== undefined && payload[key] !== null) payload[key] = Number(payload[key]);
   }
   if (config.type === 'milestones') {

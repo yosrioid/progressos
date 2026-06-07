@@ -13,7 +13,7 @@ const syncs = ref<any[]>([]);
 const runs = ref<any[]>([]);
 const groupSettings = ref<any>({
   general: { app_name: 'ProgressOS', project_name: 'ProgressOS', tagline: '', timezone: 'Asia/Jakarta' },
-  appearance: { theme: 'system', favicon_url: '' },
+  appearance: { favicon_url: '' },
   notifications: { daily_review_enabled: false, weekly_review_enabled: false },
 });
 const connectionForm = ref({ name: 'Google Sheets', spreadsheet_id: '', credentials_json: '' });
@@ -251,7 +251,7 @@ onMounted(load);
       <button type="button" class="flex w-full items-center justify-between gap-4 border-b border-slate-100 bg-slate-50/70 px-5 py-4 text-left" :aria-expanded="openGroups.appearance" @click="toggleGroup('appearance')">
         <span>
           <span class="block text-xs font-extrabold uppercase text-teal-700">Appearance</span>
-          <span class="mt-1 block text-lg font-extrabold text-slate-950">Brand & Theme</span>
+          <span class="mt-1 block text-lg font-extrabold text-slate-950">Brand</span>
           <span class="mt-1 block text-sm font-medium text-slate-500">Visual preferences reserved for app-wide branding.</span>
         </span>
         <span class="grid h-8 w-8 place-items-center rounded-xl border border-slate-200 bg-white text-slate-500 transition" :class="openGroups.appearance ? 'rotate-180' : ''">
@@ -260,12 +260,6 @@ onMounted(load);
       </button>
       <div v-if="openGroups.appearance" class="divide-y divide-slate-100">
         <div class="grid gap-3 px-5 py-4 md:grid-cols-[16rem_1fr] md:items-center">
-          <span class="font-extrabold text-slate-800">Theme</span>
-          <select v-model="groupSettings.appearance.theme" class="field">
-            <option value="system">system</option>
-            <option value="light">light</option>
-            <option value="dark">dark</option>
-          </select>
           <span class="font-extrabold text-slate-800">Favicon URL</span>
           <input v-model="groupSettings.appearance.favicon_url" class="field" placeholder="https://example.com/favicon.png" />
         </div>

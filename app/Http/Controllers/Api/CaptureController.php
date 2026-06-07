@@ -11,6 +11,12 @@ class CaptureController extends Controller
 {
     public function __invoke(QuickCaptureRequest $request, QuickCaptureService $capture)
     {
-        return ApiResponse::item('record', $capture->captureIdempotently($request->user(), $request->validated(), $request->header('Idempotency-Key')), 201, 'Captured.');
+        $data = $request->validated();
+        $record = $capture->captureIdempotently($request->user(), $data, $request->header('Idempotency-Key'));
+
+        $pathMap = ['task' => 'tasks', 'blocker' => 'tasks', 'work_log' => 'work-logs', 'daily_progress' => 'daily-progress', 'learning' => 'learning'];
+        $path = ($pathMap[$data['type']] ?? null) ? "/{$pathMap[$data['type']]}/{$record->getKey()}" : null;
+
+        return ApiResponse::item('record', $record, 201, 'Captured.', ['record_path' => $path]);
     }
 }

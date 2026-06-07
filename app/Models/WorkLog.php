@@ -23,7 +23,7 @@ class WorkLog extends Model
 
     public const PRIORITIES = ['low', 'medium', 'high', 'urgent'];
 
-    protected $fillable = ['user_id', 'project_id', 'date', 'project_name', 'ticket_code', 'title', 'category', 'status', 'priority', 'description', 'resolution_or_outcome', 'estimated_duration', 'actual_duration'];
+    protected $fillable = ['user_id', 'project_id', 'task_id', 'date', 'project_name', 'ticket_code', 'title', 'category', 'status', 'priority', 'description', 'resolution_or_outcome', 'estimated_duration', 'actual_duration'];
 
     protected function casts(): array
     {
@@ -38,6 +38,11 @@ class WorkLog extends Model
     public function project(): BelongsTo
     {
         return $this->belongsTo(Project::class);
+    }
+
+    public function task(): BelongsTo
+    {
+        return $this->belongsTo(Task::class);
     }
 
     public function tags(): BelongsToMany

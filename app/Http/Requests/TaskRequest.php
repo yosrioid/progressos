@@ -19,6 +19,11 @@ class TaskRequest extends FormRequest
             'status' => ['required', Rule::in(Task::STATUSES)],
             'priority' => ['required', Rule::in(Task::PRIORITIES)],
             'due_date' => ['nullable', 'date'],
+            'recurrence_rule' => ['nullable', 'in:daily,weekly,monthly,yearly'],
+            'recurrence_interval' => ['nullable', 'integer', 'min:1', 'max:52'],
+            'recurrence_days' => ['nullable', 'array'],
+            'recurrence_days.*' => ['integer', 'min:0', 'max:6'],
+            'recurrence_ends_at' => ['nullable', 'date'],
         ];
     }
 }

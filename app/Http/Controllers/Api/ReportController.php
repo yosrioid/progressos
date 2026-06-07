@@ -7,6 +7,7 @@ use App\Services\ReportBuilder;
 use App\Services\ReportSnapshotService;
 use App\Support\ApiQuery;
 use App\Support\ApiResponse;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -34,7 +35,21 @@ class ReportController extends Controller
     {
         abort_unless(in_array($period, ['weekly', 'monthly'], true), 404);
 
-        return ApiResponse::item('snapshot', $snapshots->store($request->user(), $period, $request->query('date')), 201, 'Report snapshot saved.');
+        return ApiResponse::item('snapshot', $snapshots->store($request->user(), $period, $request->query('date'), $request->input('reflection')), 201, 'Report snapshot saved.');
+    }
+
+    public function exportPdf(Request $request, ReportBuilder $builder, string $period)
+    {
+        abort_unless(in_array($period, ['weekly', 'monthly'], true), 404);
+        $report = $builder->build($request->user(), $period, $request->query('date'));
+        $user = $request->user();
+
+        $pdf = Pdf::loadView('reports.pdf', compact('report', 'user', 'period'))
+            ->setPaper('a4', 'portrait');
+
+        $filename = "progressos-{$period}-{$report['start']}.pdf";
+
+        return $pdf->download($filename);
     }
 
     public function export(Request $request, ReportBuilder $builder, string $period): StreamedResponse

@@ -23,6 +23,7 @@ class MilestoneResource extends JsonResource
             'end_date' => $this->end_date?->toDateString(),
             'status' => $this->status,
             'notes' => $this->notes,
+            'completed_at' => $this->completed_at?->toJSON(),
             'references' => $this->whenLoaded('references'),
             'created_at' => $this->created_at?->toJSON(),
             'updated_at' => $this->updated_at?->toJSON(),

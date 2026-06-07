@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Milestone;
 use App\Models\User;
 use Carbon\CarbonImmutable;
+use Illuminate\Support\Facades\App;
 
 class MilestoneProgressSync
 {
@@ -15,7 +16,17 @@ class MilestoneProgressSync
                 return;
             }
 
-            $milestone->update(['current_value' => $this->calculate($user, $milestone)]);
+            $newValue = $this->calculate($user, $milestone);
+            $justCompleted = (float) $milestone->current_value < (float) $milestone->target_value
+                && $newValue >= (float) $milestone->target_value
+                && is_null($milestone->completed_at);
+            $milestone->update([
+                'current_value' => $newValue,
+                'completed_at' => $justCompleted ? now() : $milestone->completed_at,
+            ]);
+            if ($justCompleted) {
+                App::make(NotificationService::class)->notifyMilestoneCompleted($user, $milestone->id, $milestone->title);
+            }
         });
     }
 

@@ -7,6 +7,11 @@ import { confirmAction, toast } from '../feedback';
 import { formatDate, minutes } from '../format';
 import { configs } from '../records';
 
+const learningStats = ref<any>(null);
+const learningHeatmap = ref<{ date: string; minutes: number }[]>([]);
+const showStats = ref(false);
+const updatingStatusId = ref<number | null>(null);
+
 const props = defineProps<{ type: string }>();
 const route = useRoute();
 const router = useRouter();
@@ -104,6 +109,29 @@ function tone(value?: string) {
   return 'pill-slate';
 }
 
+async function loadLearningStats() {
+  const [s, h] = await Promise.all([
+    api.get('/api/v1/learning/stats').then(unwrap),
+    api.get('/api/v1/learning/heatmap').then(unwrap),
+  ]);
+  learningStats.value = s;
+  learningHeatmap.value = h.heatmap || [];
+  showStats.value = true;
+}
+
+function heatmapColor(mins: number) {
+  if (mins === 0) return 'bg-slate-100 dark:bg-zinc-800';
+  if (mins < 30) return 'bg-teal-200 dark:bg-teal-800';
+  if (mins < 60) return 'bg-teal-400 dark:bg-teal-600';
+  return 'bg-teal-700';
+}
+
+function isOverdue(row: any) {
+  if (props.type !== 'tasks' || row.status === 'done') return false;
+  if (!row.due_date) return false;
+  return new Date(row.due_date + 'T00:00:00') < new Date(new Date().toDateString());
+}
+
 async function saveCurrentView() {
   if (!viewName.value.trim()) return;
   savingView.value = true;
@@ -132,14 +160,102 @@ async function applySavedView(view: any) {
   await applyFilters();
 }
 
+const statusCycle: Record<string, string> = { todo: 'in_progress', in_progress: 'done', done: 'todo', blocked: 'todo' };
+const priorityDotColors: Record<string, string> = { urgent: 'bg-red-500', high: 'bg-orange-400', medium: 'bg-sky-400', low: 'bg-slate-300 dark:bg-zinc-600' };
+const priorityTextColors: Record<string, string> = { urgent: 'text-red-600 dark:text-red-400', high: 'text-orange-500 dark:text-orange-400', medium: 'text-sky-500', low: 'text-slate-400' };
+
+async function cycleTaskStatus(e: Event, row: any) {
+  if (props.type !== 'tasks') return;
+  e.preventDefault();
+  e.stopPropagation();
+  if (updatingStatusId.value) return;
+  const next = statusCycle[row.status];
+  if (!next) return;
+  updatingStatusId.value = row.id;
+  try {
+    await api.patch(`/api/v1/tasks/${row.id}/status`, { status: next });
+    row.status = next;
+  } finally {
+    updatingStatusId.value = null;
+  }
+}
+
 watch(() => [props.type, route.fullPath], () => { syncFromRoute(); load(); loadSavedViews(); });
 onMounted(() => { syncFromRoute(); load(); loadSavedViews(); });
 </script>
 
 <template>
-  <div class="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-    <div><h1 class="text-3xl font-extrabold tracking-tight">{{ title }}</h1><p class="mt-1 text-sm font-medium text-slate-500">Create, review, and maintain your records from one clean workspace.</p></div>
-    <RouterLink class="btn btn-primary" :to="`/${type}/create`">New {{ config.singular }}</RouterLink>
+  <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <div><h1 class="text-3xl font-extrabold tracking-tight">{{ title }}</h1></div>
+    <div class="flex flex-wrap items-center gap-2">
+      <!-- Saved view quick-access chips -->
+      <template v-if="savedViews.length">
+        <button
+          v-for="view in savedViews"
+          :key="view.id"
+          class="inline-flex items-center gap-1 rounded-full border border-teal-200 bg-teal-50 px-3 py-1 text-xs font-extrabold text-teal-700 hover:bg-teal-100 dark:border-teal-800 dark:bg-teal-900/20 dark:text-teal-400 dark:hover:bg-teal-900/40"
+          @click="applySavedView(view)"
+        >
+          <svg class="h-3 w-3" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+          {{ view.name }}
+        </button>
+      </template>
+      <button v-if="type === 'learning'" type="button" class="btn btn-muted" @click="showStats ? showStats = false : loadLearningStats()">
+        {{ showStats ? 'Sembunyikan Stats' : 'Lihat Stats' }}
+      </button>
+      <RouterLink class="btn btn-primary" :to="`/${type}/create`">New {{ config.singular }}</RouterLink>
+    </div>
+  </div>
+
+  <!-- Learning Stats Panel -->
+  <div v-if="type === 'learning' && showStats && learningStats" class="mb-5 grid gap-5">
+    <div class="card p-5">
+      <div class="mb-4 flex items-center justify-between">
+        <h2 class="font-extrabold">Learning Stats</h2>
+        <span class="text-sm font-semibold text-slate-500">{{ learningStats.totals.entries }} sesi · {{ minutes(learningStats.totals.minutes) }} total</span>
+      </div>
+      <!-- Heatmap 90 hari -->
+      <div class="mb-5">
+        <p class="label mb-2">90 Hari Terakhir</p>
+        <div class="flex flex-wrap gap-1">
+          <div v-for="day in learningHeatmap" :key="day.date"
+            class="h-4 w-4 rounded-sm transition"
+            :class="heatmapColor(day.minutes)"
+            :title="`${day.date}: ${day.minutes} menit`" />
+        </div>
+        <div class="mt-1 flex items-center gap-2 text-xs text-slate-400">
+          <span>Sedikit</span>
+          <div class="h-3 w-3 rounded-sm bg-teal-200" />
+          <div class="h-3 w-3 rounded-sm bg-teal-400" />
+          <div class="h-3 w-3 rounded-sm bg-teal-700" />
+          <span>Banyak</span>
+        </div>
+      </div>
+      <!-- Per kategori -->
+      <p class="label mb-3">Per Kategori</p>
+      <div class="space-y-2">
+        <div v-for="cat in learningStats.categories" :key="cat.category" class="flex items-center gap-3">
+          <span class="w-24 shrink-0 text-xs font-extrabold capitalize text-slate-600 dark:text-zinc-400">{{ cat.category }}</span>
+          <div class="flex-1 overflow-hidden rounded-full bg-slate-100 dark:bg-zinc-700">
+            <div class="h-2.5 rounded-full bg-teal-600 transition-all"
+              :style="{ width: `${Math.round((cat.total_minutes / learningStats.totals.minutes) * 100)}%` }" />
+          </div>
+          <span class="w-16 shrink-0 text-right text-xs font-bold text-slate-600 dark:text-zinc-400">{{ minutes(cat.total_minutes) }}</span>
+          <span class="w-16 shrink-0 text-right text-xs text-slate-400 dark:text-zinc-600">{{ cat.entries }} sesi</span>
+        </div>
+      </div>
+      <!-- Trend bulanan -->
+      <div v-if="learningStats.monthly.length" class="mt-5">
+        <p class="label mb-3">Trend 6 Bulan</p>
+        <div class="flex items-end gap-2 rounded-2xl bg-slate-50 p-3 dark:bg-zinc-800">
+          <div v-for="m in learningStats.monthly" :key="m.month" class="flex flex-1 flex-col items-center gap-1">
+            <div class="w-full rounded-t-lg bg-teal-600 transition-all"
+              :style="{ height: `${Math.max(6, Math.round((m.total_minutes / Math.max(...learningStats.monthly.map((x: any) => x.total_minutes))) * 80))}px` }" />
+            <span class="text-[10px] font-bold text-slate-500">{{ m.month.slice(5) }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
   <form class="card mb-4 overflow-hidden p-0" @submit.prevent="applyFilters()">
     <div class="flex flex-col gap-3 border-b border-slate-100 bg-slate-50/70 px-4 py-4 lg:flex-row lg:items-center lg:justify-between">
@@ -192,19 +308,62 @@ onMounted(() => { syncFromRoute(); load(); loadSavedViews(); });
     <div v-for="item in 4" :key="item" class="skeleton h-28 rounded-2xl"></div>
   </div>
   <div v-else-if="rows.length === 0" class="card p-10 text-center">
-    <div class="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-2xl bg-teal-50 text-2xl font-extrabold text-teal-700">+</div>
-    <h2 class="text-xl font-extrabold text-slate-900">{{ emptyState[0] }}</h2>
-    <p class="mx-auto mt-2 max-w-md text-sm font-medium text-slate-500">{{ emptyState[1] }}</p>
-    <RouterLink class="btn btn-primary mt-4" :to="`/${type}/create`">Create first record</RouterLink>
+    <template v-if="activeFilters.length">
+      <div class="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-2xl bg-slate-100 dark:bg-zinc-800">
+        <svg class="h-6 w-6 text-slate-400" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewBox="0 0 24 24"><path d="m21 21-4.35-4.35M10.8 18a7.2 7.2 0 1 1 0-14.4 7.2 7.2 0 0 1 0 14.4Z"/></svg>
+      </div>
+      <h2 class="text-xl font-extrabold text-slate-900 dark:text-zinc-100">Tidak ada hasil</h2>
+      <p class="mx-auto mt-2 max-w-md text-sm font-medium text-slate-500 dark:text-zinc-500">Filter aktif tidak menemukan record yang cocok. Coba ubah atau reset filter.</p>
+      <button class="btn btn-muted mt-4" @click="clearFilters">Reset semua filter</button>
+    </template>
+    <template v-else>
+      <div class="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-2xl bg-teal-50 dark:bg-teal-900/20">
+        <svg class="h-7 w-7 text-teal-700 dark:text-teal-400" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+      </div>
+      <h2 class="text-xl font-extrabold text-slate-900 dark:text-zinc-100">{{ emptyState[0] }}</h2>
+      <p class="mx-auto mt-2 max-w-md text-sm font-medium text-slate-500 dark:text-zinc-500">{{ emptyState[1] }}</p>
+      <RouterLink class="btn btn-primary mt-4" :to="`/${type}/create`">Buat {{ config.singular }} pertama</RouterLink>
+    </template>
   </div>
   <div v-else class="grid gap-3">
     <RouterLink v-for="row in rows" :key="row.id" :to="`/${type}/${row.id}`" class="card block transition hover:-translate-y-0.5 hover:border-teal-200 hover:shadow-md">
       <article :class="compact ? 'p-3' : 'p-4'">
-        <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-          <div><h2 class="font-extrabold text-slate-900">{{ row.title || row.topic }}</h2><p class="text-sm font-medium text-slate-500">{{ formatDate(row.date || row.due_date || row.end_date) }}</p></div>
-          <span class="pill" :class="tone(row.status || row.priority || row.category)">{{ row.status || row.category || minutes(row.duration_minutes || row.actual_duration) }}</span>
+        <div class="flex items-start gap-3">
+          <!-- Priority dot for tasks -->
+          <span v-if="type === 'tasks' && row.priority" class="mt-1.5 h-2.5 w-2.5 flex-shrink-0 rounded-full" :class="priorityDotColors[row.priority]" :title="row.priority" />
+          <div class="min-w-0 flex-1">
+            <div class="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
+              <h2 class="truncate font-extrabold text-slate-900 dark:text-zinc-100">{{ row.title || row.topic }}</h2>
+              <div class="flex shrink-0 items-center gap-2">
+                <span v-if="type === 'tasks' && row.priority && row.priority !== 'medium'" class="text-[10px] font-extrabold uppercase" :class="priorityTextColors[row.priority]">{{ row.priority }}</span>
+                <button
+                  v-if="type === 'tasks'"
+                  class="pill transition hover:ring-2 hover:ring-teal-300 dark:hover:ring-teal-700"
+                  :class="[tone(row.status), updatingStatusId === row.id ? 'opacity-50' : '']"
+                  :title="`Click → ${statusCycle[row.status] ?? ''}`.replaceAll('_', ' ')"
+                  @click.prevent="cycleTaskStatus($event, row)"
+                >{{ row.status?.replaceAll('_', ' ') }}</button>
+                <span v-else class="pill" :class="tone(row.status || row.priority || row.category)">{{ row.status || row.category || minutes(row.duration_minutes || row.actual_duration) }}</span>
+              </div>
+            </div>
+            <div class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm font-medium">
+              <span :class="isOverdue(row) ? 'text-red-600 dark:text-red-400' : 'text-slate-500 dark:text-zinc-500'">
+                {{ formatDate(row.date || row.due_date || row.end_date) }}
+                <span v-if="isOverdue(row)" class="ml-1 rounded bg-red-100 px-1.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-red-700 dark:bg-red-900/40 dark:text-red-400">Overdue</span>
+              </span>
+              <span v-if="row.project_name || row.project?.name" class="text-slate-400 dark:text-zinc-600">·</span>
+              <span v-if="row.project_name || row.project?.name" class="text-slate-500 dark:text-zinc-400">{{ row.project_name || row.project?.name }}</span>
+              <template v-if="type === 'work-logs' && row.actual_duration">
+                <span class="text-slate-400 dark:text-zinc-600">·</span>
+                <span class="text-slate-500 dark:text-zinc-400">{{ minutes(row.actual_duration) }}</span>
+              </template>
+              <template v-if="type === 'learning' && row.duration_minutes">
+                <span class="text-slate-400 dark:text-zinc-600">·</span>
+                <span class="text-slate-500 dark:text-zinc-400">{{ minutes(row.duration_minutes) }}</span>
+              </template>
+            </div>
+          </div>
         </div>
-        <p v-if="!compact && (row.project_name || row.project?.name)" class="mt-2 text-sm font-medium text-slate-500">{{ row.project_name || row.project?.name }}</p>
       </article>
     </RouterLink>
   </div>

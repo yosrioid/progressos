@@ -12,6 +12,8 @@ class WorkLogResource extends JsonResource
         return [
             'id' => $this->id,
             'project_id' => $this->project_id,
+            'task_id' => $this->task_id,
+            'task' => $this->whenLoaded('task', fn () => ['id' => $this->task->id, 'title' => $this->task->title]),
             'date' => $this->date?->toDateString(),
             'project_name' => $this->project_name,
             'ticket_code' => $this->ticket_code,

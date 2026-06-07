@@ -1,18 +1,25 @@
 <?php
 
 use App\Http\Controllers\Api\ActivityController;
+use App\Http\Controllers\Api\AnalyticsController;
 use App\Http\Controllers\Api\CaptureController;
 use App\Http\Controllers\Api\ConfigurationController;
 use App\Http\Controllers\Api\DailyProgressController;
 use App\Http\Controllers\Api\DashboardController;
+use App\Http\Controllers\Api\DocController;
+use App\Http\Controllers\Api\DocFileController;
 use App\Http\Controllers\Api\GameController;
+use App\Http\Controllers\Api\GoalController;
+use App\Http\Controllers\Api\HabitController;
 use App\Http\Controllers\Api\LearningController;
 use App\Http\Controllers\Api\MilestoneController;
+use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\ProjectController;
 use App\Http\Controllers\Api\ReferenceController;
 use App\Http\Controllers\Api\ReportController;
 use App\Http\Controllers\Api\SavedViewController;
 use App\Http\Controllers\Api\SearchController;
+use App\Http\Controllers\Api\StandupController;
 use App\Http\Controllers\Api\TaskController;
 use App\Http\Controllers\Api\WorkLogController;
 use Illuminate\Support\Facades\Route;
@@ -20,6 +27,13 @@ use Illuminate\Support\Facades\Route;
 Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
     Route::middleware(['ability:read', 'throttle:api-read'])->group(function () {
         Route::get('dashboard', DashboardController::class);
+        Route::get('analytics', AnalyticsController::class);
+        Route::get('standup', StandupController::class);
+        Route::get('habits', [HabitController::class, 'index']);
+        Route::get('goals', [GoalController::class, 'index']);
+        Route::get('goals/{goal}', [GoalController::class, 'show']);
+        Route::get('notifications', [NotificationController::class, 'index']);
+        Route::get('notifications/unread-count', [NotificationController::class, 'unreadCount']);
         Route::get('reports/{period}', [ReportController::class, 'show'])->middleware('ability:reports,read');
         Route::get('reports/{period}/snapshots', [ReportController::class, 'snapshots'])->middleware('ability:reports,read');
         Route::get('search', SearchController::class);
@@ -28,13 +42,37 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
         Route::apiResource('projects', ProjectController::class)->only(['index', 'show']);
         Route::apiResource('daily-progress', DailyProgressController::class)->only(['index', 'show'])->parameters(['daily-progress' => 'dailyProgress']);
         Route::apiResource('work-logs', WorkLogController::class)->only(['index', 'show'])->parameters(['work-logs' => 'workLog']);
+        Route::get('tasks/kanban', [TaskController::class, 'kanban']);
+        Route::get('tasks/overdue-count', [TaskController::class, 'overdueCount']);
         Route::apiResource('tasks', TaskController::class)->only(['index', 'show']);
+        Route::get('learning/stats', [LearningController::class, 'stats']);
+        Route::get('learning/heatmap', [LearningController::class, 'heatmap']);
         Route::apiResource('learning', LearningController::class)->only(['index', 'show']);
         Route::apiResource('milestones', MilestoneController::class)->only(['index', 'show']);
+        Route::get('milestones/{milestone}/history', [MilestoneController::class, 'history']);
         Route::apiResource('saved-views', SavedViewController::class)->only(['index'])->parameters(['saved-views' => 'savedView']);
+        Route::get('docs/categories', [DocController::class, 'categories']);
+        Route::apiResource('docs', DocController::class)->only(['index', 'show']);
+        Route::get('doc-files/{docFile}', [DocFileController::class, 'show']);
     });
 
     Route::middleware(['ability:write', 'throttle:api-write'])->group(function () {
+        Route::post('habits', [HabitController::class, 'store']);
+        Route::patch('habits/{habit}', [HabitController::class, 'update']);
+        Route::delete('habits/{habit}', [HabitController::class, 'destroy']);
+        Route::post('habits/{habit}/log', [HabitController::class, 'log']);
+        Route::delete('habits/{habit}/log', [HabitController::class, 'unlog']);
+        Route::post('habits/reorder', [HabitController::class, 'reorder']);
+        Route::post('goals', [GoalController::class, 'store']);
+        Route::patch('goals/{goal}', [GoalController::class, 'update']);
+        Route::delete('goals/{goal}', [GoalController::class, 'destroy']);
+        Route::post('goals/{goal}/key-results', [GoalController::class, 'storeKeyResult']);
+        Route::patch('goals/{goal}/key-results/{keyResult}', [GoalController::class, 'updateKeyResult']);
+        Route::delete('goals/{goal}/key-results/{keyResult}', [GoalController::class, 'destroyKeyResult']);
+        Route::patch('notifications/{notification}/read', [NotificationController::class, 'markRead']);
+        Route::post('notifications/mark-all-read', [NotificationController::class, 'markAllRead']);
+        Route::delete('notifications/{notification}', [NotificationController::class, 'destroy']);
+        Route::delete('notifications', [NotificationController::class, 'clearAll']);
         Route::apiResource('projects', ProjectController::class)->only(['update']);
         Route::apiResource('daily-progress', DailyProgressController::class)->only(['store', 'update', 'destroy'])->parameters(['daily-progress' => 'dailyProgress']);
         Route::apiResource('work-logs', WorkLogController::class)->only(['store', 'update', 'destroy'])->parameters(['work-logs' => 'workLog']);
@@ -44,6 +82,9 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
         Route::apiResource('milestones', MilestoneController::class)->only(['store', 'update', 'destroy']);
         Route::apiResource('saved-views', SavedViewController::class)->only(['store', 'destroy'])->parameters(['saved-views' => 'savedView']);
         Route::apiResource('references', ReferenceController::class)->only(['store', 'destroy']);
+        Route::apiResource('docs', DocController::class)->only(['store', 'update', 'destroy']);
+        Route::post('docs/{doc}/files', [DocFileController::class, 'store']);
+        Route::delete('docs/{doc}/files/{docFile}', [DocFileController::class, 'destroy']);
         Route::put('configuration/settings', [ConfigurationController::class, 'updateSettings']);
         Route::put('configuration/backup-connection', [ConfigurationController::class, 'updateConnection']);
         Route::post('configuration/backup-connection/verify', [ConfigurationController::class, 'verifyConnection']);
@@ -57,6 +98,9 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
         ->middleware(['ability:capture,write', 'throttle:api-capture']);
 
     Route::get('reports/{period}/export', [ReportController::class, 'export'])
+        ->middleware(['ability:reports,read', 'throttle:api-export']);
+
+    Route::get('reports/{period}/export-pdf', [ReportController::class, 'exportPdf'])
         ->middleware(['ability:reports,read', 'throttle:api-export']);
 
     Route::post('reports/{period}/snapshots', [ReportController::class, 'storeSnapshot'])

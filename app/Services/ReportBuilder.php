@@ -21,6 +21,9 @@ class ReportBuilder
         $learning = $user->learningEntries()->whereBetween('date', [$start, $end])->get();
         $previousLearning = $user->learningEntries()->whereBetween('date', [$previousStart, $previousEnd])->get();
         $progress = $user->dailyProgressEntries()->with('tags')->whereBetween('date', [$start, $end])->get();
+        $tasksDone = $user->tasks()->where('status', 'done')
+            ->whereBetween('completed_at', [$start->startOfDay(), $end->endOfDay()])
+            ->get(['id', 'title', 'priority', 'project_id', 'completed_at']);
 
         return [
             'period' => $period,
@@ -34,6 +37,7 @@ class ReportBuilder
                 'hours' => round($learning->sum('duration_minutes') / 60, 1),
                 'by_category' => $this->sumBy($learning, 'category', 'duration_minutes'),
             ],
+            'tasks_done' => $tasksDone->values(),
             'key_achievements' => $progress->flatMap(fn ($entry) => $entry->completed_items ?: [])->filter()->values()->take(12),
             'most_active_projects' => $workLogs->groupBy('project_name')->map->count()->sortDesc()->take(8),
             'notable_tags' => $workLogs->flatMap->tags->merge($progress->flatMap->tags)->pluck('name')->countBy()->sortDesc()->take(12),

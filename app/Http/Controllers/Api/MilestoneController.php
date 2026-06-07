@@ -4,7 +4,11 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\MilestoneRequest;
+use App\Http\Resources\DailyProgressResource;
+use App\Http\Resources\LearningEntryResource;
 use App\Http\Resources\MilestoneResource;
+use App\Http\Resources\TaskResource;
+use App\Http\Resources\WorkLogResource;
 use App\Models\Milestone;
 use App\Support\ApiQuery;
 use App\Support\ApiResponse;
@@ -58,5 +62,43 @@ class MilestoneController extends Controller
         $milestone->delete();
 
         return response()->noContent();
+    }
+
+    public function history(Request $request, Milestone $milestone)
+    {
+        $this->authorize('view', $milestone);
+
+        $filter = trim((string) $milestone->source_filter);
+        $user = $request->user();
+
+        switch ($milestone->source_type) {
+            case 'learning_minutes':
+                $query = $user->learningEntries()
+                    ->when($filter, fn ($q) => $q->where(fn ($i) => $i->where('category', $filter)->orWhere('topic', 'like', "%{$filter}%")));
+
+                return ApiResponse::paginated('items', ApiQuery::paginateSorted($query, $request, 'date', 20, ['date', 'topic', 'category']), resourceClass: LearningEntryResource::class);
+
+            case 'work_log_count':
+            case 'work_log_minutes':
+                $query = $user->workLogs()
+                    ->when($filter, fn ($q) => $q->where(fn ($i) => $i->where('project_name', $filter)->orWhere('category', $filter)));
+
+                return ApiResponse::paginated('items', ApiQuery::paginateSorted($query, $request, 'date', 20, ['date', 'title', 'project_name', 'created_at']), resourceClass: WorkLogResource::class);
+
+            case 'task_done_count':
+                $query = $user->tasks()
+                    ->where('status', 'done')
+                    ->when($filter, fn ($q) => $q->where('priority', $filter));
+
+                return ApiResponse::paginated('items', ApiQuery::paginateSorted($query, $request, 'created_at', 20, ['created_at', 'updated_at', 'due_date', 'title']), resourceClass: TaskResource::class);
+
+            case 'daily_progress_streak':
+                $query = $user->dailyProgressEntries();
+
+                return ApiResponse::paginated('items', ApiQuery::paginateSorted($query, $request, 'date', 20, ['date', 'title', 'created_at']), resourceClass: DailyProgressResource::class);
+
+            default:
+                return response()->json(['items' => null, 'meta' => null]);
+        }
     }
 }

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\Auditable;
+use Carbon\Carbon;
 use Database\Factories\MilestoneFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -11,6 +12,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
+/**
+ * @property Carbon|null $start_date
+ * @property Carbon|null $end_date
+ * @property Carbon|null $completed_at
+ */
 class Milestone extends Model
 {
     /** @use HasFactory<MilestoneFactory> */
@@ -22,11 +28,11 @@ class Milestone extends Model
 
     public const SOURCE_TYPES = ['manual', 'work_log_count', 'work_log_minutes', 'learning_minutes', 'daily_progress_streak', 'task_done_count'];
 
-    protected $fillable = ['user_id', 'title', 'category', 'target_type', 'source_type', 'source_filter', 'target_value', 'current_value', 'start_date', 'end_date', 'status', 'notes'];
+    protected $fillable = ['user_id', 'title', 'category', 'target_type', 'source_type', 'source_filter', 'target_value', 'current_value', 'start_date', 'end_date', 'status', 'notes', 'completed_at'];
 
     protected function casts(): array
     {
-        return ['start_date' => 'date', 'end_date' => 'date', 'target_value' => 'decimal:2', 'current_value' => 'decimal:2'];
+        return ['start_date' => 'date', 'end_date' => 'date', 'target_value' => 'decimal:2', 'current_value' => 'decimal:2', 'completed_at' => 'datetime'];
     }
 
     public function user(): BelongsTo

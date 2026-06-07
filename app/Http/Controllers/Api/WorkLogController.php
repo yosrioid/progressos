@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\WorkLogRequest;
 use App\Http\Resources\WorkLogResource;
 use App\Models\WorkLog;
+use App\Services\MilestoneProgressSync;
 use App\Services\ProjectResolver;
 use App\Services\TagSyncer;
 use App\Support\ApiQuery;
@@ -40,10 +41,10 @@ class WorkLogController extends Controller
     {
         $this->authorize('view', $workLog);
 
-        return ApiResponse::item('log', new WorkLogResource($workLog->load(['tags', 'references'])));
+        return ApiResponse::item('log', new WorkLogResource($workLog->load(['tags', 'references', 'task'])));
     }
 
-    public function store(WorkLogRequest $request, ProjectResolver $projects, TagSyncer $tags)
+    public function store(WorkLogRequest $request, ProjectResolver $projects, TagSyncer $tags, MilestoneProgressSync $sync)
     {
         $data = $request->validated();
         $tagNames = $data['tags'] ?? [];
@@ -51,11 +52,12 @@ class WorkLogController extends Controller
         $data['project_id'] = $projects->resolve($request->user(), $data['project_name'])?->id;
         $log = $request->user()->workLogs()->create($data);
         $tags->workLog($log, $request->user(), $tagNames);
+        $sync->syncFor($request->user());
 
         return ApiResponse::item('log', new WorkLogResource($log->load('tags')), 201, 'Work log created.');
     }
 
-    public function update(WorkLogRequest $request, WorkLog $workLog, ProjectResolver $projects, TagSyncer $tags)
+    public function update(WorkLogRequest $request, WorkLog $workLog, ProjectResolver $projects, TagSyncer $tags, MilestoneProgressSync $sync)
     {
         $this->authorize('update', $workLog);
         $data = $request->validated();
@@ -64,14 +66,16 @@ class WorkLogController extends Controller
         $data['project_id'] = $projects->resolve($request->user(), $data['project_name'])?->id;
         $workLog->update($data);
         $tags->workLog($workLog, $request->user(), $tagNames);
+        $sync->syncFor($request->user());
 
         return ApiResponse::item('log', new WorkLogResource($workLog->fresh()->load(['tags', 'references'])), 200, 'Work log updated.');
     }
 
-    public function destroy(Request $request, WorkLog $workLog)
+    public function destroy(Request $request, WorkLog $workLog, MilestoneProgressSync $sync)
     {
         $this->authorize('delete', $workLog);
         $workLog->delete();
+        $sync->syncFor($request->user());
 
         return response()->noContent();
     }

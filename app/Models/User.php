@@ -84,6 +84,36 @@ class User extends Authenticatable
         return $this->hasMany(BackupRun::class);
     }
 
+    public function docs(): HasMany
+    {
+        return $this->hasMany(Doc::class);
+    }
+
+    public function habits(): HasMany
+    {
+        return $this->hasMany(Habit::class);
+    }
+
+    public function habitLogs(): HasMany
+    {
+        return $this->hasMany(HabitLog::class);
+    }
+
+    public function goals(): HasMany
+    {
+        return $this->hasMany(Goal::class);
+    }
+
+    public function keyResults(): HasMany
+    {
+        return $this->hasMany(KeyResult::class);
+    }
+
+    public function inAppNotifications(): HasMany
+    {
+        return $this->hasMany(InAppNotification::class);
+    }
+
     /**
      * Get the attributes that should be cast.
      *

@@ -3,6 +3,10 @@
 namespace App\Providers;
 
 use App\Models\DailyProgressEntry;
+use App\Models\Doc;
+use App\Models\Goal;
+use App\Models\Habit;
+use App\Models\KeyResult;
 use App\Models\LearningEntry;
 use App\Models\Milestone;
 use App\Models\Project;
@@ -33,7 +37,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        foreach ([DailyProgressEntry::class, WorkLog::class, LearningEntry::class, Milestone::class, Task::class, Project::class, Reference::class, ReviewEntry::class, SavedView::class] as $model) {
+        foreach ([DailyProgressEntry::class, WorkLog::class, LearningEntry::class, Milestone::class, Task::class, Project::class, Reference::class, ReviewEntry::class, SavedView::class, Doc::class, Habit::class, Goal::class, KeyResult::class] as $model) {
             Gate::policy($model, OwnedModelPolicy::class);
         }
 
