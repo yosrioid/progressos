@@ -13,6 +13,8 @@ use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
+ * @property Carbon|null $start_date
+ * @property Carbon|null $end_date
  * @property Carbon|null $completed_at
  */
 class Milestone extends Model

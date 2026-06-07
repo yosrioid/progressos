@@ -17,6 +17,8 @@ const saving = ref(false);
 const error = ref('');
 const errors = ref<Record<string, string[]>>({});
 const taskOptions = ref<{ id: number; title: string; status: string }[]>([]);
+const projectNames = ref<string[]>([]);
+const projectList = ref<{ id: number; name: string }[]>([]);
 const isEdit = computed(() => Boolean(props.id));
 const formSections = computed(() => {
   const fields = config.value.fields;
@@ -36,6 +38,16 @@ function inputType(field: Field) {
 
 function handleTextareaPaste(event: ClipboardEvent, key: string) {
   pasteLinkOverSelection(event, form, key);
+}
+
+async function loadProjectNames() {
+  try {
+    const res = await api.get('/api/v1/projects?per_page=200&sort=name&direction=asc').then((r) => r.data);
+    projectList.value = (res.data ?? []).map((p: any) => ({ id: p.id, name: p.name })).filter((p: any) => p.name);
+    projectNames.value = projectList.value.map((p) => p.name);
+  } catch {
+    // non-critical
+  }
 }
 
 async function load() {
@@ -82,6 +94,8 @@ async function submit() {
 
 onMounted(async () => {
   await load();
+  const needsProjectList = config.value.fields.some((f) => f.type === 'project-autocomplete' || f.type === 'project-select');
+  if (needsProjectList) loadProjectNames();
   if (props.type === 'work-logs') {
     const data = await api.get('/api/v1/tasks', { params: { status: 'todo,in_progress', per_page: 100, sort: 'created_at', direction: 'desc' } }).then(unwrap);
     taskOptions.value = (data.tasks?.data || []).map((t: any) => ({ id: t.id, title: t.title, status: t.status }));
@@ -122,6 +136,16 @@ onMounted(async () => {
             <input v-model="form[field.key]" type="checkbox" />
           </label>
           <DatePicker v-else-if="field.type === 'date'" v-model="form[field.key]" :label="field.label" :required="field.required" />
+          <div v-else-if="field.type === 'project-autocomplete'">
+            <input v-model="form[field.key]" :list="`projects-list-${field.key}`" class="field" :required="field.required" autocomplete="off" placeholder="Pilih atau ketik nama project" />
+            <datalist :id="`projects-list-${field.key}`">
+              <option v-for="name in projectNames" :key="name" :value="name" />
+            </datalist>
+          </div>
+          <select v-else-if="field.type === 'project-select'" v-model.number="form[field.key]" class="field" :required="field.required">
+            <option :value="null">— Tidak ada project —</option>
+            <option v-for="p in projectList" :key="p.id" :value="p.id">{{ p.name }}</option>
+          </select>
           <div v-else-if="field.type === 'task-link'" class="relative">
             <select v-model="form[field.key]" class="field">
               <option value="">— no linked task —</option>

@@ -161,6 +161,8 @@ async function applySavedView(view: any) {
 }
 
 const statusCycle: Record<string, string> = { todo: 'in_progress', in_progress: 'done', done: 'todo', blocked: 'todo' };
+const priorityDotColors: Record<string, string> = { urgent: 'bg-red-500', high: 'bg-orange-400', medium: 'bg-sky-400', low: 'bg-slate-300 dark:bg-zinc-600' };
+const priorityTextColors: Record<string, string> = { urgent: 'text-red-600 dark:text-red-400', high: 'text-orange-500 dark:text-orange-400', medium: 'text-sky-500', low: 'text-slate-400' };
 
 async function cycleTaskStatus(e: Event, row: any) {
   if (props.type !== 'tasks') return;
@@ -326,24 +328,42 @@ onMounted(() => { syncFromRoute(); load(); loadSavedViews(); });
   <div v-else class="grid gap-3">
     <RouterLink v-for="row in rows" :key="row.id" :to="`/${type}/${row.id}`" class="card block transition hover:-translate-y-0.5 hover:border-teal-200 hover:shadow-md">
       <article :class="compact ? 'p-3' : 'p-4'">
-        <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <h2 class="font-extrabold text-slate-900 dark:text-zinc-100">{{ row.title || row.topic }}</h2>
-            <p class="text-sm font-medium" :class="isOverdue(row) ? 'text-red-600 dark:text-red-400' : 'text-slate-500 dark:text-zinc-500'">
-              {{ formatDate(row.date || row.due_date || row.end_date) }}
-              <span v-if="isOverdue(row)" class="ml-1 rounded bg-red-100 px-1.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-red-700 dark:bg-red-900/40 dark:text-red-400">Overdue</span>
-            </p>
+        <div class="flex items-start gap-3">
+          <!-- Priority dot for tasks -->
+          <span v-if="type === 'tasks' && row.priority" class="mt-1.5 h-2.5 w-2.5 flex-shrink-0 rounded-full" :class="priorityDotColors[row.priority]" :title="row.priority" />
+          <div class="min-w-0 flex-1">
+            <div class="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
+              <h2 class="truncate font-extrabold text-slate-900 dark:text-zinc-100">{{ row.title || row.topic }}</h2>
+              <div class="flex shrink-0 items-center gap-2">
+                <span v-if="type === 'tasks' && row.priority && row.priority !== 'medium'" class="text-[10px] font-extrabold uppercase" :class="priorityTextColors[row.priority]">{{ row.priority }}</span>
+                <button
+                  v-if="type === 'tasks'"
+                  class="pill transition hover:ring-2 hover:ring-teal-300 dark:hover:ring-teal-700"
+                  :class="[tone(row.status), updatingStatusId === row.id ? 'opacity-50' : '']"
+                  :title="`Click → ${statusCycle[row.status] ?? ''}`.replaceAll('_', ' ')"
+                  @click.prevent="cycleTaskStatus($event, row)"
+                >{{ row.status?.replaceAll('_', ' ') }}</button>
+                <span v-else class="pill" :class="tone(row.status || row.priority || row.category)">{{ row.status || row.category || minutes(row.duration_minutes || row.actual_duration) }}</span>
+              </div>
+            </div>
+            <div class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm font-medium">
+              <span :class="isOverdue(row) ? 'text-red-600 dark:text-red-400' : 'text-slate-500 dark:text-zinc-500'">
+                {{ formatDate(row.date || row.due_date || row.end_date) }}
+                <span v-if="isOverdue(row)" class="ml-1 rounded bg-red-100 px-1.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-red-700 dark:bg-red-900/40 dark:text-red-400">Overdue</span>
+              </span>
+              <span v-if="row.project_name || row.project?.name" class="text-slate-400 dark:text-zinc-600">·</span>
+              <span v-if="row.project_name || row.project?.name" class="text-slate-500 dark:text-zinc-400">{{ row.project_name || row.project?.name }}</span>
+              <template v-if="type === 'work-logs' && row.actual_duration">
+                <span class="text-slate-400 dark:text-zinc-600">·</span>
+                <span class="text-slate-500 dark:text-zinc-400">{{ minutes(row.actual_duration) }}</span>
+              </template>
+              <template v-if="type === 'learning' && row.duration_minutes">
+                <span class="text-slate-400 dark:text-zinc-600">·</span>
+                <span class="text-slate-500 dark:text-zinc-400">{{ minutes(row.duration_minutes) }}</span>
+              </template>
+            </div>
           </div>
-          <button
-            v-if="type === 'tasks'"
-            class="pill transition hover:ring-2 hover:ring-teal-300 dark:hover:ring-teal-700"
-            :class="[tone(row.status), updatingStatusId === row.id ? 'opacity-50' : '']"
-            :title="`Click → ${statusCycle[row.status] ?? ''}`.replaceAll('_', ' ')"
-            @click.prevent="cycleTaskStatus($event, row)"
-          >{{ row.status?.replaceAll('_', ' ') }}</button>
-          <span v-else class="pill" :class="tone(row.status || row.priority || row.category)">{{ row.status || row.category || minutes(row.duration_minutes || row.actual_duration) }}</span>
         </div>
-        <p v-if="!compact && (row.project_name || row.project?.name)" class="mt-2 text-sm font-medium text-slate-500">{{ row.project_name || row.project?.name }}</p>
       </article>
     </RouterLink>
   </div>

@@ -1,7 +1,7 @@
 export type Field = {
   key: string;
   label: string;
-  type?: 'text' | 'date' | 'number' | 'textarea' | 'select' | 'tags' | 'checkbox' | 'task-link';
+  type?: 'text' | 'date' | 'number' | 'textarea' | 'select' | 'tags' | 'checkbox' | 'task-link' | 'project-autocomplete' | 'project-select';
   options?: string[];
   required?: boolean;
   span?: 'full';
@@ -52,7 +52,7 @@ export const configs: Record<string, RecordConfig> = {
     defaults: { date: today(), project_name: '', task_id: '', ticket_code: '', title: '', category: 'feature', status: 'done', priority: 'medium', estimated_duration: '', actual_duration: '', description: '', resolution_or_outcome: '', tags: '' },
     fields: [
       { key: 'date', label: 'Date', type: 'date', required: true },
-      { key: 'project_name', label: 'Project', required: true },
+      { key: 'project_name', label: 'Project', type: 'project-autocomplete', required: true },
       { key: 'task_id', label: 'Linked Task (optional)', type: 'task-link' },
       { key: 'ticket_code', label: 'Ticket' },
       { key: 'title', label: 'Title', required: true, span: 'full' },
@@ -76,7 +76,7 @@ export const configs: Record<string, RecordConfig> = {
     defaults: { title: '', project_id: '', status: 'todo', priority: 'medium', due_date: today(), notes: '', recurrence_rule: '', recurrence_interval: 1, recurrence_ends_at: '' },
     fields: [
       { key: 'title', label: 'Title', required: true, span: 'full' },
-      { key: 'project_id', label: 'Project ID', type: 'number' },
+      { key: 'project_id', label: 'Project', type: 'project-select' },
       { key: 'due_date', label: 'Due date', type: 'date' },
       { key: 'status', label: 'Status', type: 'select', options: ['todo', 'in_progress', 'done', 'blocked'] },
       { key: 'priority', label: 'Priority', type: 'select', options: ['low', 'medium', 'high', 'urgent'] },

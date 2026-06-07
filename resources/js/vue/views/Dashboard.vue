@@ -31,11 +31,28 @@ const standup = ref<any>(null);
 const standupOpen = ref(false);
 const standupLoading = ref(false);
 const standupCopied = ref(false);
+const doneTaskIds = ref<Set<number>>(new Set());
+const markingDoneId = ref<number | null>(null);
 
 onMounted(async () => {
   data.value = await api.get('/api/v1/dashboard').then(unwrap);
-  report.value = (await api.get('/api/v1/reports/weekly').then(unwrap)).report;
+  api.get('/api/v1/reports/weekly').then(unwrap).then((d) => { report.value = d.report; }).catch(() => {});
 });
+
+async function markTaskDone(e: Event, task: any) {
+  e.stopPropagation();
+  if (markingDoneId.value || doneTaskIds.value.has(task.id)) return;
+  markingDoneId.value = task.id;
+  doneTaskIds.value.add(task.id);
+  try {
+    await api.patch(`/api/v1/tasks/${task.id}/status`, { status: 'done' });
+    task.status = 'done';
+  } catch {
+    doneTaskIds.value.delete(task.id);
+  } finally {
+    markingDoneId.value = null;
+  }
+}
 
 async function openStandup() {
   standupOpen.value = true;
@@ -89,11 +106,27 @@ async function copyStandup() {
       <section class="card p-5 xl:col-span-2">
         <div class="mb-4 flex items-center justify-between"><h2 class="font-extrabold">Today focus</h2><RouterLink class="text-sm font-extrabold text-teal-700 hover:underline" to="/tasks">Open tasks</RouterLink></div>
         <div class="grid gap-3 md:grid-cols-2">
-          <RouterLink v-for="task in data.today.tasks" :key="task.id" :to="`/tasks/${task.id}`" class="rounded-2xl border border-slate-200 bg-slate-50 p-3.5 transition hover:border-teal-200 hover:bg-teal-50">
-            <p class="font-extrabold text-slate-900">{{ task.title }}</p>
-            <p class="mt-1 text-sm font-medium text-slate-500">{{ task.project?.name || 'No project' }} · {{ task.status?.replaceAll('_', ' ') }}</p>
-          </RouterLink>
-          <div v-if="data.today.tasks.length === 0" class="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center text-sm font-semibold text-slate-500 md:col-span-2">No urgent tasks for today.</div>
+          <div
+            v-for="task in data.today.tasks"
+            :key="task.id"
+            class="group flex items-start gap-3 rounded-2xl border p-3.5 transition"
+            :class="doneTaskIds.has(task.id) || task.status === 'done' ? 'border-teal-200 bg-teal-50/60 opacity-60 dark:border-teal-800/40 dark:bg-teal-900/10' : 'border-slate-200 bg-slate-50 hover:border-teal-200 hover:bg-teal-50 dark:border-zinc-700 dark:bg-zinc-800/40 dark:hover:border-teal-700'"
+          >
+            <button
+              class="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition"
+              :class="doneTaskIds.has(task.id) || task.status === 'done' ? 'border-teal-500 bg-teal-500 text-white' : 'border-slate-300 hover:border-teal-400 dark:border-zinc-600'"
+              :disabled="!!markingDoneId || doneTaskIds.has(task.id)"
+              :title="task.status === 'done' ? 'Done' : 'Tandai selesai'"
+              @click="markTaskDone($event, task)"
+            >
+              <svg v-if="doneTaskIds.has(task.id) || task.status === 'done'" class="h-3 w-3" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="3" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>
+            </button>
+            <RouterLink :to="`/tasks/${task.id}`" class="min-w-0 flex-1">
+              <p class="font-extrabold text-slate-900 dark:text-zinc-100" :class="doneTaskIds.has(task.id) || task.status === 'done' ? 'line-through opacity-60' : ''">{{ task.title }}</p>
+              <p class="mt-1 text-sm font-medium text-slate-500 dark:text-zinc-500">{{ task.project?.name || 'No project' }} · {{ task.status?.replaceAll('_', ' ') }}</p>
+            </RouterLink>
+          </div>
+          <div v-if="data.today.tasks.length === 0" class="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center text-sm font-semibold text-slate-500 md:col-span-2 dark:border-zinc-700 dark:bg-zinc-800/30 dark:text-zinc-500">Tidak ada task mendesak untuk hari ini.</div>
         </div>
       </section>
       <section class="card p-5">

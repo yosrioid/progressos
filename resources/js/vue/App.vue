@@ -16,6 +16,7 @@ const route = useRoute();
 const quick = ref(false);
 const mobileMenu = ref(false);
 const overdueCount = ref(0);
+const projectNames = ref<string[]>([]);
 const shortcutsOpen = ref(false);
 const notifOpen = ref(false);
 const notifUnread = ref(0);
@@ -143,6 +144,16 @@ async function submitQuick() {
   quickForm.value = { type: 'work_log', title: '', project_name: '', duration_minutes: 30, notes: '', date: new Date().toISOString().slice(0, 10) };
   if (path) await router.push(path);
   else await router.push('/dashboard');
+}
+
+async function loadProjectNames() {
+  if (projectNames.value.length) return;
+  try {
+    const res = await api.get('/api/v1/projects?per_page=200&sort=name&direction=asc').then((r) => r.data);
+    projectNames.value = (res.data ?? []).map((p: any) => p.name).filter(Boolean);
+  } catch {
+    // non-critical
+  }
 }
 
 async function loadOverdueCount() {
@@ -293,6 +304,7 @@ watch(() => auth.user, async (user) => {
   }
   loadOverdueCount();
   loadNotifications();
+  loadProjectNames();
 }, { immediate: true });
 watch(() => route.fullPath, () => { if (auth.user) { loadOverdueCount(); loadNotifications(); } });
 watch(activeTheme, (theme) => applyTheme(theme || 'system'), { immediate: true });
@@ -372,16 +384,18 @@ onUnmounted(() => window.removeEventListener('keydown', shortcuts));
           <form class="relative order-last mt-2 w-full min-w-0 sm:order-none sm:mt-0 sm:block sm:flex-1" @submit.prevent="search">
             <svg class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 dark:text-zinc-500" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewBox="0 0 24 24"><path v-for="path in icons.search" :key="path" :d="path" /></svg>
             <input ref="searchInput" v-model="query" class="field h-11 pl-9" placeholder="Search everything" aria-label="Search everything" />
-            <button type="button" class="absolute right-2 top-1/2 hidden -translate-y-1/2 rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-bold text-slate-400 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-500 md:block" @click="commandOpen = true">Cmd K</button>
+            <button type="button" class="absolute right-2 top-1/2 hidden -translate-y-1/2 rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-bold text-slate-400 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-500 xl:block" @click="commandOpen = true">Cmd K</button>
           </form>
           <!-- Keyboard shortcut hints -->
-          <div class="hidden items-center gap-1.5 xl:flex">
+          <div class="hidden items-center gap-1.5 2xl:flex">
             <kbd class="rounded border border-slate-200 bg-white px-1.5 py-0.5 text-[10px] font-bold text-slate-400 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-500" title="Quick add">N</kbd>
             <kbd class="rounded border border-slate-200 bg-white px-1.5 py-0.5 text-[10px] font-bold text-slate-400 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-500" title="Focus search">/</kbd>
             <kbd class="rounded border border-slate-200 bg-white px-1.5 py-0.5 text-[10px] font-bold text-slate-400 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-500" title="Command palette">⌘K</kbd>
           </div>
           <!-- Work timer -->
-          <WorkTimer class="hidden sm:flex" @log="onTimerLog" />
+          <div class="hidden xl:block">
+            <WorkTimer @log="onTimerLog" />
+          </div>
           <!-- Notification bell -->
           <div class="relative">
             <button
@@ -393,7 +407,7 @@ onUnmounted(() => window.removeEventListener('keydown', shortcuts));
               <span v-if="notifUnread > 0" class="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-extrabold text-white">{{ notifUnread > 9 ? '9+' : notifUnread }}</span>
             </button>
             <button v-if="notifOpen" class="fixed inset-0 z-10 cursor-default" tabindex="-1" @click="notifOpen = false"></button>
-            <div v-if="notifOpen" class="absolute right-0 z-20 mt-2 w-80 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl shadow-slate-900/10 dark:border-zinc-800 dark:bg-zinc-900 dark:shadow-black/30">
+            <div v-if="notifOpen" class="fixed inset-x-3 top-[4.5rem] z-20 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl shadow-slate-900/10 dark:border-zinc-800 dark:bg-zinc-900 dark:shadow-black/30 sm:absolute sm:inset-auto sm:right-0 sm:top-full sm:mt-2 sm:w-80">
               <div class="flex items-center justify-between border-b border-slate-100 px-4 py-3 dark:border-zinc-800">
                 <span class="text-sm font-extrabold text-slate-900 dark:text-zinc-100">Notifikasi</span>
                 <div class="flex gap-2">
@@ -537,7 +551,10 @@ onUnmounted(() => window.removeEventListener('keydown', shortcuts));
           <select v-model="quickForm.type" class="field"><option value="task">Task</option><option value="blocker">Blocker</option><option value="work_log">Work log</option><option value="daily_progress">Daily progress</option><option value="learning">Learning</option></select>
           <DatePicker v-model="quickForm.date" label="Quick add date" />
           <input v-model="quickForm.title" class="field sm:col-span-2" placeholder="Title" required />
-          <input v-model="quickForm.project_name" class="field" placeholder="Project" />
+          <input v-model="quickForm.project_name" list="quick-projects" class="field" placeholder="Project" autocomplete="off" />
+          <datalist id="quick-projects">
+            <option v-for="name in projectNames" :key="name" :value="name" />
+          </datalist>
           <input v-model="quickForm.duration_minutes" class="field" type="number" min="1" />
           <textarea v-model="quickForm.notes" class="field min-h-28 sm:col-span-2" placeholder="Notes" @paste="handleQuickNotesPaste" />
         </div>

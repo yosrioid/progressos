@@ -2,6 +2,7 @@
 
 use App\Models\User;
 use App\Services\BackupExportService;
+use App\Services\MilestoneRecalculationService;
 use App\Services\NotificationService;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
@@ -25,5 +26,14 @@ Artisan::command('notifications:generate', function (NotificationService $notifs
     $this->info("Generated {$count} notification(s).");
 })->purpose('Generate overdue and due-soon task notifications for all users');
 
+Artisan::command('milestones:recalculate', function (MilestoneRecalculationService $service) {
+    $count = 0;
+    User::all()->each(function (User $user) use ($service, &$count) {
+        $count += $service->recalculateForUser($user);
+    });
+    $this->info("Updated {$count} milestone(s).");
+})->purpose('Recalculate auto-tracked milestone current values');
+
 Schedule::command('backups:run-due')->hourly();
 Schedule::command('notifications:generate')->dailyAt('08:00');
+Schedule::command('milestones:recalculate')->dailyAt('06:00');
