@@ -51,6 +51,10 @@ class DocFileController extends Controller
     {
         $this->authorize('update', $doc);
 
+        if ($doc->files()->count() >= 20) {
+            return ApiResponse::ok(['message' => 'Maximum 20 files per document.'], 'Maximum 20 files per document.', 422);
+        }
+
         $request->validate([
             'file' => ['required', 'file', 'max:10240'],
         ]);
@@ -69,12 +73,16 @@ class DocFileController extends Controller
             return ApiResponse::ok(['message' => 'File extension not allowed.'], 'File extension not allowed.', 422);
         }
 
+        // Sanitize original filename — strip path separators, control chars, limit length
+        $safeName = preg_replace('/[\/\\\0\x01-\x1f]/', '_', $file->getClientOriginalName());
+        $safeName = mb_substr((string) $safeName, 0, 200).'.'.$ext;
+
         $path = $file->storeAs('doc-files/'.$doc->id, Str::uuid().'.'.$ext, 'local');
 
         $docFile = DocFile::create([
             'doc_id' => $doc->id,
             'user_id' => $request->user()->id,
-            'original_name' => $file->getClientOriginalName(),
+            'original_name' => $safeName,
             'path' => $path,
             'mime_type' => $realMime,
             'size' => $file->getSize(),

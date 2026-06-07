@@ -21,6 +21,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Validation\Rules\Password;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -41,7 +42,13 @@ class AppServiceProvider extends ServiceProvider
             Gate::policy($model, OwnedModelPolicy::class);
         }
 
+        // Enforce strong passwords globally
+        Password::defaults(fn () => Password::min(8)->mixedCase()->numbers());
+
+        // Login: 5 attempts per minute per email+IP combo — blocks per-account brute force
         RateLimiter::for('auth', fn (Request $request) => Limit::perMinute(5)->by(strtolower((string) $request->input('email')).'|'.$request->ip()));
+        // Register: 3 per hour per IP — prevents signup spam
+        RateLimiter::for('auth-register', fn (Request $request) => Limit::perHour(3)->by($request->ip()));
         RateLimiter::for('passwords', fn (Request $request) => Limit::perMinute(3)->by($request->ip()));
         RateLimiter::for('api-read', fn (Request $request) => Limit::perMinute(180)->by($request->user()?->id ?: $request->ip()));
         RateLimiter::for('api-write', fn (Request $request) => Limit::perMinute(90)->by($request->user()?->id ?: $request->ip()));

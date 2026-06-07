@@ -11,8 +11,8 @@ it('registers, authenticates, and logs out through the REST API', function () {
         'name' => 'Ada Progress',
         'email' => 'ada@example.com',
         'timezone' => 'UTC',
-        'password' => 'password123',
-        'password_confirmation' => 'password123',
+        'password' => 'Password123',
+        'password_confirmation' => 'Password123',
     ])->assertCreated()->assertJsonPath('user.email', 'ada@example.com');
 
     $this->assertAuthenticated();
@@ -20,7 +20,7 @@ it('registers, authenticates, and logs out through the REST API', function () {
     $this->postJson('/api/logout')->assertOk();
     $this->assertGuest();
 
-    $this->postJson('/api/login', ['email' => 'ada@example.com', 'password' => 'password123'])
+    $this->postJson('/api/login', ['email' => 'ada@example.com', 'password' => 'Password123'])
         ->assertOk()
         ->assertJsonPath('user.email', 'ada@example.com');
 });
@@ -36,11 +36,11 @@ it('updates profile and password through the REST API', function () {
 
     $this->actingAs($user)->putJson('/api/profile/password', [
         'current_password' => 'password',
-        'password' => 'new-password',
-        'password_confirmation' => 'new-password',
+        'password' => 'NewPassword1',
+        'password_confirmation' => 'NewPassword1',
     ])->assertOk();
 
-    expect(Hash::check('new-password', $user->fresh()->password))->toBeTrue();
+    expect(Hash::check('NewPassword1', $user->fresh()->password))->toBeTrue();
 });
 
 it('uploads avatar through the REST API', function () {

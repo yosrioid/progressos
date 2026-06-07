@@ -134,7 +134,18 @@ class BackupExportService
         $stream = fopen('php://temp', 'r+');
         try {
             foreach ($rows as $row) {
-                fputcsv($stream, array_map(fn ($value) => is_array($value) ? json_encode($value) : $value, $row));
+                fputcsv($stream, array_map(function ($value) {
+                    if (is_array($value)) {
+                        $value = json_encode($value);
+                    }
+
+                    // Prevent CSV formula injection (=, +, -, @ prefix)
+                    if (is_string($value) && preg_match('/^[=+\-@]/', $value)) {
+                        return "'".$value;
+                    }
+
+                    return $value;
+                }, $row));
             }
             rewind($stream);
             Storage::put($path, stream_get_contents($stream));

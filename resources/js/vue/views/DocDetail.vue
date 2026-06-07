@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
+import DOMPurify from 'dompurify';
+import { computed, onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { api, unwrap } from '../api';
 import { confirmAction, toast } from '../feedback';
@@ -8,6 +9,18 @@ const route = useRoute();
 const router = useRouter();
 const doc = ref<any>(null);
 const loading = ref(true);
+const safeDescription = computed(() =>
+  doc.value?.description ? DOMPurify.sanitize(doc.value.description) : ''
+);
+
+function safeUrl(url: string): string | null {
+  try {
+    const parsed = new URL(url);
+    return ['http:', 'https:'].includes(parsed.protocol) ? url : null;
+  } catch {
+    return null;
+  }
+}
 
 async function load() {
   const data = await api.get(`/api/v1/docs/${route.params.id}`).then(unwrap);
@@ -54,7 +67,8 @@ onMounted(load);
 
     <!-- Description -->
     <div class="card p-5">
-      <div v-if="doc.description" class="prose prose-sm max-w-none dark:prose-invert" v-html="doc.description" />
+      <!-- eslint-disable-next-line vue/no-v-html -->
+      <div v-if="doc.description" class="prose prose-sm max-w-none dark:prose-invert" v-html="safeDescription" />
       <p v-else class="text-sm text-slate-400 dark:text-zinc-600">No description provided.</p>
     </div>
 
@@ -64,9 +78,10 @@ onMounted(load);
       <div v-for="ref in doc.reference_urls" :key="ref.url ?? ref" class="flex items-center gap-2 text-sm">
         <svg class="h-4 w-4 shrink-0 text-slate-400 dark:text-zinc-500" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" /></svg>
         <div class="min-w-0 flex-1">
-          <a :href="ref.url ?? ref" target="_blank" rel="noopener noreferrer" class="font-semibold text-teal-700 hover:underline dark:text-teal-400">
+          <a v-if="safeUrl(ref.url ?? ref)" :href="safeUrl(ref.url ?? ref)!" target="_blank" rel="noopener noreferrer" class="font-semibold text-teal-700 hover:underline dark:text-teal-400">
             {{ ref.title || ref.url || ref }}
           </a>
+          <span v-else class="font-semibold text-slate-400">{{ ref.title || ref.url || ref }}</span>
           <p v-if="ref.title" class="truncate text-xs text-slate-400 dark:text-zinc-600">{{ ref.url }}</p>
         </div>
         <button class="shrink-0 rounded p-0.5 text-slate-400 hover:text-slate-700 dark:hover:text-zinc-200" title="Copy URL" @click="navigator.clipboard.writeText(ref.url ?? ref)">
