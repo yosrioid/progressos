@@ -165,7 +165,7 @@ const totalTasks = computed(() => {
         <!-- Task status donut-style breakdown -->
         <section class="card p-5">
           <h2 class="mb-1 font-extrabold">Task Status</h2>
-          <p class="mb-4 text-xs font-semibold text-slate-400">Distribusi semua tasks</p>
+          <p class="mb-4 text-xs font-semibold text-slate-400">All tasks by status</p>
           <div class="space-y-3">
             <div v-for="status in taskStatusOrder" :key="status" class="flex items-center gap-3">
               <span class="h-3 w-3 shrink-0 rounded-full" :class="taskStatusColors[status]" />
@@ -200,6 +200,39 @@ const totalTasks = computed(() => {
           <div class="mt-3 flex gap-4 text-xs font-bold text-slate-500">
             <span class="flex items-center gap-1.5"><span class="h-2.5 w-2.5 rounded-full bg-teal-500" />Learning</span>
             <span class="flex items-center gap-1.5"><span class="h-2.5 w-2.5 rounded-full bg-sky-500" />Work</span>
+          </div>
+        </section>
+
+        <!-- Habit completion rate -->
+        <section v-if="data.habit_weeks?.length" class="card p-5">
+          <h2 class="mb-1 font-extrabold">Habit Completion Rate</h2>
+          <p class="mb-4 text-xs font-semibold text-slate-400">% of active habits logged — last 4 weeks</p>
+          <div class="flex h-36 items-end gap-1.5 rounded-xl bg-slate-50 p-3 dark:bg-zinc-800/50">
+            <div v-for="w in data.habit_weeks" :key="w.week" class="flex flex-1 flex-col items-center gap-1">
+              <span class="text-xs font-extrabold text-teal-700 dark:text-teal-400">{{ w.rate > 0 ? w.rate + '%' : '' }}</span>
+              <div class="w-full rounded-t-lg bg-teal-600 transition-all" :style="{ height: `${Math.max(4, Math.round(w.rate * 0.8))}px` }" :title="`${w.week}: ${w.rate}% (${w.logged} habits / ${w.active} active)`" />
+              <span class="text-[9px] font-bold text-slate-400">{{ w.week }}</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- Active goals -->
+        <section v-if="data.active_goals?.length" class="card p-5">
+          <h2 class="mb-1 font-extrabold">Active Goals</h2>
+          <p class="mb-4 text-xs font-semibold text-slate-400">OKR progress by goal</p>
+          <div class="space-y-4">
+            <div v-for="goal in data.active_goals" :key="goal.id">
+              <div class="mb-1 flex items-center justify-between gap-2">
+                <div class="flex items-center gap-2 min-w-0">
+                  <span class="h-2.5 w-2.5 rounded-full flex-shrink-0" :style="{ background: goal.color }"></span>
+                  <span class="text-sm font-semibold text-slate-700 dark:text-zinc-300 truncate">{{ goal.title }}</span>
+                </div>
+                <span class="text-sm font-extrabold text-slate-600 dark:text-zinc-400 flex-shrink-0">{{ goal.progress }}%</span>
+              </div>
+              <div class="h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-zinc-800">
+                <div class="h-full rounded-full transition-all" :style="{ width: `${goal.progress}%`, background: goal.color }" />
+              </div>
+            </div>
           </div>
         </section>
       </div>

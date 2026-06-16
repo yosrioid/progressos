@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Habit;
 use App\Models\InAppNotification;
 use App\Models\Task;
 use App\Models\User;
@@ -32,8 +33,8 @@ class NotificationService
                     InAppNotification::create([
                         'user_id' => $user->id,
                         'type' => 'task_overdue',
-                        'title' => 'Task terlambat',
-                        'body' => $task->title.' sudah melewati deadline ('.$task->due_date->format('d M').')',
+                        'title' => 'Task overdue',
+                        'body' => $task->title.' passed its deadline ('.$task->due_date->format('M d').')',
                         'action_url' => '/tasks/'.$task->id,
                         'data' => ['task_id' => $task->id, 'priority' => $task->priority],
                     ]);
@@ -69,7 +70,7 @@ class NotificationService
                     InAppNotification::create([
                         'user_id' => $user->id,
                         'type' => 'task_due_soon',
-                        'title' => 'Task jatuh tempo besok',
+                        'title' => 'Task due tomorrow',
                         'body' => $task->title,
                         'action_url' => '/tasks/'.$task->id,
                         'data' => ['task_id' => $task->id, 'priority' => $task->priority],
@@ -84,13 +85,52 @@ class NotificationService
         return $created;
     }
 
+    public function generateHabitReminderNotifications(User $user): int
+    {
+        $today = today()->toDateString();
+
+        /** @var Collection<int, Habit> $unlogged */
+        $unlogged = $user->habits()
+            ->where('active', true)
+            ->where('frequency', 'daily')
+            ->whereDoesntHave('logs', fn ($q) => $q->whereDate('date', $today))
+            ->get(['id', 'name', 'icon']);
+
+        $created = 0;
+        foreach ($unlogged as $habit) {
+            $exists = InAppNotification::where('user_id', $user->id)
+                ->where('type', 'habit_reminder')
+                ->where('data->habit_id', $habit->id)
+                ->whereDate('created_at', $today)
+                ->exists();
+
+            if (! $exists) {
+                try {
+                    InAppNotification::create([
+                        'user_id' => $user->id,
+                        'type' => 'habit_reminder',
+                        'title' => 'Habit reminder',
+                        'body' => ($habit->icon ? $habit->icon.' ' : '').$habit->name.' not logged yet today.',
+                        'action_url' => '/habits',
+                        'data' => ['habit_id' => $habit->id],
+                    ]);
+                    $created++;
+                } catch (\Throwable $e) {
+                    Log::error('Failed to create habit reminder notification', ['habit_id' => $habit->id, 'error' => $e->getMessage()]);
+                }
+            }
+        }
+
+        return $created;
+    }
+
     public function notifyMilestoneCompleted(User $user, int $milestoneId, string $milestoneTitle): void
     {
         try {
             InAppNotification::create([
                 'user_id' => $user->id,
                 'type' => 'milestone_completed',
-                'title' => 'Milestone tercapai!',
+                'title' => 'Milestone completed!',
                 'body' => $milestoneTitle,
                 'action_url' => '/milestones/'.$milestoneId,
                 'data' => ['milestone_id' => $milestoneId],
@@ -109,8 +149,8 @@ class NotificationService
             InAppNotification::create([
                 'user_id' => $user->id,
                 'type' => 'habit_streak',
-                'title' => "{$streak} hari streak!",
-                'body' => "Kamu sudah {$streak} hari berturut-turut melakukan: {$habitName}",
+                'title' => "{$streak}-day streak!",
+                'body' => "You've maintained a {$streak}-day streak for: {$habitName}",
                 'action_url' => '/habits',
                 'data' => ['habit_id' => $habitId, 'streak' => $streak],
             ]);

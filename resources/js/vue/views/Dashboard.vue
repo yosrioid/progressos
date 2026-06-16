@@ -185,6 +185,58 @@ async function copyStandup() {
       <section class="card p-5 xl:col-span-2"><div class="mb-4 flex items-center justify-between"><h2 class="font-extrabold">Monthly rhythm</h2><span class="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-500">heatmap</span></div><div class="grid grid-cols-7 gap-1 rounded-2xl bg-slate-50 p-3"><div v-for="item in data.monthly_activity" :key="item.date" class="h-8 rounded-lg transition hover:ring-2 hover:ring-teal-200" :class="(item.work + item.learning + item.progress) > 2 ? 'bg-teal-700' : (item.work + item.learning + item.progress) > 0 ? 'bg-teal-300' : 'bg-white border border-slate-200'" :title="item.date" /></div></section>
       <section class="card p-5"><h2 class="mb-4 font-extrabold">Weekly review</h2><div v-if="report" class="space-y-3 text-sm"><div class="rounded-2xl border border-slate-200 bg-slate-50 p-3.5"><b>Work delta</b><p class="mt-1 text-slate-500">{{ report.trends.completed_work_delta }} completed logs vs previous period</p></div><div class="rounded-2xl border border-slate-200 bg-slate-50 p-3.5"><b>Learning delta</b><p class="mt-1 text-slate-500">{{ minutes(report.trends.learning_minutes_delta) }} vs previous period</p></div><RouterLink class="btn btn-primary w-full" to="/reports/weekly">Open report</RouterLink></div></section>
     </div>
+    <!-- Habits today + Active Goals -->
+    <div class="mt-5 grid gap-5 xl:grid-cols-2">
+      <section class="card p-5">
+        <div class="mb-4 flex items-center justify-between">
+          <h2 class="font-extrabold">Habits Today</h2>
+          <RouterLink class="text-sm font-extrabold text-teal-700 hover:underline dark:text-teal-400" to="/habits">View all</RouterLink>
+        </div>
+        <template v-if="data.habits_today.total > 0">
+          <div class="mb-3 flex items-center gap-3">
+            <span class="text-3xl font-extrabold text-teal-800 dark:text-teal-400">{{ data.habits_today.done }}</span>
+            <span class="text-lg text-slate-400 dark:text-zinc-500">/</span>
+            <span class="text-xl font-extrabold text-slate-500 dark:text-zinc-400">{{ data.habits_today.total }}</span>
+            <span class="text-sm font-semibold text-slate-400 dark:text-zinc-500">done today</span>
+          </div>
+          <div class="h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-zinc-800">
+            <div class="h-full rounded-full bg-teal-600 transition-all" :style="{ width: `${data.habits_today.total ? Math.round(data.habits_today.done / data.habits_today.total * 100) : 0}%` }" />
+          </div>
+          <p class="mt-2 text-xs font-semibold text-slate-400 dark:text-zinc-500">
+            {{ data.habits_today.total - data.habits_today.done > 0 ? `${data.habits_today.total - data.habits_today.done} remaining` : 'All done! 🎉' }}
+          </p>
+        </template>
+        <p v-else class="text-sm text-slate-400 dark:text-zinc-500">No active habits. <RouterLink class="font-semibold text-teal-700 hover:underline dark:text-teal-400" to="/habits">Create one →</RouterLink></p>
+      </section>
+
+      <section class="card p-5">
+        <div class="mb-4 flex items-center justify-between">
+          <h2 class="font-extrabold">Active Goals</h2>
+          <RouterLink class="text-sm font-extrabold text-teal-700 hover:underline dark:text-teal-400" to="/goals">View all</RouterLink>
+        </div>
+        <div v-if="data.active_goals.length" class="space-y-3">
+          <RouterLink
+            v-for="goal in data.active_goals"
+            :key="goal.id"
+            to="/goals"
+            class="block rounded-xl border border-slate-200 bg-slate-50/70 p-3 transition hover:border-teal-200 hover:bg-teal-50/40 dark:border-zinc-700 dark:bg-zinc-800/40 dark:hover:border-teal-700"
+          >
+            <div class="flex items-center justify-between gap-2 mb-1.5">
+              <div class="flex items-center gap-2 min-w-0">
+                <span class="w-2.5 h-2.5 rounded-full flex-shrink-0" :style="{ background: goal.color }"></span>
+                <span class="text-sm font-extrabold text-slate-800 dark:text-zinc-200 truncate">{{ goal.title }}</span>
+              </div>
+              <span class="text-xs font-extrabold text-slate-500 dark:text-zinc-400 flex-shrink-0">{{ goal.progress }}%</span>
+            </div>
+            <div class="h-1.5 overflow-hidden rounded-full bg-slate-100 dark:bg-zinc-800">
+              <div class="h-full rounded-full transition-all" :style="{ width: `${goal.progress}%`, background: goal.color }" />
+            </div>
+          </RouterLink>
+        </div>
+        <p v-else class="text-sm text-slate-400 dark:text-zinc-500">No active goals. <RouterLink class="font-semibold text-teal-700 hover:underline dark:text-teal-400" to="/goals">Create one →</RouterLink></p>
+      </section>
+    </div>
+
     <section class="card mt-5 p-5">
       <div class="mb-4 flex items-center justify-between"><h2 class="font-extrabold">Milestone progress</h2><RouterLink class="text-sm font-extrabold text-teal-700 hover:underline" to="/milestones">View all</RouterLink></div>
       <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">

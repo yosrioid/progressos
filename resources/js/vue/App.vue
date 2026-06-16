@@ -27,6 +27,8 @@ const commandQuery = ref('');
 const searchInput = ref<HTMLInputElement | null>(null);
 const query = ref('');
 const quickForm = ref({ type: 'work_log', title: '', project_name: '', duration_minutes: 30, notes: '', date: new Date().toISOString().slice(0, 10) });
+const habitList = ref<{ id: number; name: string; icon: string }[]>([]);
+const selectedHabitId = ref<number | null>(null);
 const isGuest = computed(() => !auth.user);
 const navGroups = [
   {
@@ -133,6 +135,15 @@ const filteredCommands = computed(() => {
 });
 
 async function submitQuick() {
+  if (quickForm.value.type === 'habit_log') {
+    if (!selectedHabitId.value) return;
+    await api.post(`/api/v1/habits/${selectedHabitId.value}/log`, { date: quickForm.value.date });
+    quick.value = false;
+    toast({ tone: 'success', title: 'Habit logged', message: habitList.value.find((h) => h.id === selectedHabitId.value)?.name ?? '' });
+    selectedHabitId.value = null;
+    quickForm.value = { type: 'work_log', title: '', project_name: '', duration_minutes: 30, notes: '', date: new Date().toISOString().slice(0, 10) };
+    return;
+  }
   const res = await api.post('/api/v1/quick-capture', quickForm.value).then(unwrap);
   const path: string | null = res.record_path ?? null;
   quick.value = false;
@@ -144,6 +155,16 @@ async function submitQuick() {
   quickForm.value = { type: 'work_log', title: '', project_name: '', duration_minutes: 30, notes: '', date: new Date().toISOString().slice(0, 10) };
   if (path) await router.push(path);
   else await router.push('/dashboard');
+}
+
+async function loadHabits() {
+  if (habitList.value.length) return;
+  try {
+    const res = await api.get('/api/v1/habits').then(unwrap);
+    habitList.value = (res.habits || []).filter((h: any) => h.active).map((h: any) => ({ id: h.id, name: h.name, icon: h.icon }));
+  } catch {
+    // non-critical
+  }
 }
 
 async function loadProjectNames() {
@@ -548,15 +569,32 @@ onUnmounted(() => window.removeEventListener('keydown', shortcuts));
           </div>
         </div>
         <div class="grid gap-3 p-5 sm:grid-cols-2">
-          <select v-model="quickForm.type" class="field"><option value="task">Task</option><option value="blocker">Blocker</option><option value="work_log">Work log</option><option value="daily_progress">Daily progress</option><option value="learning">Learning</option></select>
+          <select v-model="quickForm.type" class="field" @change="quickForm.type === 'habit_log' && loadHabits()">
+            <option value="task">Task</option>
+            <option value="blocker">Blocker</option>
+            <option value="work_log">Work log</option>
+            <option value="daily_progress">Daily progress</option>
+            <option value="learning">Learning</option>
+            <option value="habit_log">Habit log</option>
+          </select>
           <DatePicker v-model="quickForm.date" label="Quick add date" />
-          <input v-model="quickForm.title" class="field sm:col-span-2" placeholder="Title" required />
-          <input v-model="quickForm.project_name" list="quick-projects" class="field" placeholder="Project" autocomplete="off" />
-          <datalist id="quick-projects">
-            <option v-for="name in projectNames" :key="name" :value="name" />
-          </datalist>
-          <input v-model="quickForm.duration_minutes" class="field" type="number" min="1" />
-          <textarea v-model="quickForm.notes" class="field min-h-28 sm:col-span-2" placeholder="Notes" @paste="handleQuickNotesPaste" />
+          <!-- Habit log: just pick a habit -->
+          <template v-if="quickForm.type === 'habit_log'">
+            <select v-model="selectedHabitId" class="field sm:col-span-2" required>
+              <option :value="null">— Select habit —</option>
+              <option v-for="h in habitList" :key="h.id" :value="h.id">{{ h.icon ? h.icon + ' ' : '' }}{{ h.name }}</option>
+            </select>
+          </template>
+          <!-- Standard capture fields -->
+          <template v-else>
+            <input v-model="quickForm.title" class="field sm:col-span-2" placeholder="Title" required />
+            <input v-model="quickForm.project_name" list="quick-projects" class="field" placeholder="Project" autocomplete="off" />
+            <datalist id="quick-projects">
+              <option v-for="name in projectNames" :key="name" :value="name" />
+            </datalist>
+            <input v-model="quickForm.duration_minutes" class="field" type="number" min="1" />
+            <textarea v-model="quickForm.notes" class="field min-h-28 sm:col-span-2" placeholder="Notes" @paste="handleQuickNotesPaste" />
+          </template>
         </div>
         <div class="flex justify-end border-t border-slate-100 bg-slate-50/70 px-5 py-4 dark:border-zinc-800 dark:bg-zinc-900/60">
           <button class="btn btn-primary">Capture</button>

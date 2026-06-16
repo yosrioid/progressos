@@ -80,6 +80,25 @@ class AnalyticsController extends Controller
             ];
         });
 
+        // Habit completion rates — last 4 weeks
+        $habitWeeks = collect(range(3, 0))->map(function (int $w) use ($user, $now) {
+            $start = $now->subWeeks($w)->startOfWeek()->toDateString();
+            $end = $now->subWeeks($w)->endOfWeek()->toDateString();
+            $active = $user->habits()->where('active', true)->count();
+            $logged = $user->habitLogs()->whereBetween('date', [$start, $end])->distinct('habit_id')->count('habit_id');
+
+            return [
+                'week' => $now->subWeeks($w)->startOfWeek()->format('M d'),
+                'rate' => $active > 0 ? round(($logged / ($active * 7)) * 100) : 0,
+                'logged' => $logged,
+                'active' => $active,
+            ];
+        });
+
+        // Active goals summary
+        $activeGoals = $user->goals()->where('status', 'active')->with('keyResults')->orderByDesc('created_at')->get()
+            ->map(fn ($g) => ['id' => $g->id, 'title' => $g->title, 'color' => $g->color, 'progress' => round($g->progressPercent())]);
+
         // Totals
         $totalWorkLogs = $user->workLogs()->count();
         $totalWorkMins = $user->workLogs()->sum('actual_duration');
@@ -113,6 +132,8 @@ class AnalyticsController extends Controller
                 'completion_rate' => $totalTasks > 0 ? round($totalTasksDone / $totalTasks * 100) : 0,
             ],
             'productivity_score' => $score,
+            'habit_weeks' => $habitWeeks,
+            'active_goals' => $activeGoals,
         ]);
     }
 }

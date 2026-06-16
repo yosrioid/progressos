@@ -22,9 +22,10 @@ Artisan::command('notifications:generate', function (NotificationService $notifs
     User::all()->each(function (User $user) use ($notifs, &$count) {
         $count += $notifs->generateOverdueTaskNotifications($user);
         $count += $notifs->generateDueSoonNotifications($user);
+        $count += $notifs->generateHabitReminderNotifications($user);
     });
     $this->info("Generated {$count} notification(s).");
-})->purpose('Generate overdue and due-soon task notifications for all users');
+})->purpose('Generate overdue, due-soon, and habit reminder notifications for all users');
 
 Artisan::command('milestones:recalculate', function (MilestoneRecalculationService $service) {
     $count = 0;

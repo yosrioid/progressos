@@ -25,6 +25,24 @@ const refTypeIcons: Record<string, string> = {
   other: 'M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z',
 };
 
+const refTypeBadge: Record<string, string> = {
+  link: 'bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400',
+  doc: 'bg-slate-100 text-slate-600 dark:bg-zinc-800 dark:text-zinc-400',
+  ticket: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400',
+  pr: 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400',
+  article: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
+  course: 'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400',
+  other: 'bg-slate-100 text-slate-500 dark:bg-zinc-800 dark:text-zinc-500',
+};
+
+function refDomain(url: string): string | null {
+  try {
+    return new URL(url).hostname.replace('www.', '');
+  } catch {
+    return null;
+  }
+}
+
 function safeUrl(url: string): string | null {
   try {
     const parsed = new URL(url);
@@ -388,15 +406,20 @@ onMounted(load);
         <template v-for="(refs, refType) in refsByType" :key="String(refType)">
           <div>
             <div class="mb-2 flex items-center gap-1.5">
-              <svg class="h-3.5 w-3.5 text-slate-400" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewBox="0 0 24 24"><path :d="refTypeIcons[String(refType)] || refTypeIcons.other" /></svg>
-              <span class="text-xs font-extrabold uppercase text-slate-400">{{ String(refType) }}</span>
+              <span :class="['inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-extrabold uppercase', refTypeBadge[String(refType)] || refTypeBadge.other]">
+                <svg class="h-3 w-3" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewBox="0 0 24 24"><path :d="refTypeIcons[String(refType)] || refTypeIcons.other" /></svg>
+                {{ String(refType) }}
+              </span>
             </div>
             <div class="grid gap-2">
               <div v-for="reference in refs" :key="reference.id" class="flex flex-col gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-3 dark:border-zinc-700 dark:bg-zinc-800/50 sm:flex-row sm:items-center sm:justify-between">
                 <div class="min-w-0">
-                  <a v-if="safeUrl(reference.url)" class="font-semibold text-teal-700 underline dark:text-teal-400" :href="safeUrl(reference.url)!" target="_blank" rel="noreferrer noopener">{{ reference.label }}</a>
+                  <a v-if="safeUrl(reference.url)" class="font-extrabold text-teal-700 hover:underline dark:text-teal-400" :href="safeUrl(reference.url)!" target="_blank" rel="noreferrer noopener">{{ reference.label }}</a>
                   <span v-else class="font-semibold text-slate-400">{{ reference.label }}</span>
-                  <p class="mt-0.5 truncate text-xs text-slate-500 dark:text-zinc-500">{{ reference.notes || reference.url }}</p>
+                  <div class="mt-1 flex items-center gap-2">
+                    <span v-if="refDomain(reference.url)" class="rounded bg-slate-200 px-1.5 py-0.5 text-[10px] font-semibold text-slate-500 dark:bg-zinc-700 dark:text-zinc-400">{{ refDomain(reference.url) }}</span>
+                    <p v-if="reference.notes" class="truncate text-xs text-slate-500 dark:text-zinc-500">{{ reference.notes }}</p>
+                  </div>
                 </div>
                 <button class="btn btn-muted shrink-0" @click="removeReference(reference)">Remove</button>
               </div>
