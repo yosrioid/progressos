@@ -36,7 +36,7 @@ class Goal extends Model
 
     public function progressPercent(): float
     {
-        $krs = $this->keyResults()->where('status', '!=', 'abandoned')->get();
+        $krs = $this->keyResults->filter(fn (KeyResult $kr) => $kr->status !== 'abandoned');
         if ($krs->isEmpty()) {
             return 0;
         }

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Goal;
 use App\Models\Task;
 use App\Support\ApiResponse;
 use Carbon\CarbonImmutable;
@@ -80,6 +81,26 @@ class AnalyticsController extends Controller
             ];
         });
 
+        // Habit completion rates — last 4 weeks
+        $activeHabitCount = $user->habits()->where('active', true)->count();
+        $habitWeeks = collect(range(3, 0))->map(function (int $w) use ($user, $now, $activeHabitCount) {
+            $week = $now->subWeeks($w)->startOfWeek();
+            $start = $week->toDateString();
+            $end = $week->endOfWeek()->toDateString();
+            $logged = $user->habitLogs()->whereBetween('date', [$start, $end])->distinct('habit_id')->count('habit_id');
+
+            return [
+                'week' => $week->format('M d'),
+                'rate' => $activeHabitCount > 0 ? round(($logged / $activeHabitCount) * 100) : 0,
+                'logged' => $logged,
+                'active' => $activeHabitCount,
+            ];
+        });
+
+        // Active goals summary
+        $activeGoals = $user->goals()->where('status', 'active')->with('keyResults')->orderByDesc('created_at')->get()
+            ->map(fn (Goal $g) => ['id' => $g->id, 'title' => $g->title, 'color' => $g->color, 'progress' => round($g->progressPercent())]);
+
         // Totals
         $totalWorkLogs = $user->workLogs()->count();
         $totalWorkMins = $user->workLogs()->sum('actual_duration');
@@ -113,6 +134,8 @@ class AnalyticsController extends Controller
                 'completion_rate' => $totalTasks > 0 ? round($totalTasksDone / $totalTasks * 100) : 0,
             ],
             'productivity_score' => $score,
+            'habit_weeks' => $habitWeeks,
+            'active_goals' => $activeGoals,
         ]);
     }
 }

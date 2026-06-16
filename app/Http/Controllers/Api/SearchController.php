@@ -15,15 +15,21 @@ class SearchController extends Controller
             return ApiResponse::ok(['query' => '', 'results' => []]);
         }
 
+        $user = $request->user();
+        $like = "%{$q}%";
+
         return ApiResponse::ok([
             'query' => $q,
             'results' => [
-                'daily_progress' => $request->user()->dailyProgressEntries()->where('title', 'like', "%{$q}%")->take(8)->get(),
-                'work_logs' => $request->user()->workLogs()->where('title', 'like', "%{$q}%")->take(8)->get(),
-                'tasks' => $request->user()->tasks()->where('title', 'like', "%{$q}%")->take(8)->get(),
-                'learning' => $request->user()->learningEntries()->where('topic', 'like', "%{$q}%")->take(8)->get(),
-                'milestones' => $request->user()->milestones()->where('title', 'like', "%{$q}%")->take(8)->get(),
-                'projects' => $request->user()->projects()->where('name', 'like', "%{$q}%")->take(8)->get(),
+                'daily_progress' => $user->dailyProgressEntries()->where('title', 'like', $like)->take(8)->get(),
+                'work_logs' => $user->workLogs()->where('title', 'like', $like)->take(8)->get(),
+                'tasks' => $user->tasks()->where('title', 'like', $like)->take(8)->get(),
+                'learning' => $user->learningEntries()->where('topic', 'like', $like)->take(8)->get(),
+                'milestones' => $user->milestones()->where('title', 'like', $like)->take(8)->get(),
+                'projects' => $user->projects()->where('name', 'like', $like)->take(8)->get(),
+                'goals' => $user->goals()->where('title', 'like', $like)->take(8)->get(),
+                'habits' => $user->habits()->where('name', 'like', $like)->take(8)->get(['id', 'name', 'icon', 'color', 'frequency']),
+                'docs' => $user->docs()->where('title', 'like', $like)->take(8)->get(['id', 'title', 'category', 'updated_at']),
             ],
         ]);
     }

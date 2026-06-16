@@ -11,11 +11,11 @@ class SavedView extends Model
 {
     use Auditable, SoftDeletes;
 
-    protected $fillable = ['user_id', 'module', 'name', 'filters', 'pinned'];
+    protected $fillable = ['user_id', 'module', 'name', 'filters', 'pinned', 'is_default'];
 
     protected function casts(): array
     {
-        return ['filters' => 'array', 'pinned' => 'boolean'];
+        return ['filters' => 'array', 'pinned' => 'boolean', 'is_default' => 'boolean'];
     }
 
     public function user(): BelongsTo

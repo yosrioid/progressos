@@ -27,7 +27,7 @@ const typeLabels: Record<string, string> = {
   LearningEntry: 'Learning',
   DailyProgress: 'Daily Progress',
   Milestone: 'Milestone',
-  Doc: 'Dokumen',
+  Doc: 'Doc',
 };
 
 const typeBadgeColors: Record<string, string> = {

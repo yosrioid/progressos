@@ -51,6 +51,12 @@ class DashboardData
                 'record_id' => $log->auditable_id,
                 'created_at' => $log->created_at,
             ]),
+            'habits_today' => [
+                'done' => $user->habits()->where('active', true)->whereHas('logs', fn ($q) => $q->whereDate('date', $today))->count(),
+                'total' => $user->habits()->where('active', true)->count(),
+            ],
+            'active_goals' => $user->goals()->where('status', 'active')->with('keyResults')->orderByDesc('created_at')->take(4)->get()
+                ->map(fn ($g) => ['id' => $g->id, 'title' => $g->title, 'color' => $g->color, 'progress' => round($g->progressPercent())]),
             'streaks' => [
                 'daily_progress' => $this->streak(
                     $user->dailyProgressEntries()->whereDate('date', '>=', now()->subDays(400))->pluck('date')->map->toDateString()->all()

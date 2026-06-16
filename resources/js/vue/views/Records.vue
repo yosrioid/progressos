@@ -71,6 +71,11 @@ async function loadSavedViews() {
   savedViews.value = data.saved_views || [];
 }
 
+async function toggleDefaultView(view: any) {
+  const res = await api.post(`/api/v1/saved-views/${view.id}/set-default`).then(unwrap);
+  savedViews.value = savedViews.value.map((v) => ({ ...v, is_default: v.id === view.id ? res.saved_view.is_default : false }));
+}
+
 function syncFromRoute() {
   filters.value = {
     search: String(route.query.search || ''),
@@ -180,8 +185,22 @@ async function cycleTaskStatus(e: Event, row: any) {
   }
 }
 
+function hasActiveUrlFilters() {
+  const filterKeys = ['search', 'status', 'category', 'priority', 'project_name', 'project_id', 'from', 'to'];
+  return filterKeys.some((k) => route.query[k]);
+}
+
 watch(() => [props.type, route.fullPath], () => { syncFromRoute(); load(); loadSavedViews(); });
-onMounted(() => { syncFromRoute(); load(); loadSavedViews(); });
+onMounted(async () => {
+  syncFromRoute();
+  await loadSavedViews();
+  const defaultView = savedViews.value.find((v) => v.is_default);
+  if (defaultView && !hasActiveUrlFilters()) {
+    await applySavedView(defaultView);
+    return;
+  }
+  await load();
+});
 </script>
 
 <template>
@@ -190,15 +209,20 @@ onMounted(() => { syncFromRoute(); load(); loadSavedViews(); });
     <div class="flex flex-wrap items-center gap-2">
       <!-- Saved view quick-access chips -->
       <template v-if="savedViews.length">
-        <button
-          v-for="view in savedViews"
-          :key="view.id"
-          class="inline-flex items-center gap-1 rounded-full border border-teal-200 bg-teal-50 px-3 py-1 text-xs font-extrabold text-teal-700 hover:bg-teal-100 dark:border-teal-800 dark:bg-teal-900/20 dark:text-teal-400 dark:hover:bg-teal-900/40"
-          @click="applySavedView(view)"
-        >
-          <svg class="h-3 w-3" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
-          {{ view.name }}
-        </button>
+        <div v-for="view in savedViews" :key="view.id" class="group inline-flex items-center gap-0.5">
+          <button
+            class="inline-flex items-center gap-1 rounded-l-full border border-teal-200 bg-teal-50 py-1 pl-3 pr-2 text-xs font-extrabold text-teal-700 hover:bg-teal-100 dark:border-teal-800 dark:bg-teal-900/20 dark:text-teal-400 dark:hover:bg-teal-900/40"
+            @click="applySavedView(view)"
+          >
+            <svg class="h-3 w-3" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+            {{ view.name }}
+          </button>
+          <button
+            :title="view.is_default ? 'Remove as default' : 'Set as default'"
+            :class="['inline-flex items-center justify-center rounded-r-full border border-l-0 border-teal-200 bg-teal-50 px-1.5 py-1 text-xs transition hover:bg-teal-100 dark:border-teal-800 dark:bg-teal-900/20 dark:hover:bg-teal-900/40', view.is_default ? 'text-amber-500' : 'text-slate-300 hover:text-amber-400 dark:text-zinc-600']"
+            @click="toggleDefaultView(view)"
+          >★</button>
+        </div>
       </template>
       <button v-if="type === 'learning'" type="button" class="btn btn-muted" @click="showStats ? showStats = false : loadLearningStats()">
         {{ showStats ? 'Hide Stats' : 'Show Stats' }}
