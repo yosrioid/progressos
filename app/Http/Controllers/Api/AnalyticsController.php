@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Goal;
 use App\Models\Task;
 use App\Support\ApiResponse;
 use Carbon\CarbonImmutable;
@@ -97,7 +98,7 @@ class AnalyticsController extends Controller
 
         // Active goals summary
         $activeGoals = $user->goals()->where('status', 'active')->with('keyResults')->orderByDesc('created_at')->get()
-            ->map(fn ($g) => ['id' => $g->id, 'title' => $g->title, 'color' => $g->color, 'progress' => round($g->progressPercent())]);
+            ->map(fn (Goal $g) => ['id' => $g->id, 'title' => $g->title, 'color' => $g->color, 'progress' => round($g->progressPercent())]);
 
         // Totals
         $totalWorkLogs = $user->workLogs()->count();
