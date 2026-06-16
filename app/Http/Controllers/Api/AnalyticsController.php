@@ -82,17 +82,18 @@ class AnalyticsController extends Controller
         });
 
         // Habit completion rates — last 4 weeks
-        $habitWeeks = collect(range(3, 0))->map(function (int $w) use ($user, $now) {
-            $start = $now->subWeeks($w)->startOfWeek()->toDateString();
-            $end = $now->subWeeks($w)->endOfWeek()->toDateString();
-            $active = $user->habits()->where('active', true)->count();
+        $activeHabitCount = $user->habits()->where('active', true)->count();
+        $habitWeeks = collect(range(3, 0))->map(function (int $w) use ($user, $now, $activeHabitCount) {
+            $week = $now->subWeeks($w)->startOfWeek();
+            $start = $week->toDateString();
+            $end = $week->endOfWeek()->toDateString();
             $logged = $user->habitLogs()->whereBetween('date', [$start, $end])->distinct('habit_id')->count('habit_id');
 
             return [
-                'week' => $now->subWeeks($w)->startOfWeek()->format('M d'),
-                'rate' => $active > 0 ? round(($logged / ($active * 7)) * 100) : 0,
+                'week' => $week->format('M d'),
+                'rate' => $activeHabitCount > 0 ? round(($logged / $activeHabitCount) * 100) : 0,
                 'logged' => $logged,
-                'active' => $active,
+                'active' => $activeHabitCount,
             ];
         });
 

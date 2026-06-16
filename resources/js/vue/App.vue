@@ -137,11 +137,16 @@ const filteredCommands = computed(() => {
 async function submitQuick() {
   if (quickForm.value.type === 'habit_log') {
     if (!selectedHabitId.value) return;
-    await api.post(`/api/v1/habits/${selectedHabitId.value}/log`, { date: quickForm.value.date });
-    quick.value = false;
-    toast({ tone: 'success', title: 'Habit logged', message: habitList.value.find((h) => h.id === selectedHabitId.value)?.name ?? '' });
-    selectedHabitId.value = null;
-    quickForm.value = { type: 'work_log', title: '', project_name: '', duration_minutes: 30, notes: '', date: new Date().toISOString().slice(0, 10) };
+    try {
+      await api.post(`/api/v1/habits/${selectedHabitId.value}/log`, { date: quickForm.value.date });
+      const name = habitList.value.find((h) => h.id === selectedHabitId.value)?.name ?? '';
+      quick.value = false;
+      selectedHabitId.value = null;
+      quickForm.value = { type: 'work_log', title: '', project_name: '', duration_minutes: 30, notes: '', date: new Date().toISOString().slice(0, 10) };
+      toast({ tone: 'success', title: 'Habit logged', message: name });
+    } catch {
+      toast({ tone: 'error', title: 'Error', message: 'Could not log habit. Please try again.' });
+    }
     return;
   }
   const res = await api.post('/api/v1/quick-capture', quickForm.value).then(unwrap);
@@ -158,7 +163,6 @@ async function submitQuick() {
 }
 
 async function loadHabits() {
-  if (habitList.value.length) return;
   try {
     const res = await api.get('/api/v1/habits').then(unwrap);
     habitList.value = (res.habits || []).filter((h: any) => h.active).map((h: any) => ({ id: h.id, name: h.name, icon: h.icon }));

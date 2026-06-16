@@ -92,9 +92,18 @@ class NotificationService
         /** @var Collection<int, Habit> $unlogged */
         $unlogged = $user->habits()
             ->where('active', true)
-            ->where('frequency', 'daily')
             ->whereDoesntHave('logs', fn ($q) => $q->whereDate('date', $today))
-            ->get(['id', 'name', 'icon']);
+            ->get(['id', 'name', 'icon', 'frequency', 'target_days'])
+            ->filter(function (Habit $habit) {
+                if ($habit->frequency === 'daily') {
+                    return true;
+                }
+                if ($habit->frequency === 'weekly' && is_array($habit->target_days)) {
+                    return in_array((int) now()->dayOfWeek, $habit->target_days, true);
+                }
+
+                return false;
+            });
 
         $created = 0;
         foreach ($unlogged as $habit) {

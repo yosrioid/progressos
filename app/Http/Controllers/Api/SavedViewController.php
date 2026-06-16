@@ -7,6 +7,7 @@ use App\Http\Requests\SavedViewRequest;
 use App\Models\SavedView;
 use App\Support\ApiResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class SavedViewController extends Controller
 {
@@ -36,17 +37,21 @@ class SavedViewController extends Controller
     {
         $this->authorize('update', $savedView);
 
-        $isDefault = ! $savedView->is_default;
+        $result = DB::transaction(function () use ($request, $savedView) {
+            $fresh = SavedView::where('id', $savedView->id)->lockForUpdate()->firstOrFail();
+            $isDefault = ! $fresh->is_default;
 
-        // Unset all other defaults in the same module first
-        $request->user()->savedViews()
-            ->where('module', $savedView->module)
-            ->where('id', '!=', $savedView->id)
-            ->update(['is_default' => false]);
+            $request->user()->savedViews()
+                ->where('module', $fresh->module)
+                ->where('id', '!=', $fresh->id)
+                ->update(['is_default' => false]);
 
-        $savedView->update(['is_default' => $isDefault]);
+            $fresh->update(['is_default' => $isDefault]);
 
-        return ApiResponse::item('saved_view', $savedView->fresh());
+            return $fresh->fresh();
+        });
+
+        return ApiResponse::item('saved_view', $result);
     }
 
     public function destroy(Request $request, SavedView $savedView)
