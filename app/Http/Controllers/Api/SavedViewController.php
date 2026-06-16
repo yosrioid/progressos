@@ -32,6 +32,23 @@ class SavedViewController extends Controller
         return ApiResponse::item('saved_view', $view, 201, 'Saved view stored.');
     }
 
+    public function setDefault(Request $request, SavedView $savedView)
+    {
+        $this->authorize('update', $savedView);
+
+        $isDefault = ! $savedView->is_default;
+
+        // Unset all other defaults in the same module first
+        $request->user()->savedViews()
+            ->where('module', $savedView->module)
+            ->where('id', '!=', $savedView->id)
+            ->update(['is_default' => false]);
+
+        $savedView->update(['is_default' => $isDefault]);
+
+        return ApiResponse::item('saved_view', $savedView->fresh());
+    }
+
     public function destroy(Request $request, SavedView $savedView)
     {
         $this->authorize('delete', $savedView);

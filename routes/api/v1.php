@@ -81,6 +81,7 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
         Route::apiResource('learning', LearningController::class)->only(['store', 'update', 'destroy']);
         Route::apiResource('milestones', MilestoneController::class)->only(['store', 'update', 'destroy']);
         Route::apiResource('saved-views', SavedViewController::class)->only(['store', 'destroy'])->parameters(['saved-views' => 'savedView']);
+        Route::post('saved-views/{savedView}/set-default', [SavedViewController::class, 'setDefault']);
         Route::apiResource('references', ReferenceController::class)->only(['store', 'destroy']);
         Route::apiResource('docs', DocController::class)->only(['store', 'update', 'destroy']);
         Route::post('docs/{doc}/files', [DocFileController::class, 'store']);

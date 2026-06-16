@@ -21,6 +21,9 @@ const groups = [
   { key: 'learning', label: 'Learning', path: '/learning' },
   { key: 'milestones', label: 'Milestones', path: '/milestones' },
   { key: 'daily_progress', label: 'Daily Progress', path: '/daily-progress' },
+  { key: 'goals', label: 'Goals', path: '/goals' },
+  { key: 'habits', label: 'Habits', path: '/habits' },
+  { key: 'docs', label: 'Docs', path: '/docs' },
 ] as const;
 
 const total = computed(() => Object.values(results.value).reduce((sum, rows) => sum + rows.length, 0));
@@ -41,9 +44,11 @@ function itemTitle(item: any) {
 
 function itemMeta(item: any) {
   return [
-    item.date || item.due_date || item.end_date ? formatDate(item.date || item.due_date || item.end_date) : null,
+    item.date || item.due_date || item.end_date || item.updated_at ? formatDate(item.date || item.due_date || item.end_date || item.updated_at) : null,
     item.status,
     item.category,
+    item.frequency,
+    item.period_label ?? null,
     item.actual_duration ? minutes(item.actual_duration) : null,
     item.project_name ?? null,
   ].filter(Boolean).join(' · ');
@@ -53,6 +58,9 @@ function href(key: string, item: any) {
   if (key === 'projects') return `/projects/${item.id}`;
   if (key === 'daily_progress') return `/daily-progress/${item.id}`;
   if (key === 'work_logs') return `/work-logs/${item.id}`;
+  if (key === 'goals') return '/goals';
+  if (key === 'habits') return '/habits';
+  if (key === 'docs') return `/docs/${item.id}`;
   return `/${key}/${item.id}`;
 }
 
