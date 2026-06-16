@@ -98,7 +98,7 @@ class MilestoneController extends Controller
                 return ApiResponse::paginated('items', ApiQuery::paginateSorted($query, $request, 'date', 20, ['date', 'title', 'created_at']), resourceClass: DailyProgressResource::class);
 
             default:
-                return response()->json(['items' => null, 'meta' => null]);
+                return ApiResponse::ok(['items' => null, 'meta' => null]);
         }
     }
 }

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { api } from '../api';
+import { api, unwrap } from '../api';
 import { formatDate } from '../format';
 import { toast } from '../feedback';
 
@@ -40,7 +40,7 @@ const total = computed(() => Object.values(board.value).reduce((s, col) => s + c
 
 async function load() {
   loading.value = true;
-  const res = await api.get('/api/v1/tasks/kanban').then(r => r.data);
+  const res = await api.get('/api/v1/tasks/kanban').then(unwrap);
   board.value = res.board || { todo: [], in_progress: [], blocked: [], done: [] };
   loading.value = false;
 }
@@ -54,12 +54,12 @@ async function moveTask(task: any, fromCol: string, toStatus: string) {
   board.value[toStatus] = [{ ...task, status: toStatus }, ...board.value[toStatus]];
   try {
     await api.patch(`/api/v1/tasks/${task.id}/status`, { status: toStatus });
-    toast({ tone: 'success', title: 'Status diupdate', message: `${task.title} → ${toStatus.replaceAll('_', ' ')}` });
+    toast({ tone: 'success', title: 'Status updated', message: `${task.title} → ${toStatus.replaceAll('_', ' ')}` });
   } catch (e: any) {
     // Revert on failure
     board.value[toStatus] = board.value[toStatus].filter((t: any) => t.id !== task.id);
     board.value[fromCol] = [{ ...task, status: fromCol }, ...board.value[fromCol]];
-    const msg = e?.response?.data?.message ?? 'Gagal memindahkan task';
+    const msg = e?.response?.data?.message ?? 'Failed to move task';
     toast({ tone: 'error', title: 'Error', message: msg });
   } finally {
     updatingId.value = null;
@@ -231,7 +231,7 @@ onMounted(load);
             Drop di sini
           </div>
 
-          <p v-else-if="!board[col.key]?.length && !dragging" class="py-8 text-center text-xs font-semibold text-slate-300 dark:text-zinc-600">Kosong</p>
+          <p v-else-if="!board[col.key]?.length && !dragging" class="py-8 text-center text-xs font-semibold text-slate-300 dark:text-zinc-600">Empty</p>
         </div>
       </div>
     </div>

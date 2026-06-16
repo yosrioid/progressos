@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Task;
+use App\Support\ApiResponse;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -95,7 +96,7 @@ class AnalyticsController extends Controller
             + min(20, $totalWorkMins / 3000)
         ));
 
-        return response()->json([
+        return ApiResponse::ok([
             'work_heatmap' => $workHeatmap,
             'task_velocity' => $velocity,
             'monthly_work' => $monthly,

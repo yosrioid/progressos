@@ -287,7 +287,7 @@ onMounted(load);
             <span class="font-extrabold text-slate-800">Enable Google SSO</span>
             <label class="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm font-bold text-slate-700">
               <input v-model="authForm.google_sso_enabled" type="checkbox" class="accent-teal-700" />
-              Tampilkan tombol "Masuk dengan Google" di halaman login
+              Show "Sign in with Google" button on the login page
             </label>
           </div>
           <div class="grid gap-3 px-5 py-4 md:grid-cols-[16rem_1fr] md:items-start">
@@ -297,14 +297,14 @@ onMounted(load);
                 <div class="relative">
                   <button type="button" class="grid h-7 w-7 place-items-center rounded-full border border-slate-200 bg-white text-xs font-black text-slate-500 hover:border-teal-200 hover:text-teal-700" aria-label="Cara mendapat Client ID" @click="googleSsoHelpOpen = !googleSsoHelpOpen">?</button>
                   <div v-if="googleSsoHelpOpen" class="absolute left-0 z-20 mt-2 w-[min(22rem,calc(100vw-2rem))] rounded-2xl border border-slate-200 bg-white p-4 text-sm font-medium leading-6 text-slate-600 shadow-2xl shadow-slate-950/10">
-                    <p class="font-extrabold text-slate-900">Cara mendapat Client ID & Secret</p>
+                    <p class="font-extrabold text-slate-900">How to get Client ID & Secret</p>
                     <ol class="mt-2 list-decimal space-y-1.5 pl-5">
-                      <li>Buka <span class="font-bold">console.cloud.google.com</span>, buat atau pilih project.</li>
-                      <li>Masuk ke <span class="font-bold">APIs & Services → OAuth consent screen</span>, pilih External, isi nama app.</li>
-                      <li>Buka <span class="font-bold">APIs & Services → Credentials → Create Credentials → OAuth 2.0 Client IDs</span>.</li>
-                      <li>Pilih tipe <span class="font-bold">Web application</span>.</li>
-                      <li>Di "Authorized redirect URIs" tambahkan: <span class="break-all font-mono font-bold">https://yourdomain.com/auth/google/callback</span></li>
-                      <li>Copy <span class="font-bold">Client ID</span> dan <span class="font-bold">Client Secret</span> ke sini.</li>
+                      <li>Open <span class="font-bold">console.cloud.google.com</span>, create or select a project.</li>
+                      <li>Go to <span class="font-bold">APIs & Services → OAuth consent screen</span>, select External, fill in app name.</li>
+                      <li>Go to <span class="font-bold">APIs & Services → Credentials → Create Credentials → OAuth 2.0 Client IDs</span>.</li>
+                      <li>Select type <span class="font-bold">Web application</span>.</li>
+                      <li>Under "Authorized redirect URIs" add: <span class="break-all font-mono font-bold">https://yourdomain.com/auth/google/callback</span></li>
+                      <li>Copy <span class="font-bold">Client ID</span> and <span class="font-bold">Client Secret</span> here.</li>
                     </ol>
                   </div>
                 </div>
@@ -316,13 +316,13 @@ onMounted(load);
           <div class="grid gap-3 px-5 py-4 md:grid-cols-[16rem_1fr] md:items-center">
             <div>
               <span class="font-extrabold text-slate-800">Google Client Secret</span>
-              <p class="text-xs font-semibold text-slate-500">{{ authConfig.has_client_secret ? 'Sudah tersimpan. Isi untuk mengganti.' : 'Belum diisi.' }}</p>
+              <p class="text-xs font-semibold text-slate-500">{{ authConfig.has_client_secret ? 'Already saved. Fill in to replace.' : 'Not set.' }}</p>
             </div>
             <input v-model="authForm.client_secret" class="field" type="password" placeholder="GOCSPX-..." autocomplete="new-password" />
           </div>
         </div>
         <div class="flex justify-end border-t border-slate-100 bg-slate-50/70 px-5 py-4">
-          <button class="btn btn-muted" type="button" @click="saveAuthConfig()">Simpan pengaturan SSO</button>
+          <button class="btn btn-muted" type="button" @click="saveAuthConfig()">Save SSO settings</button>
         </div>
       </div>
     </section>
@@ -332,8 +332,8 @@ onMounted(load);
       <button type="button" class="flex w-full items-center justify-between gap-4 border-b border-slate-100 bg-slate-50/70 px-5 py-4 text-left" :aria-expanded="openGroups.mail" @click="toggleGroup('mail')">
         <span>
           <span class="block text-xs font-extrabold uppercase text-teal-700">Email</span>
-          <span class="mt-1 block text-lg font-extrabold text-slate-950">Pengiriman Email</span>
-          <span class="mt-1 block text-sm font-medium text-slate-500">Konfigurasi untuk forgot password dan notifikasi.</span>
+          <span class="mt-1 block text-lg font-extrabold text-slate-950">Email Delivery</span>
+          <span class="mt-1 block text-sm font-medium text-slate-500">Configuration for password reset and notifications.</span>
         </span>
         <span class="flex shrink-0 items-center gap-3">
           <span class="pill" :class="mailConfig.mailer !== 'log' && (mailConfig.has_api_key || mailConfig.host) ? 'pill-green' : 'pill-slate'">{{ mailConfig.mailer !== 'log' && (mailConfig.has_api_key || mailConfig.host) ? mailConfig.mailer : 'log only' }}</span>
@@ -348,7 +348,7 @@ onMounted(load);
             <span class="font-extrabold text-slate-800">Mailer</span>
             <select v-model="mailForm.mailer" class="field">
               <option value="log">log (development only)</option>
-              <option value="resend">Resend (gratis 3.000/bulan)</option>
+              <option value="resend">Resend (free 3,000/month)</option>
               <option value="smtp">SMTP</option>
             </select>
           </div>
@@ -370,18 +370,18 @@ onMounted(load);
                   <div class="relative">
                     <button type="button" class="grid h-7 w-7 place-items-center rounded-full border border-slate-200 bg-white text-xs font-black text-slate-500 hover:border-teal-200 hover:text-teal-700" aria-label="Cara mendapat Resend API key" @click="resendHelpOpen = !resendHelpOpen">?</button>
                     <div v-if="resendHelpOpen" class="absolute left-0 z-20 mt-2 w-[min(22rem,calc(100vw-2rem))] rounded-2xl border border-slate-200 bg-white p-4 text-sm font-medium leading-6 text-slate-600 shadow-2xl shadow-slate-950/10">
-                      <p class="font-extrabold text-slate-900">Setup Resend (gratis, 3.000 email/bulan)</p>
+                      <p class="font-extrabold text-slate-900">Setup Resend (free, 3,000 emails/month)</p>
                       <ol class="mt-2 list-decimal space-y-1.5 pl-5">
-                        <li>Daftar di <span class="font-bold">resend.com</span>.</li>
-                        <li>Buka <span class="font-bold">Domains</span> → tambahkan domain kamu → verifikasi DNS.</li>
-                        <li>Buka <span class="font-bold">API Keys</span> → Create API Key.</li>
-                        <li>Paste API key di sini. Format: <span class="font-mono font-bold">re_xxxxxxxx</span></li>
-                        <li>Isi From address dengan email dari domain yang sudah diverifikasi.</li>
+                        <li>Sign up at <span class="font-bold">resend.com</span>.</li>
+                        <li>Go to <span class="font-bold">Domains</span> → add your domain → verify DNS.</li>
+                        <li>Go to <span class="font-bold">API Keys</span> → Create API Key.</li>
+                        <li>Paste the API key here. Format: <span class="font-mono font-bold">re_xxxxxxxx</span></li>
+                        <li>Set From address to an email from your verified domain.</li>
                       </ol>
                     </div>
                   </div>
                 </div>
-                <p class="text-xs font-semibold text-slate-500">{{ mailConfig.has_api_key ? 'Sudah tersimpan. Isi untuk mengganti.' : 'Belum diisi.' }}</p>
+                <p class="text-xs font-semibold text-slate-500">{{ mailConfig.has_api_key ? 'Already saved. Fill in to replace.' : 'Not set.' }}</p>
               </div>
               <input v-model="mailForm.api_key" class="field" type="password" placeholder="re_xxxxxxxxxxxx" autocomplete="new-password" />
             </div>
@@ -404,14 +404,14 @@ onMounted(load);
             <div class="grid gap-3 px-5 py-4 md:grid-cols-[16rem_1fr] md:items-center">
               <div>
                 <span class="font-extrabold text-slate-800">Password</span>
-                <p class="text-xs font-semibold text-slate-500">{{ mailConfig.has_password ? 'Sudah tersimpan. Isi untuk mengganti.' : 'Belum diisi.' }}</p>
+                <p class="text-xs font-semibold text-slate-500">{{ mailConfig.has_password ? 'Already saved. Fill in to replace.' : 'Not set.' }}</p>
               </div>
               <input v-model="mailForm.password" class="field" type="password" autocomplete="new-password" />
             </div>
           </template>
         </div>
         <div class="flex justify-end border-t border-slate-100 bg-slate-50/70 px-5 py-4">
-          <button class="btn btn-muted" type="button" @click="saveMailConfig()">Simpan pengaturan email</button>
+          <button class="btn btn-muted" type="button" @click="saveMailConfig()">Save email settings</button>
         </div>
       </div>
     </section>

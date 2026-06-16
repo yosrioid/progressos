@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\GoalRequest;
+use App\Http\Requests\KeyResultRequest;
 use App\Models\Goal;
 use App\Models\KeyResult;
 use App\Support\ApiResponse;
@@ -20,7 +22,7 @@ class GoalController extends Controller
             ->get()
             ->map(fn ($g) => $this->formatGoal($g));
 
-        return response()->json(['goals' => $goals]);
+        return ApiResponse::ok(['goals' => $goals]);
     }
 
     public function show(Request $request, Goal $goal)
@@ -28,25 +30,12 @@ class GoalController extends Controller
         $this->authorize('view', $goal);
         $goal->load('keyResults');
 
-        return response()->json(['goal' => $this->formatGoal($goal)]);
+        return ApiResponse::ok(['goal' => $this->formatGoal($goal)]);
     }
 
-    public function store(Request $request)
+    public function store(GoalRequest $request)
     {
-        $data = $request->validate([
-            'title' => ['required', 'string', 'max:255'],
-            'description' => ['nullable', 'string'],
-            'period_label' => ['nullable', 'string', 'max:50'],
-            'start_date' => ['nullable', 'date'],
-            'end_date' => ['nullable', 'date'],
-            'status' => ['nullable', 'in:draft,active,completed,abandoned'],
-            'color' => ['nullable', 'string', 'max:20'],
-            'key_results' => ['nullable', 'array'],
-            'key_results.*.title' => ['required', 'string', 'max:255'],
-            'key_results.*.metric_type' => ['nullable', 'in:percentage,number,boolean'],
-            'key_results.*.target_value' => ['nullable', 'numeric'],
-            'key_results.*.unit' => ['nullable', 'string', 'max:30'],
-        ]);
+        $data = $request->validated();
         $data['user_id'] = $request->user()->id;
         $krs = $data['key_results'] ?? [];
         unset($data['key_results']);
@@ -60,21 +49,12 @@ class GoalController extends Controller
         return ApiResponse::item('goal', $this->formatGoal($goal), 201, 'Goal created.');
     }
 
-    public function update(Request $request, Goal $goal)
+    public function update(GoalRequest $request, Goal $goal)
     {
         $this->authorize('update', $goal);
-        $data = $request->validate([
-            'title' => ['sometimes', 'required', 'string', 'max:255'],
-            'description' => ['nullable', 'string'],
-            'period_label' => ['nullable', 'string', 'max:50'],
-            'start_date' => ['nullable', 'date'],
-            'end_date' => ['nullable', 'date'],
-            'status' => ['nullable', 'in:draft,active,completed,abandoned'],
-            'color' => ['nullable', 'string', 'max:20'],
-        ]);
-        $goal->update($data);
+        $goal->update($request->validated());
 
-        return ApiResponse::item('goal', $this->formatGoal($goal->fresh()->load('keyResults')), 200, 'Goal updated.');
+        return ApiResponse::item('goal', $this->formatGoal($goal->load('keyResults')), 200, 'Goal updated.');
     }
 
     public function destroy(Goal $goal)
@@ -85,38 +65,22 @@ class GoalController extends Controller
         return response()->noContent();
     }
 
-    public function storeKeyResult(Request $request, Goal $goal)
+    public function storeKeyResult(KeyResultRequest $request, Goal $goal)
     {
         $this->authorize('update', $goal);
-        $data = $request->validate([
-            'title' => ['required', 'string', 'max:255'],
-            'metric_type' => ['nullable', 'in:percentage,number,boolean'],
-            'current_value' => ['nullable', 'numeric'],
-            'target_value' => ['nullable', 'numeric'],
-            'unit' => ['nullable', 'string', 'max:30'],
-            'notes' => ['nullable', 'string'],
-        ]);
+        $data = $request->validated();
         $data['user_id'] = $request->user()->id;
         $data['order'] = $goal->keyResults()->count();
         $kr = $goal->keyResults()->create($data);
 
-        return response()->json(['key_result' => $this->formatKr($kr)], 201);
+        return ApiResponse::item('key_result', $this->formatKr($kr), 201);
     }
 
-    public function updateKeyResult(Request $request, Goal $goal, KeyResult $keyResult)
+    public function updateKeyResult(KeyResultRequest $request, Goal $goal, KeyResult $keyResult)
     {
         $this->authorize('update', $goal);
         abort_if($keyResult->goal_id !== $goal->id, 403);
-        $data = $request->validate([
-            'title' => ['sometimes', 'required', 'string', 'max:255'],
-            'metric_type' => ['nullable', 'in:percentage,number,boolean'],
-            'current_value' => ['nullable', 'numeric'],
-            'target_value' => ['nullable', 'numeric'],
-            'unit' => ['nullable', 'string', 'max:30'],
-            'notes' => ['nullable', 'string'],
-            'status' => ['nullable', 'in:active,done,abandoned'],
-        ]);
-        $keyResult->update($data);
+        $keyResult->update($request->validated());
 
         // Auto-complete goal when all KRs done
         $goal->load('keyResults');
@@ -124,7 +88,7 @@ class GoalController extends Controller
             $goal->update(['status' => 'completed']);
         }
 
-        return response()->json(['key_result' => $this->formatKr($keyResult->fresh())]);
+        return ApiResponse::ok(['key_result' => $this->formatKr($keyResult->fresh())]);
     }
 
     public function destroyKeyResult(Goal $goal, KeyResult $keyResult)

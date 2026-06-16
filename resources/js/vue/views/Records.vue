@@ -201,7 +201,7 @@ onMounted(() => { syncFromRoute(); load(); loadSavedViews(); });
         </button>
       </template>
       <button v-if="type === 'learning'" type="button" class="btn btn-muted" @click="showStats ? showStats = false : loadLearningStats()">
-        {{ showStats ? 'Sembunyikan Stats' : 'Lihat Stats' }}
+        {{ showStats ? 'Hide Stats' : 'Show Stats' }}
       </button>
       <RouterLink class="btn btn-primary" :to="`/${type}/create`">New {{ config.singular }}</RouterLink>
     </div>
@@ -212,27 +212,27 @@ onMounted(() => { syncFromRoute(); load(); loadSavedViews(); });
     <div class="card p-5">
       <div class="mb-4 flex items-center justify-between">
         <h2 class="font-extrabold">Learning Stats</h2>
-        <span class="text-sm font-semibold text-slate-500">{{ learningStats.totals.entries }} sesi · {{ minutes(learningStats.totals.minutes) }} total</span>
+        <span class="text-sm font-semibold text-slate-500">{{ learningStats.totals.entries }} sessions · {{ minutes(learningStats.totals.minutes) }} total</span>
       </div>
-      <!-- Heatmap 90 hari -->
+      <!-- Heatmap 90 days -->
       <div class="mb-5">
-        <p class="label mb-2">90 Hari Terakhir</p>
+        <p class="label mb-2">Last 90 Days</p>
         <div class="flex flex-wrap gap-1">
           <div v-for="day in learningHeatmap" :key="day.date"
             class="h-4 w-4 rounded-sm transition"
             :class="heatmapColor(day.minutes)"
-            :title="`${day.date}: ${day.minutes} menit`" />
+            :title="`${day.date}: ${day.minutes} min`" />
         </div>
         <div class="mt-1 flex items-center gap-2 text-xs text-slate-400">
-          <span>Sedikit</span>
+          <span>Less</span>
           <div class="h-3 w-3 rounded-sm bg-teal-200" />
           <div class="h-3 w-3 rounded-sm bg-teal-400" />
           <div class="h-3 w-3 rounded-sm bg-teal-700" />
-          <span>Banyak</span>
+          <span>More</span>
         </div>
       </div>
-      <!-- Per kategori -->
-      <p class="label mb-3">Per Kategori</p>
+      <!-- By category -->
+      <p class="label mb-3">By Category</p>
       <div class="space-y-2">
         <div v-for="cat in learningStats.categories" :key="cat.category" class="flex items-center gap-3">
           <span class="w-24 shrink-0 text-xs font-extrabold capitalize text-slate-600 dark:text-zinc-400">{{ cat.category }}</span>
@@ -241,7 +241,7 @@ onMounted(() => { syncFromRoute(); load(); loadSavedViews(); });
               :style="{ width: `${Math.round((cat.total_minutes / learningStats.totals.minutes) * 100)}%` }" />
           </div>
           <span class="w-16 shrink-0 text-right text-xs font-bold text-slate-600 dark:text-zinc-400">{{ minutes(cat.total_minutes) }}</span>
-          <span class="w-16 shrink-0 text-right text-xs text-slate-400 dark:text-zinc-600">{{ cat.entries }} sesi</span>
+          <span class="w-16 shrink-0 text-right text-xs text-slate-400 dark:text-zinc-600">{{ cat.entries }} sessions</span>
         </div>
       </div>
       <!-- Trend bulanan -->
@@ -312,9 +312,9 @@ onMounted(() => { syncFromRoute(); load(); loadSavedViews(); });
       <div class="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-2xl bg-slate-100 dark:bg-zinc-800">
         <svg class="h-6 w-6 text-slate-400" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewBox="0 0 24 24"><path d="m21 21-4.35-4.35M10.8 18a7.2 7.2 0 1 1 0-14.4 7.2 7.2 0 0 1 0 14.4Z"/></svg>
       </div>
-      <h2 class="text-xl font-extrabold text-slate-900 dark:text-zinc-100">Tidak ada hasil</h2>
-      <p class="mx-auto mt-2 max-w-md text-sm font-medium text-slate-500 dark:text-zinc-500">Filter aktif tidak menemukan record yang cocok. Coba ubah atau reset filter.</p>
-      <button class="btn btn-muted mt-4" @click="clearFilters">Reset semua filter</button>
+      <h2 class="text-xl font-extrabold text-slate-900 dark:text-zinc-100">No results</h2>
+      <p class="mx-auto mt-2 max-w-md text-sm font-medium text-slate-500 dark:text-zinc-500">No records match the active filters. Try changing or resetting them.</p>
+      <button class="btn btn-muted mt-4" @click="clearFilters">Reset all filters</button>
     </template>
     <template v-else>
       <div class="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-2xl bg-teal-50 dark:bg-teal-900/20">

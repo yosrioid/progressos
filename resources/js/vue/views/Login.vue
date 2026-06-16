@@ -8,8 +8,8 @@ const router = useRouter();
 const route = useRoute();
 
 const error = ref(
-  route.query.error === 'no_account' ? 'Akun tidak ditemukan. Hubungi admin untuk mendaftarkan email Google kamu.' :
-  route.query.error === 'google_failed' ? 'Login Google gagal. Coba lagi.' : ''
+  route.query.error === 'no_account' ? 'Account not found. Contact your admin to register your Google email.' :
+  route.query.error === 'google_failed' ? 'Google login failed. Try again.' : ''
 );
 const form = ref({ email: '', password: '', remember: true });
 
@@ -19,7 +19,7 @@ async function submit() {
     await auth.login(form.value);
     await router.push('/dashboard');
   } catch (e: any) {
-    error.value = e.response?.data?.message || 'Email atau password salah.';
+    error.value = e.response?.data?.message || 'Invalid email or password.';
   }
 }
 

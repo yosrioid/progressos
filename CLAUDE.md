@@ -18,6 +18,9 @@ Use this file as the first context source when continuing work in this repositor
 - Read `docs/PROJECT_CONTEXT.md` for the current branch state, implemented features, known gaps, and PR description template.
 - Read `README.md` for setup, architecture, feature checklist, production notes, and latest known verification.
 - API docs live in `docs/api.md` and `docs/openapi.yaml`.
+- **Code standards**: `docs/code-standards.md` — aturan ApiResponse, unwrap, toast, bahasa, TypeScript.
+- **Scaffold modul baru**: `docs/new-module.md` — checklist lengkap dari migration sampai nav sidebar.
+- **UI patterns**: `docs/ui-patterns.md` — class `.card`, `.btn`, `.pill`, `.field`, dark mode, empty state, modal.
 
 ## Stack Snapshot
 

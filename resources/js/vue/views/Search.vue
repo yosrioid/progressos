@@ -118,12 +118,12 @@ onMounted(() => { loadRecent(); load(); });
 
   <form class="card mb-4 p-4" @submit.prevent="submit">
     <div class="flex flex-col gap-3 sm:flex-row">
-      <input v-model="q" class="field text-base" placeholder="Cari project, work log, task, learning, milestone..." autofocus />
-      <button class="btn btn-primary px-6">Cari</button>
+      <input v-model="q" class="field text-base" placeholder="Search projects, work logs, tasks, learning, milestones..." autofocus />
+      <button class="btn btn-primary px-6">Search</button>
     </div>
     <!-- Recent searches -->
     <div v-if="!q && recentSearches.length" class="mt-3 flex flex-wrap items-center gap-2">
-      <span class="text-xs font-extrabold uppercase text-slate-400">Terbaru:</span>
+      <span class="text-xs font-extrabold uppercase text-slate-400">Recent:</span>
       <button
         v-for="term in recentSearches"
         :key="term"
@@ -137,7 +137,7 @@ onMounted(() => { loadRecent(); load(); });
     </div>
   </form>
 
-  <div v-if="loading" class="card p-10 text-center text-sm text-slate-400">Mencari...</div>
+  <div v-if="loading" class="card p-10 text-center text-sm text-slate-400">Searching...</div>
 
   <template v-else-if="q && total > 0">
     <!-- Type filter tabs -->
@@ -182,11 +182,11 @@ onMounted(() => { loadRecent(); load(); });
   </template>
 
   <div v-else-if="q && total === 0" class="card p-12 text-center">
-    <p class="text-lg font-extrabold text-slate-700 dark:text-zinc-300">Tidak ada hasil</p>
-    <p class="mt-2 text-sm text-slate-400">Tidak ada yang cocok untuk "{{ q }}".</p>
+    <p class="text-lg font-extrabold text-slate-700 dark:text-zinc-300">No results</p>
+    <p class="mt-2 text-sm text-slate-400">No matches for "{{ q }}".</p>
   </div>
 
   <div v-else-if="!q" class="card p-10 text-center text-sm text-slate-400 dark:text-zinc-600">
-    Ketik sesuatu untuk mulai mencari di seluruh ProgressOS.
+    Type something to search ProgressOS.
   </div>
 </template>

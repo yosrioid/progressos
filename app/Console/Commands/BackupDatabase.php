@@ -138,7 +138,7 @@ class BackupDatabase extends Command
             ->values();
 
         if ($files->isEmpty()) {
-            $this->warn('Belum ada backup di: '.$dir);
+            $this->warn('No backups found in: '.$dir);
 
             return self::SUCCESS;
         }

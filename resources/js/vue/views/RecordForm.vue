@@ -42,7 +42,7 @@ function handleTextareaPaste(event: ClipboardEvent, key: string) {
 
 async function loadProjectNames() {
   try {
-    const res = await api.get('/api/v1/projects?per_page=200&sort=name&direction=asc').then((r) => r.data);
+    const res = await api.get('/api/v1/projects?per_page=200&sort=name&direction=asc').then(unwrap);
     projectList.value = (res.data ?? []).map((p: any) => ({ id: p.id, name: p.name })).filter((p: any) => p.name);
     projectNames.value = projectList.value.map((p) => p.name);
   } catch {
@@ -137,13 +137,13 @@ onMounted(async () => {
           </label>
           <DatePicker v-else-if="field.type === 'date'" v-model="form[field.key]" :label="field.label" :required="field.required" />
           <div v-else-if="field.type === 'project-autocomplete'">
-            <input v-model="form[field.key]" :list="`projects-list-${field.key}`" class="field" :required="field.required" autocomplete="off" placeholder="Pilih atau ketik nama project" />
+            <input v-model="form[field.key]" :list="`projects-list-${field.key}`" class="field" :required="field.required" autocomplete="off" placeholder="Select or type project name" />
             <datalist :id="`projects-list-${field.key}`">
               <option v-for="name in projectNames" :key="name" :value="name" />
             </datalist>
           </div>
           <select v-else-if="field.type === 'project-select'" v-model.number="form[field.key]" class="field" :required="field.required">
-            <option :value="null">— Tidak ada project —</option>
+            <option :value="null">— No project —</option>
             <option v-for="p in projectList" :key="p.id" :value="p.id">{{ p.name }}</option>
           </select>
           <div v-else-if="field.type === 'task-link'" class="relative">

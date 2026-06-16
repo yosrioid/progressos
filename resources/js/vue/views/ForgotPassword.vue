@@ -13,10 +13,10 @@ async function submit() {
   error.value = '';
   try {
     const response = await api.post('/api/forgot-password', { email: email.value });
-    message.value = response.data.message || 'Link reset dikirim.';
+    message.value = response.data.message || 'Reset link sent.';
     sent.value = true;
   } catch (e: any) {
-    error.value = e.response?.data?.message || 'Gagal mengirim link reset.';
+    error.value = e.response?.data?.message || 'Failed to send reset link.';
   }
 }
 </script>
@@ -33,10 +33,10 @@ async function submit() {
 
         <template v-if="sent">
           <div class="rounded-lg border border-teal-200 bg-teal-50 p-4 text-sm text-teal-800">
-            <p class="font-semibold">Link reset dikirim!</p>
-            <p class="mt-1">Cek inbox email <strong>{{ email }}</strong> dan klik link di dalamnya. Cek folder spam jika tidak ada.</p>
+            <p class="font-semibold">Reset link sent!</p>
+            <p class="mt-1">Check the inbox of <strong>{{ email }}</strong> and click the link. Also check your spam folder.</p>
           </div>
-          <RouterLink to="/login" class="btn btn-muted block w-full text-center">Kembali ke login</RouterLink>
+          <RouterLink to="/login" class="btn btn-muted block w-full text-center">Back to login</RouterLink>
         </template>
 
         <template v-else>
@@ -44,11 +44,11 @@ async function submit() {
           <form class="space-y-4" @submit.prevent="submit">
             <label>
               <span class="label mb-1">Email</span>
-              <input v-model="email" class="field" type="email" autocomplete="email" placeholder="email@kamu.com" required />
+              <input v-model="email" class="field" type="email" autocomplete="email" placeholder="email@example.com" required />
             </label>
-            <button class="btn btn-primary w-full">Kirim link reset</button>
+            <button class="btn btn-primary w-full">Send reset link</button>
           </form>
-          <RouterLink to="/login" class="block text-center text-sm font-semibold text-teal-700">Kembali ke login</RouterLink>
+          <RouterLink to="/login" class="block text-center text-sm font-semibold text-teal-700">Back to login</RouterLink>
         </template>
       </div>
     </section>
