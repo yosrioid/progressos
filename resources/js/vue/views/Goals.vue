@@ -4,27 +4,27 @@
     <div class="flex items-center justify-between gap-3 flex-wrap">
       <div>
         <h1 class="text-xl font-bold text-slate-900 dark:text-white">Goals & OKR</h1>
-        <p class="text-sm text-slate-500 dark:text-slate-400">Tetapkan tujuan dan lacak key results</p>
+        <p class="text-sm text-slate-500 dark:text-slate-400">Set goals and track key results</p>
       </div>
       <div class="flex items-center gap-2">
         <select v-model="filterStatus" class="text-sm border border-slate-300 dark:border-slate-600 rounded-lg px-2 py-1.5 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 focus:outline-none">
-          <option value="">Semua status</option>
+          <option value="">All statuses</option>
           <option value="active">Active</option>
           <option value="draft">Draft</option>
           <option value="completed">Completed</option>
           <option value="abandoned">Abandoned</option>
         </select>
         <button @click="openGoalForm()" class="flex items-center gap-2 px-3 py-1.5 bg-violet-600 hover:bg-violet-700 text-white text-sm font-medium rounded-lg transition-colors">
-          + Goal Baru
+          + New Goal
         </button>
       </div>
     </div>
 
-    <div v-if="loading" class="text-sm text-slate-400">Memuat...</div>
+    <div v-if="loading" class="text-sm text-slate-400">Loading...</div>
 
     <div v-else-if="!filteredGoals.length" class="text-center py-16 text-slate-400 dark:text-slate-500">
       <div class="text-4xl mb-3">🎯</div>
-      <p class="font-medium">Belum ada goal</p>
+      <p class="font-medium">No goals yet</p>
     </div>
 
     <!-- Goals list -->
@@ -54,14 +54,14 @@
           </div>
           <div class="flex items-center gap-1">
             <button @click.stop="openGoalForm(goal)" class="p-1.5 text-slate-400 hover:text-violet-500" title="Edit">✏</button>
-            <button @click.stop="deleteGoal(goal)" class="p-1.5 text-slate-400 hover:text-red-500" title="Hapus">✕</button>
+            <button @click.stop="deleteGoal(goal)" class="p-1.5 text-slate-400 hover:text-red-500" title="Delete">✕</button>
             <span class="text-slate-400 text-sm ml-1">{{ expandedGoalId === goal.id ? '▲' : '▼' }}</span>
           </div>
         </div>
 
         <!-- Key Results (expanded) -->
         <div v-if="expandedGoalId === goal.id" class="border-t border-slate-100 dark:border-slate-800 p-4 space-y-3">
-          <div v-if="!goal.key_results.length" class="text-sm text-slate-400">Belum ada Key Result</div>
+          <div v-if="!goal.key_results.length" class="text-sm text-slate-400">No key results yet</div>
 
           <div v-for="kr in goal.key_results" :key="kr.id" class="flex items-start gap-3">
             <button
@@ -87,7 +87,7 @@
             </div>
           </div>
 
-          <button @click="openKrForm(goal)" class="text-xs text-violet-600 dark:text-violet-400 hover:underline mt-1">+ Tambah Key Result</button>
+          <button @click="openKrForm(goal)" class="text-xs text-violet-600 dark:text-violet-400 hover:underline mt-1">+ Add Key Result</button>
         </div>
       </div>
     </div>
@@ -95,13 +95,13 @@
     <!-- Goal form modal -->
     <div v-if="showGoalForm" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4">
       <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-xl w-full max-w-lg p-6 space-y-4">
-        <h2 class="text-lg font-bold text-slate-900 dark:text-white">{{ editingGoal ? 'Edit Goal' : 'Goal Baru' }}</h2>
+        <h2 class="text-lg font-bold text-slate-900 dark:text-white">{{ editingGoal ? 'Edit Goal' : 'New Goal' }}</h2>
         <div>
-          <label class="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Judul *</label>
+          <label class="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Title *</label>
           <input v-model="goalForm.title" class="w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-violet-500" />
         </div>
         <div>
-          <label class="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Deskripsi</label>
+          <label class="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Description</label>
           <textarea v-model="goalForm.description" rows="2" class="w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-violet-500 resize-none"></textarea>
         </div>
         <div class="grid grid-cols-2 gap-3">
@@ -121,25 +121,25 @@
         </div>
         <div class="grid grid-cols-2 gap-3">
           <div>
-            <label class="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Mulai</label>
+            <label class="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Start</label>
             <input type="date" v-model="goalForm.start_date" class="w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-violet-500" />
           </div>
           <div>
-            <label class="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Selesai</label>
+            <label class="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">End</label>
             <input type="date" v-model="goalForm.end_date" class="w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-violet-500" />
           </div>
         </div>
         <div>
-          <label class="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Warna</label>
+          <label class="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Color</label>
           <div class="flex gap-2 flex-wrap">
             <button v-for="c in goalColors" :key="c" @click="goalForm.color = c" :class="['w-6 h-6 rounded-full border-2 transition', goalForm.color === c ? 'border-slate-900 dark:border-white scale-110' : 'border-transparent']" :style="{ background: c }"></button>
           </div>
         </div>
         <div v-if="goalFormError" class="text-sm text-red-500">{{ goalFormError }}</div>
         <div class="flex justify-end gap-2 pt-2">
-          <button @click="closeGoalForm" class="px-4 py-2 text-sm text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">Batal</button>
+          <button @click="closeGoalForm" class="px-4 py-2 text-sm text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">Cancel</button>
           <button @click="submitGoalForm" :disabled="goalSaving" class="px-4 py-2 text-sm font-semibold bg-violet-600 hover:bg-violet-700 text-white rounded-lg disabled:opacity-50">
-            {{ goalSaving ? 'Menyimpan...' : (editingGoal ? 'Simpan' : 'Buat') }}
+            {{ goalSaving ? 'Saving...' : (editingGoal ? 'Save' : 'Create') }}
           </button>
         </div>
       </div>
@@ -148,28 +148,28 @@
     <!-- KR form modal -->
     <div v-if="showKrForm" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4">
       <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-xl w-full max-w-md p-6 space-y-4">
-        <h2 class="text-lg font-bold text-slate-900 dark:text-white">{{ editingKr ? 'Edit Key Result' : 'Key Result Baru' }}</h2>
+        <h2 class="text-lg font-bold text-slate-900 dark:text-white">{{ editingKr ? 'Edit Key Result' : 'New Key Result' }}</h2>
         <div>
-          <label class="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Judul *</label>
+          <label class="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Title *</label>
           <input v-model="krForm.title" class="w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-violet-500" />
         </div>
         <div class="grid grid-cols-2 gap-3">
           <div>
-            <label class="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Tipe Metrik</label>
+            <label class="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Metric Type</label>
             <select v-model="krForm.metric_type" class="w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-violet-500">
-              <option value="percentage">Persentase (%)</option>
-              <option value="number">Angka</option>
-              <option value="boolean">Ya/Tidak</option>
+              <option value="percentage">Percentage (%)</option>
+              <option value="number">Number</option>
+              <option value="boolean">Yes/No</option>
             </select>
           </div>
           <div>
-            <label class="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Satuan</label>
-            <input v-model="krForm.unit" placeholder="jam, task, ..." class="w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-violet-500" />
+            <label class="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Unit</label>
+            <input v-model="krForm.unit" placeholder="hrs, tasks, ..." class="w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-violet-500" />
           </div>
         </div>
         <div v-if="krForm.metric_type !== 'boolean'" class="grid grid-cols-2 gap-3">
           <div>
-            <label class="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Nilai Saat Ini</label>
+            <label class="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Current Value</label>
             <input type="number" v-model.number="krForm.current_value" class="w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-violet-500" />
           </div>
           <div>
@@ -179,13 +179,13 @@
         </div>
         <div v-if="krForm.metric_type === 'boolean'" class="flex items-center gap-2">
           <input type="checkbox" id="bool_done" v-model="krBoolDone" class="w-4 h-4" />
-          <label for="bool_done" class="text-sm text-slate-700 dark:text-slate-300">Sudah selesai</label>
+          <label for="bool_done" class="text-sm text-slate-700 dark:text-slate-300">Completed</label>
         </div>
         <div v-if="krFormError" class="text-sm text-red-500">{{ krFormError }}</div>
         <div class="flex justify-end gap-2 pt-2">
-          <button @click="closeKrForm" class="px-4 py-2 text-sm text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">Batal</button>
+          <button @click="closeKrForm" class="px-4 py-2 text-sm text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">Cancel</button>
           <button @click="submitKrForm" :disabled="krSaving" class="px-4 py-2 text-sm font-semibold bg-violet-600 hover:bg-violet-700 text-white rounded-lg disabled:opacity-50">
-            {{ krSaving ? 'Menyimpan...' : (editingKr ? 'Simpan' : 'Tambah') }}
+            {{ krSaving ? 'Saving...' : (editingKr ? 'Save' : 'Add') }}
           </button>
         </div>
       </div>
@@ -195,7 +195,8 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { api } from '../api'
+import { api, unwrap } from '../api'
+import { toast } from '../feedback'
 
 interface KeyResult { id: number; title: string; metric_type: string; current_value: number; target_value: number; unit: string | null; notes: string | null; status: string; order: number; progress: number }
 interface Goal { id: number; title: string; description: string | null; period_label: string | null; start_date: string | null; end_date: string | null; status: string; color: string; progress: number; key_results: KeyResult[] }
@@ -233,8 +234,8 @@ function toggleExpand(id: number) {
 async function load() {
   loading.value = true
   try {
-    const res = await api.get('/api/v1/goals')
-    goals.value = res.data.goals
+    const res = await api.get('/api/v1/goals').then(unwrap)
+    goals.value = res.goals
   } finally {
     loading.value = false
   }
@@ -252,7 +253,7 @@ function openGoalForm(goal?: Goal) {
 function closeGoalForm() { showGoalForm.value = false; editingGoal.value = null }
 
 async function submitGoalForm() {
-  if (!goalForm.value.title.trim()) { goalFormError.value = 'Judul wajib diisi'; return }
+  if (!goalForm.value.title.trim()) { goalFormError.value = 'Title is required'; return }
   goalSaving.value = true; goalFormError.value = ''
   try {
     if (editingGoal.value) {
@@ -261,17 +262,17 @@ async function submitGoalForm() {
       await api.post('/api/v1/goals', goalForm.value)
     }
     closeGoalForm(); await load()
-  } catch (e: any) { goalFormError.value = e?.response?.data?.message ?? 'Gagal' }
+  } catch (e: any) { goalFormError.value = e?.response?.data?.message ?? 'Failed to save' }
   finally { goalSaving.value = false }
 }
 
 async function deleteGoal(goal: Goal) {
-  if (!confirm(`Hapus goal "${goal.title}"?`)) return
+  if (!confirm(`Delete goal "${goal.title}"?`)) return
   try {
     await api.delete(`/api/v1/goals/${goal.id}`)
     await load()
   } catch (e: any) {
-    alert(e?.response?.data?.message ?? 'Gagal menghapus goal')
+    toast({ tone: 'error', title: e?.response?.data?.message ?? 'Failed to delete goal' })
   }
 }
 
@@ -287,7 +288,7 @@ function openKrForm(goal: Goal, kr?: KeyResult) {
 function closeKrForm() { showKrForm.value = false; editingKr.value = null; activeGoalForKr.value = null }
 
 async function submitKrForm() {
-  if (!krForm.value.title.trim()) { krFormError.value = 'Judul wajib diisi'; return }
+  if (!krForm.value.title.trim()) { krFormError.value = 'Title is required'; return }
   krSaving.value = true; krFormError.value = ''
   const payload: any = { ...krForm.value }
   if (payload.metric_type === 'boolean') { payload.current_value = krBoolDone.value ? 1 : 0; payload.target_value = 1 }
@@ -299,7 +300,7 @@ async function submitKrForm() {
     }
     closeKrForm(); await load()
     expandedGoalId.value = activeGoalForKr.value?.id ?? null
-  } catch (e: any) { krFormError.value = e?.response?.data?.message ?? 'Gagal' }
+  } catch (e: any) { krFormError.value = e?.response?.data?.message ?? 'Failed to save' }
   finally { krSaving.value = false }
 }
 
@@ -312,17 +313,17 @@ async function toggleKrDone(goal: Goal, kr: KeyResult) {
     await load(); expandedGoalId.value = goal.id
   } catch (e: any) {
     kr.status = prev
-    alert(e?.response?.data?.message ?? 'Gagal mengubah status')
+    toast({ tone: 'error', title: e?.response?.data?.message ?? 'Failed to update status' })
   }
 }
 
 async function deleteKr(goal: Goal, kr: KeyResult) {
-  if (!confirm('Hapus key result ini?')) return
+  if (!confirm('Delete this key result?')) return
   try {
     await api.delete(`/api/v1/goals/${goal.id}/key-results/${kr.id}`)
     await load(); expandedGoalId.value = goal.id
   } catch (e: any) {
-    alert(e?.response?.data?.message ?? 'Gagal menghapus key result')
+    toast({ tone: 'error', title: e?.response?.data?.message ?? 'Failed to delete key result' })
   }
 }
 

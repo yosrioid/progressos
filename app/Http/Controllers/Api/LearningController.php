@@ -49,7 +49,7 @@ class LearningController extends Controller
             ->orderBy('month')
             ->get();
 
-        return response()->json([
+        return ApiResponse::ok([
             'categories' => $categories,
             'monthly' => $monthly,
             'totals' => [
@@ -75,7 +75,7 @@ class LearningController extends Controller
             'minutes' => (int) ($rows[now()->subDays(89 - $i)->toDateString()] ?? 0),
         ]);
 
-        return response()->json(['heatmap' => $days]);
+        return ApiResponse::ok(['heatmap' => $days]);
     }
 
     public function show(Request $request, LearningEntry $learning)

@@ -203,36 +203,36 @@ onMounted(load);
         <div class="grid gap-5 content-start">
           <!-- Reflection -->
           <section class="card p-5">
-            <h2 class="mb-3 text-sm font-extrabold uppercase text-slate-500 dark:text-zinc-500">Refleksi Minggu Ini</h2>
+            <h2 class="mb-3 text-sm font-extrabold uppercase text-slate-500 dark:text-zinc-500">This Week's Reflection</h2>
             <textarea
               class="field min-h-36 w-full resize-y text-sm"
-              placeholder="Apa yang berjalan baik? Apa yang perlu diperbaiki minggu depan?"
+              placeholder="What went well? What needs improvement next week?"
               :value="reflection"
               @input="onReflectionInput"
             />
             <button class="btn btn-primary mt-3 w-full" :disabled="saving" @click="saveSnapshot">
-              {{ saving ? 'Menyimpan...' : 'Simpan Snapshot' }}
+              {{ saving ? 'Saving...' : 'Save Snapshot' }}
             </button>
-            <p class="mt-2 text-xs text-slate-400 dark:text-zinc-600">Menyimpan snapshot mengunci data minggu ini beserta refleksi.</p>
+            <p class="mt-2 text-xs text-slate-400 dark:text-zinc-600">Saving a snapshot locks this week's data and reflection.</p>
           </section>
 
           <!-- Past snapshots -->
           <section v-if="snapshots.length" class="card p-5">
             <div class="mb-3 flex items-center justify-between">
-              <h2 class="text-sm font-extrabold uppercase text-slate-500 dark:text-zinc-500">Snapshot Tersimpan</h2>
+              <h2 class="text-sm font-extrabold uppercase text-slate-500 dark:text-zinc-500">Saved Snapshots</h2>
               <button class="text-xs font-bold" :class="compareMode ? 'text-teal-700 dark:text-teal-400' : 'text-slate-400 dark:text-zinc-600'" @click="compareMode = !compareMode; compareA = null; compareB = null">
-                {{ compareMode ? 'Selesai compare' : 'Compare' }}
+                {{ compareMode ? 'Exit compare' : 'Compare' }}
               </button>
             </div>
             <p v-if="compareMode && (!compareA || !compareB)" class="mb-3 rounded-lg bg-teal-50 px-3 py-2 text-xs font-semibold text-teal-700 dark:bg-teal-900/20 dark:text-teal-400">
-              Pilih 2 snapshot untuk dibandingkan.
+              Select 2 snapshots to compare.
             </p>
             <!-- Comparison panel -->
             <div v-if="compareMode && compareA && compareB" class="mb-4 rounded-xl border border-teal-100 bg-teal-50/50 p-3 dark:border-teal-800/40 dark:bg-teal-900/10">
               <p class="mb-2 text-xs font-extrabold text-teal-700 dark:text-teal-400">{{ formatDate(compareA.period_start) }} vs {{ formatDate(compareB.period_start) }}</p>
               <div class="grid grid-cols-3 gap-2 text-xs">
                 <div>
-                  <p class="text-slate-400 dark:text-zinc-600">Belajar</p>
+                  <p class="text-slate-400 dark:text-zinc-600">Learning</p>
                   <p class="font-extrabold" :class="(compareDelta('learning_totals', 'minutes') ?? 0) >= 0 ? 'text-teal-700 dark:text-teal-400' : 'text-red-600 dark:text-red-400'">
                     {{ (compareDelta('learning_totals', 'minutes') ?? 0) >= 0 ? '+' : '' }}{{ minsFmt(compareDelta('learning_totals', 'minutes') ?? 0) }}
                   </p>
@@ -244,7 +244,7 @@ onMounted(load);
                   </p>
                 </div>
                 <div>
-                  <p class="text-slate-400 dark:text-zinc-600">Sesi</p>
+                  <p class="text-slate-400 dark:text-zinc-600">Sessions</p>
                   <p class="font-extrabold" :class="(compareDelta('completed_work_logs') ?? 0) >= 0 ? 'text-teal-700 dark:text-teal-400' : 'text-red-600 dark:text-red-400'">
                     {{ (compareDelta('completed_work_logs') ?? 0) >= 0 ? '+' : '' }}{{ compareDelta('completed_work_logs') }}
                   </p>
@@ -264,9 +264,9 @@ onMounted(load);
                   <svg v-if="compareSelected(snap)" class="h-3.5 w-3.5 text-teal-600" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>
                 </div>
                 <div class="mt-1.5 flex gap-4 text-slate-500 dark:text-zinc-500">
-                  <span>{{ minsFmt(snap.payload?.learning_totals?.minutes ?? 0) }} belajar</span>
+                  <span>{{ minsFmt(snap.payload?.learning_totals?.minutes ?? 0) }} learning</span>
                   <span>{{ snap.payload?.tasks_done?.length ?? 0 }} tasks</span>
-                  <span>{{ snap.payload?.completed_work_logs?.length ?? 0 }} sesi</span>
+                  <span>{{ snap.payload?.completed_work_logs?.length ?? 0 }} sessions</span>
                 </div>
                 <p v-if="snap.payload?.reflection" class="mt-2 line-clamp-2 italic text-slate-500 dark:text-zinc-500">{{ snap.payload.reflection }}</p>
               </div>

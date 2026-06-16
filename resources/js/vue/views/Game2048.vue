@@ -8,13 +8,13 @@ type GameState = 'menu' | 'playing' | 'gameover';
 type Board = number[][];
 
 const LEVEL_LABELS: Record<Level, string> = {
-  classic: 'Klasik', large: 'Luas', challenge: 'Tantangan', daily: 'Harian',
+  classic: 'Classic', large: 'Large', challenge: 'Challenge', daily: 'Daily',
 };
 const LEVEL_DESC: Record<Level, string> = {
-  classic:   '4×4 · Target 2048 · Standar',
-  large:     '5×5 · Lebih luas · Skor lebih tinggi',
-  challenge: '4×4 · Target 4096 · Lebih sulit',
-  daily:     '4×4 · Puzzle sama setiap hari',
+  classic:   '4×4 · Target 2048 · Standard',
+  large:     '5×5 · Larger board · Higher scores',
+  challenge: '4×4 · Target 4096 · Harder',
+  daily:     '4×4 · Same puzzle every day',
 };
 const REGULAR_LEVELS: Level[] = ['classic', 'large', 'challenge'];
 const TILE_COLORS: Record<number, { bg: string; fg: string }> = {
@@ -298,7 +298,7 @@ async function startGame(lv: Level) {
   try {
     const res = await api.post('/api/v1/games/2048/sessions', { level: lv }).then(unwrap);
     initFromSession(res.session);
-  } catch { toast({ tone: 'error', title: 'Gagal memulai game' }); } finally { loading.value = false; }
+  } catch { toast({ tone: 'error', title: 'Failed to start game' }); } finally { loading.value = false; }
 }
 
 async function resumeGame(session: any) {
@@ -416,10 +416,10 @@ onUnmounted(() => {
         <div>
           <p class="text-sm font-extrabold text-amber-600 dark:text-amber-400">Games</p>
           <h1 class="mt-1 text-3xl font-extrabold tracking-tight">2048</h1>
-          <p class="mt-1 text-sm font-medium text-slate-500 dark:text-zinc-400">Geser tile, gabungkan angka, capai target.</p>
+          <p class="mt-1 text-sm font-medium text-slate-500 dark:text-zinc-400">Slide tiles, combine numbers, reach the target.</p>
         </div>
         <button class="btn btn-muted text-xs" @click="showRecords = !showRecords">
-          {{ showRecords ? 'Tutup Rekord' : 'Rekord' }}
+          {{ showRecords ? 'Close Records' : 'Records' }}
         </button>
       </div>
 
@@ -439,10 +439,10 @@ onUnmounted(() => {
             <thead>
               <tr class="text-left text-xs font-bold text-slate-400 dark:text-zinc-500 border-b border-slate-100 dark:border-zinc-700">
                 <th class="pb-2">#</th>
-                <th class="pb-2">Skor</th>
-                <th class="pb-2">Tile Max</th>
-                <th class="pb-2">Waktu</th>
-                <th class="pb-2 hidden sm:table-cell">Tanggal</th>
+                <th class="pb-2">Score</th>
+                <th class="pb-2">Max Tile</th>
+                <th class="pb-2">Time</th>
+                <th class="pb-2 hidden sm:table-cell">Date</th>
               </tr>
             </thead>
             <tbody>
@@ -460,18 +460,18 @@ onUnmounted(() => {
             </tbody>
           </table>
         </div>
-        <p v-else class="text-sm text-slate-400 dark:text-zinc-500 text-center py-4">Belum ada rekord untuk level ini.</p>
+        <p v-else class="text-sm text-slate-400 dark:text-zinc-500 text-center py-4">No records yet for this level.</p>
       </div>
 
       <!-- Resume -->
       <div v-if="pendingResume && !showRecords" class="card border-amber-200 dark:border-amber-800/40 p-4 flex items-center justify-between gap-4">
         <div>
-          <p class="text-sm font-extrabold text-amber-600 dark:text-amber-400">Game tertunda</p>
+          <p class="text-sm font-extrabold text-amber-600 dark:text-amber-400">Game in progress</p>
           <p class="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">
-            {{ LEVEL_LABELS[pendingResume.level as Level] }} · Skor {{ pendingResume.user_state?.score?.toLocaleString() ?? 0 }} · {{ formatTime(pendingResume.elapsed_seconds) }}
+            {{ LEVEL_LABELS[pendingResume.level as Level] }} · Score {{ pendingResume.user_state?.score?.toLocaleString() ?? 0 }} · {{ formatTime(pendingResume.elapsed_seconds) }}
           </p>
         </div>
-        <button class="btn btn-primary shrink-0" @click="resumeGame(pendingResume)">Lanjutkan</button>
+        <button class="btn btn-primary shrink-0" @click="resumeGame(pendingResume)">Resume</button>
       </div>
 
       <!-- Daily status -->
@@ -481,18 +481,18 @@ onUnmounted(() => {
           {{ dailyStatus.completed_today ? '✅' : '🎯' }}
         </div>
         <div class="flex-1 min-w-0">
-          <p class="text-sm font-extrabold">Harian</p>
+          <p class="text-sm font-extrabold">Daily</p>
           <p class="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">
             <template v-if="dailyStatus.completed_today">
-              Selesai · Skor {{ dailyStatus.record?.metadata?.score?.toLocaleString() ?? 0 }} · Tile {{ dailyStatus.record?.metadata?.max_tile ?? '—' }}
+              Done · Score {{ dailyStatus.record?.metadata?.score?.toLocaleString() ?? 0 }} · Tile {{ dailyStatus.record?.metadata?.max_tile ?? '—' }}
             </template>
-            <template v-else-if="dailyStatus.session">Ada sesi tertunda</template>
-            <template v-else>Belum dimainkan hari ini</template>
+            <template v-else-if="dailyStatus.session">Session in progress</template>
+            <template v-else>Not played today</template>
           </p>
         </div>
         <button v-if="!dailyStatus.completed_today" class="btn btn-muted shrink-0 text-xs"
           @click="dailyStatus?.session ? resumeGame(dailyStatus.session) : startGame('daily')">
-          {{ dailyStatus.session ? 'Lanjutkan' : 'Main' }}
+          {{ dailyStatus.session ? 'Resume' : 'Play' }}
         </button>
       </div>
 
@@ -528,13 +528,13 @@ onUnmounted(() => {
       <div class="flex items-center gap-3">
         <button class="btn btn-muted text-xs px-2 py-1" @click="goToMenu">← Menu</button>
         <p class="font-extrabold text-sm">{{ LEVEL_LABELS[level] }}</p>
-        <span v-if="saving" class="text-xs text-slate-400 dark:text-zinc-500 ml-auto">Menyimpan…</span>
+        <span v-if="saving" class="text-xs text-slate-400 dark:text-zinc-500 ml-auto">Saving…</span>
         <div class="ml-auto flex gap-2">
           <button class="btn btn-muted text-xs px-2 py-1" :disabled="!history.length" @click="undo">
             ↩ Undo <span class="opacity-60">({{ history.length }}/{{ MAX_UNDO }})</span>
           </button>
           <button class="btn btn-muted text-xs px-2 py-1" @click="togglePause">
-            {{ isPaused ? '▶ Lanjut' : '⏸ Jeda' }}
+            {{ isPaused ? '▶ Resume' : '⏸ Pause' }}
           </button>
         </div>
       </div>
@@ -542,7 +542,7 @@ onUnmounted(() => {
       <!-- Score bar -->
       <div class="flex gap-3 items-stretch">
         <div class="flex-1 rounded-2xl p-3 text-center" style="background:#bbada0">
-          <p class="text-xs font-bold text-white/70 uppercase tracking-wide">Skor</p>
+          <p class="text-xs font-bold text-white/70 uppercase tracking-wide">Score</p>
           <div class="relative">
             <p class="text-2xl font-extrabold text-white">{{ score.toLocaleString() }}</p>
             <Transition name="score-pop">
@@ -557,7 +557,7 @@ onUnmounted(() => {
           <p class="text-xl font-extrabold text-white">{{ fmtScore(Math.max(score, bestScore)) }}</p>
         </div>
         <div class="rounded-2xl p-3 text-center min-w-[72px]" style="background:#bbada0">
-          <p class="text-xs font-bold text-white/70 uppercase tracking-wide">Waktu</p>
+          <p class="text-xs font-bold text-white/70 uppercase tracking-wide">Time</p>
           <p class="text-xl font-extrabold text-white font-mono">{{ formatTime(elapsedSeconds) }}</p>
         </div>
       </div>
@@ -585,8 +585,8 @@ onUnmounted(() => {
           <div v-if="isPaused" class="absolute inset-0 rounded-2xl flex items-center justify-center" style="background:rgba(187,173,160,0.9)">
             <div class="text-center">
               <p class="text-4xl font-extrabold text-white">⏸</p>
-              <p class="text-lg font-extrabold text-white mt-2">Dijeda</p>
-              <button class="btn btn-primary mt-4" @click="togglePause">Lanjutkan</button>
+              <p class="text-lg font-extrabold text-white mt-2">Paused</p>
+              <button class="btn btn-primary mt-4" @click="togglePause">Resume</button>
             </div>
           </div>
 
@@ -597,13 +597,13 @@ onUnmounted(() => {
               <p class="text-2xl font-extrabold text-white mt-2">
                 {{ winTarget.toLocaleString() }}!
               </p>
-              <p class="text-sm text-white/80 mt-1">Skor {{ score.toLocaleString() }}</p>
+              <p class="text-sm text-white/80 mt-1">Score {{ score.toLocaleString() }}</p>
               <div class="flex gap-3 mt-5 justify-center">
                 <button class="btn font-extrabold text-amber-700 bg-white hover:bg-yellow-50" @click="continueAfterWin">
-                  Lanjutkan ›
+                  Continue ›
                 </button>
                 <button class="btn font-bold text-white/80 border border-white/40 hover:bg-white/10" @click="startGame(level)">
-                  Game Baru
+                  New Game
                 </button>
               </div>
             </div>
@@ -612,7 +612,7 @@ onUnmounted(() => {
       </div>
 
       <p class="text-xs text-center text-slate-400 dark:text-zinc-500">
-        Arrow keys / WASD untuk geser · Ctrl+Z untuk undo · Target: <strong>{{ winTarget.toLocaleString() }}</strong>
+        Arrow keys / WASD to slide · Ctrl+Z to undo · Target: <strong>{{ winTarget.toLocaleString() }}</strong>
       </p>
     </template>
 
@@ -627,12 +627,12 @@ onUnmounted(() => {
         <p class="text-5xl">😤</p>
         <div>
           <p class="text-2xl font-extrabold">Game Over</p>
-          <p class="text-sm text-slate-500 dark:text-zinc-400 mt-1">Tidak ada gerakan tersisa</p>
+          <p class="text-sm text-slate-500 dark:text-zinc-400 mt-1">No moves left</p>
         </div>
 
         <div class="flex justify-center gap-6">
           <div>
-            <p class="text-xs text-slate-400 dark:text-zinc-500 font-bold uppercase">Skor</p>
+            <p class="text-xs text-slate-400 dark:text-zinc-500 font-bold uppercase">Score</p>
             <p class="text-3xl font-extrabold text-amber-600 dark:text-amber-400">{{ score.toLocaleString() }}</p>
           </div>
           <div>
@@ -644,19 +644,19 @@ onUnmounted(() => {
             </div>
           </div>
           <div>
-            <p class="text-xs text-slate-400 dark:text-zinc-500 font-bold uppercase">Waktu</p>
+            <p class="text-xs text-slate-400 dark:text-zinc-500 font-bold uppercase">Time</p>
             <p class="text-3xl font-extrabold font-mono">{{ formatTime(elapsedSeconds) }}</p>
           </div>
         </div>
 
         <div v-if="completionRecord" class="text-sm text-slate-500 dark:text-zinc-400">
-          <span v-if="isBest" class="font-extrabold text-amber-500">🏆 Skor tertinggi baru!</span>
-          <span v-else>Rekord ke-{{ completionRank }} dari skor terbaik</span>
+          <span v-if="isBest" class="font-extrabold text-amber-500">🏆 New high score!</span>
+          <span v-else>Record #{{ completionRank }} by best score</span>
         </div>
 
         <div class="flex gap-3 justify-center pt-2">
-          <button class="btn btn-primary" @click="startGame(level)">Main Lagi</button>
-          <button class="btn btn-muted" @click="goToMenu">Ganti Level</button>
+          <button class="btn btn-primary" @click="startGame(level)">Play Again</button>
+          <button class="btn btn-muted" @click="goToMenu">Change Level</button>
         </div>
       </div>
     </template>

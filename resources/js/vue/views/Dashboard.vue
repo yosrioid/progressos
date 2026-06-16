@@ -11,18 +11,18 @@ function milestonePaceLabel(m: any): { label: string; tone: string } | null {
   const current = Number(m.current_value || 0);
   const target = Number(m.target_value || 1);
   const remaining = target - current;
-  if (remaining <= 0) return { label: 'Selesai!', tone: 'green' };
+  if (remaining <= 0) return { label: 'Done!', tone: 'green' };
   if (!start) return null;
   const elapsedDays = Math.max(1, Math.floor((now.getTime() - start.getTime()) / 86400000));
   const dailyRate = current / elapsedDays;
-  if (dailyRate <= 0) return end ? { label: 'Belum ada progress', tone: 'slate' } : null;
+  if (dailyRate <= 0) return end ? { label: 'No progress yet', tone: 'slate' } : null;
   const daysToFinish = Math.ceil(remaining / dailyRate);
   if (end) {
     const daysLeft = Math.floor((end.getTime() - now.getTime()) / 86400000);
-    if (daysToFinish <= daysLeft) return { label: `ETA ~${daysToFinish}h lagi`, tone: 'green' };
-    return { label: `Behind ~${daysToFinish - daysLeft}h`, tone: 'amber' };
+    if (daysToFinish <= daysLeft) return { label: `ETA ~${daysToFinish}d left`, tone: 'green' };
+    return { label: `Behind ~${daysToFinish - daysLeft}d`, tone: 'amber' };
   }
-  return { label: `~${daysToFinish} hari lagi`, tone: 'slate' };
+  return { label: `~${daysToFinish}d left`, tone: 'slate' };
 }
 
 const data = ref<any>(null);
@@ -58,7 +58,7 @@ async function openStandup() {
   standupOpen.value = true;
   if (!standup.value) {
     standupLoading.value = true;
-    standup.value = await api.get('/api/v1/standup').then(r => r.data);
+    standup.value = await api.get('/api/v1/standup').then(unwrap);
     standupLoading.value = false;
   }
 }
@@ -116,7 +116,7 @@ async function copyStandup() {
               class="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition"
               :class="doneTaskIds.has(task.id) || task.status === 'done' ? 'border-teal-500 bg-teal-500 text-white' : 'border-slate-300 hover:border-teal-400 dark:border-zinc-600'"
               :disabled="!!markingDoneId || doneTaskIds.has(task.id)"
-              :title="task.status === 'done' ? 'Done' : 'Tandai selesai'"
+              :title="task.status === 'done' ? 'Done' : 'Mark as done'"
               @click="markTaskDone($event, task)"
             >
               <svg v-if="doneTaskIds.has(task.id) || task.status === 'done'" class="h-3 w-3" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="3" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>
@@ -126,7 +126,7 @@ async function copyStandup() {
               <p class="mt-1 text-sm font-medium text-slate-500 dark:text-zinc-500">{{ task.project?.name || 'No project' }} · {{ task.status?.replaceAll('_', ' ') }}</p>
             </RouterLink>
           </div>
-          <div v-if="data.today.tasks.length === 0" class="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center text-sm font-semibold text-slate-500 md:col-span-2 dark:border-zinc-700 dark:bg-zinc-800/30 dark:text-zinc-500">Tidak ada task mendesak untuk hari ini.</div>
+          <div v-if="data.today.tasks.length === 0" class="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center text-sm font-semibold text-slate-500 md:col-span-2 dark:border-zinc-700 dark:bg-zinc-800/30 dark:text-zinc-500">No urgent tasks for today.</div>
         </div>
       </section>
       <section class="card p-5">
@@ -139,7 +139,7 @@ async function copyStandup() {
     </div>
     <section v-if="data.focus.overdue_tasks.length || data.focus.next_actions.length || data.focus.behind_milestones.length" class="card mt-5 p-5">
       <div class="mb-4 flex items-center justify-between">
-        <h2 class="font-extrabold">Perlu Perhatian</h2>
+        <h2 class="font-extrabold">Needs Attention</h2>
         <span class="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">action needed</span>
       </div>
       <div class="grid gap-4 md:grid-cols-3">
@@ -156,7 +156,7 @@ async function copyStandup() {
         </div>
         <!-- Next actions from learning -->
         <div v-if="data.focus.next_actions.length">
-          <p class="label mb-2 text-sky-700 dark:text-sky-400">Next Actions Belajar</p>
+          <p class="label mb-2 text-sky-700 dark:text-sky-400">Learning Next Actions</p>
           <div class="space-y-2">
             <RouterLink v-for="e in data.focus.next_actions" :key="e.id" :to="`/learning/${e.id}`"
               class="block rounded-xl border border-sky-100 bg-sky-50/60 p-3 hover:bg-sky-50 dark:border-sky-800/30 dark:bg-sky-900/10">
@@ -236,34 +236,34 @@ async function copyStandup() {
         <template v-else-if="standup">
           <div class="mb-4 grid gap-4 sm:grid-cols-3">
             <div class="rounded-xl border border-teal-100 bg-teal-50/60 p-3 dark:border-teal-800/40 dark:bg-teal-900/10">
-              <p class="mb-2 text-[10px] font-extrabold uppercase text-teal-600 dark:text-teal-500">✅ Kemarin / Selesai</p>
+              <p class="mb-2 text-[10px] font-extrabold uppercase text-teal-600 dark:text-teal-500">✅ Yesterday / Done</p>
               <ul class="space-y-1">
                 <li v-for="log in standup.done_logs" :key="log.id" class="text-xs font-semibold text-slate-700 dark:text-zinc-300">· {{ log.title }}</li>
                 <li v-for="task in standup.completed_tasks" :key="task.id" class="text-xs font-semibold text-slate-700 dark:text-zinc-300">· ✓ {{ task.title }}</li>
-                <li v-if="!standup.done_logs.length && !standup.completed_tasks.length" class="text-xs text-slate-400">Tidak ada</li>
+                <li v-if="!standup.done_logs.length && !standup.completed_tasks.length" class="text-xs text-slate-400">None</li>
               </ul>
             </div>
             <div class="rounded-xl border border-sky-100 bg-sky-50/60 p-3 dark:border-sky-800/40 dark:bg-sky-900/10">
-              <p class="mb-2 text-[10px] font-extrabold uppercase text-sky-600 dark:text-sky-500">📋 Hari ini</p>
+              <p class="mb-2 text-[10px] font-extrabold uppercase text-sky-600 dark:text-sky-500">📋 Today</p>
               <ul class="space-y-1">
                 <li v-for="task in standup.today_tasks" :key="task.id" class="text-xs font-semibold text-slate-700 dark:text-zinc-300">
                   <span v-if="task.status === 'in_progress'" class="text-sky-600">🔄 </span>
                   <span v-else>▫ </span>
                   {{ task.title }}
                 </li>
-                <li v-if="!standup.today_tasks.length" class="text-xs text-slate-400">Tidak ada task aktif</li>
+                <li v-if="!standup.today_tasks.length" class="text-xs text-slate-400">No active tasks</li>
               </ul>
             </div>
             <div class="rounded-xl border border-red-100 bg-red-50/60 p-3 dark:border-red-800/40 dark:bg-red-900/10">
               <p class="mb-2 text-[10px] font-extrabold uppercase text-red-600 dark:text-red-500">🚧 Blocker</p>
               <ul class="space-y-1">
                 <li v-for="b in standup.blockers" :key="b.title" class="text-xs font-semibold text-slate-700 dark:text-zinc-300">· {{ b.title }}</li>
-                <li v-if="!standup.blockers.length" class="text-xs text-slate-400">Tidak ada blocker</li>
+                <li v-if="!standup.blockers.length" class="text-xs text-slate-400">No blockers</li>
               </ul>
             </div>
           </div>
           <div class="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-zinc-700 dark:bg-zinc-800">
-            <p class="mb-2 text-xs font-extrabold uppercase text-slate-400">Teks siap copy</p>
+            <p class="mb-2 text-xs font-extrabold uppercase text-slate-400">Ready to copy</p>
             <pre class="whitespace-pre-wrap text-xs leading-6 text-slate-700 dark:text-zinc-300">{{ standup.text }}</pre>
           </div>
         </template>

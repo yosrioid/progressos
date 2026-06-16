@@ -10,13 +10,13 @@ type Notes = number[][][];
 type Move = { r: number; c: number; prevValue: number | null; prevNotes: number[] };
 
 const LEVEL_LABELS: Record<string, string> = {
-  easy: 'Mudah', medium: 'Sedang', hard: 'Sulit', expert: 'Expert', daily: 'Harian',
+  easy: 'Easy', medium: 'Medium', hard: 'Hard', expert: 'Expert', daily: 'Daily',
 };
 const LEVEL_DESC: Record<string, string> = {
-  easy:   '~40 angka terisi — cocok untuk pemanasan.',
-  medium: '~32 angka terisi — butuh lebih banyak deduksi.',
-  hard:   '~26 angka terisi — tantangan penuh.',
-  expert: '~22 angka terisi — untuk yang sudah mahir.',
+  easy:   '~40 cells filled — good for warming up.',
+  medium: '~32 cells filled — requires more deduction.',
+  hard:   '~26 cells filled — a real challenge.',
+  expert: '~22 cells filled — for experienced players.',
 };
 const REGULAR_LEVELS: Level[] = ['easy', 'medium', 'hard', 'expert'];
 const MAX_MISTAKES = 3;
@@ -265,23 +265,23 @@ function undo() {
 function useHint() {
   if (gameState.value !== 'playing' || isPaused.value) return;
   if (hintsUsed.value >= MAX_HINTS) {
-    toast({ tone: 'error', title: 'Hint habis', message: 'Sudah memakai semua hint yang tersedia.' });
+    toast({ tone: 'error', title: 'No hints left', message: 'All available hints have been used.' });
     return;
   }
   const r = selectedRow.value;
   const c = selectedCol.value;
   if (r === null || c === null) {
-    toast({ tone: 'error', title: 'Pilih sel dulu', message: 'Klik sel kosong yang ingin diisi.' });
+    toast({ tone: 'error', title: 'Select a cell first', message: 'Click an empty cell to fill in.' });
     return;
   }
   if (isGiven(r, c)) {
-    toast({ tone: 'error', title: 'Bukan sel kosong', message: 'Pilih sel yang belum terisi.' });
+    toast({ tone: 'error', title: 'Not an empty cell', message: 'Select an unfilled cell.' });
     return;
   }
   const correct = solution.value[r]?.[c];
   if (!correct) return;
   if (userGrid.value[r][c] === correct) {
-    toast({ tone: 'error', title: 'Sel sudah benar', message: 'Nilai di sel ini sudah benar.' });
+    toast({ tone: 'error', title: 'Cell already correct', message: 'This cell already has the correct value.' });
     return;
   }
   hintsUsed.value++;
@@ -362,7 +362,7 @@ async function checkCompletion() {
       if (level.value === 'daily') await loadDailyStatus();
     }
   } catch {
-    toast({ tone: 'error', title: 'Gagal menyimpan', message: 'Selamat! Tapi ada error saat menyimpan record.' });
+    toast({ tone: 'error', title: 'Failed to save', message: 'Completed! But there was an error saving your record.' });
   } finally {
     completing.value = false;
   }
@@ -464,7 +464,7 @@ async function startNewGame(chosenLevel: Level) {
     selectedCol.value = null;
     isNoteMode.value = false;
   } catch {
-    toast({ tone: 'error', title: 'Gagal memulai', message: 'Coba lagi.' });
+    toast({ tone: 'error', title: 'Failed to start', message: 'Try again.' });
   } finally {
     loading.value = false;
   }
@@ -490,7 +490,7 @@ async function startDailyChallenge() {
     selectedCol.value = null;
     isNoteMode.value = false;
   } catch {
-    toast({ tone: 'error', title: 'Gagal memulai tantangan', message: 'Coba lagi.' });
+    toast({ tone: 'error', title: 'Failed to start challenge', message: 'Try again.' });
   } finally {
     dailyLoading.value = false;
   }
@@ -623,15 +623,15 @@ const totalCompleted = computed(() =>
         class="card flex items-center justify-between gap-3 border-teal-200 bg-teal-50/60 p-4 dark:border-teal-700/60 dark:bg-teal-900/10"
       >
         <div class="min-w-0">
-          <p class="text-xs font-extrabold uppercase text-teal-700">Sesi tersimpan</p>
+          <p class="text-xs font-extrabold uppercase text-teal-700">Saved session</p>
           <p class="mt-0.5 truncate text-sm font-bold text-slate-700 dark:text-slate-200">
             {{ LEVEL_LABELS[pendingResume.level] }}
             <span class="font-mono font-semibold text-slate-500"> · {{ formatTime(pendingResume.elapsed_seconds) }}</span>
           </p>
         </div>
         <div class="flex shrink-0 gap-2">
-          <button class="btn btn-primary py-1.5 px-3 text-sm" @click="resumeSession">Lanjutkan</button>
-          <button class="btn btn-muted py-1.5 px-3 text-sm" @click="dismissResume">Hapus</button>
+          <button class="btn btn-primary py-1.5 px-3 text-sm" @click="resumeSession">Resume</button>
+          <button class="btn btn-muted py-1.5 px-3 text-sm" @click="dismissResume">Discard</button>
         </div>
       </div>
 
@@ -639,11 +639,11 @@ const totalCompleted = computed(() =>
       <div class="card overflow-hidden p-0">
         <div class="flex items-center gap-3 border-b border-slate-100 bg-gradient-to-r from-indigo-50 to-slate-50 px-5 py-3.5 dark:border-slate-700 dark:from-indigo-900/20 dark:to-slate-800/50">
           <svg class="h-5 w-5 shrink-0 text-indigo-500" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="4" rx="2" ry="2" /><line x1="16" x2="16" y1="2" y2="6" /><line x1="8" x2="8" y1="2" y2="6" /><line x1="3" x2="21" y1="10" y2="10" /></svg>
-          <p class="text-sm font-extrabold text-indigo-800 dark:text-indigo-300">Tantangan Harian</p>
+          <p class="text-sm font-extrabold text-indigo-800 dark:text-indigo-300">Daily Challenge</p>
         </div>
         <div class="flex items-center justify-between gap-3 px-5 py-4">
           <div class="min-w-0">
-            <p class="text-xs font-medium text-slate-500">Puzzle baru setiap hari. Semua orang mendapat puzzle yang sama.</p>
+            <p class="text-xs font-medium text-slate-500">New puzzle every day. Everyone gets the same puzzle.</p>
             <div class="mt-2">
               <!-- Completed today -->
               <template v-if="dailyStatus?.completed_today">
@@ -652,7 +652,7 @@ const totalCompleted = computed(() =>
                     <svg class="h-3 w-3 text-white" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="3" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5" /></svg>
                   </span>
                   <span class="text-sm font-bold text-teal-700 dark:text-teal-400">
-                    Selesai hari ini
+                    Completed today
                     <span v-if="dailyStatus.record" class="font-mono"> — {{ formatTime(dailyStatus.record.duration_seconds) }}</span>
                   </span>
                 </div>
@@ -660,12 +660,12 @@ const totalCompleted = computed(() =>
               <!-- Active daily session -->
               <template v-else-if="dailyStatus?.session">
                 <p class="text-sm font-semibold text-slate-600 dark:text-slate-300">
-                  Dilanjutkan · <span class="font-mono">{{ formatTime(dailyStatus.session.elapsed_seconds) }}</span>
+                  In progress · <span class="font-mono">{{ formatTime(dailyStatus.session.elapsed_seconds) }}</span>
                 </p>
               </template>
               <!-- Not started -->
               <template v-else>
-                <p class="text-sm font-semibold text-slate-400">Belum dimulai hari ini</p>
+                <p class="text-sm font-semibold text-slate-400">Not started today</p>
               </template>
             </div>
           </div>
@@ -675,7 +675,7 @@ const totalCompleted = computed(() =>
             :disabled="dailyLoading"
             @click="startDailyChallenge"
           >
-            {{ dailyLoading ? '...' : dailyStatus?.session ? 'Lanjutkan' : 'Mulai' }}
+            {{ dailyLoading ? '...' : dailyStatus?.session ? 'Resume' : 'Start' }}
           </button>
           <div v-else class="shrink-0 text-2xl">🏅</div>
         </div>
@@ -692,7 +692,7 @@ const totalCompleted = computed(() =>
         >
           <span class="pill text-xs" :class="levelPillClass(lv)">{{ LEVEL_LABELS[lv] }}</span>
           <p class="text-xs font-medium text-slate-500 leading-relaxed">{{ LEVEL_DESC[lv] }}</p>
-          <p v-if="totals[lv] > 0" class="text-xs font-bold text-slate-400">{{ totals[lv] }}× selesai</p>
+          <p v-if="totals[lv] > 0" class="text-xs font-bold text-slate-400">{{ totals[lv] }}× completed</p>
         </button>
       </div>
 
@@ -701,14 +701,14 @@ const totalCompleted = computed(() =>
         :disabled="loading"
         @click="startNewGame(level)"
       >
-        {{ loading ? 'Membuat puzzle...' : `Mulai — ${LEVEL_LABELS[level]}` }}
+        {{ loading ? 'Loading puzzle...' : `Start — ${LEVEL_LABELS[level]}` }}
       </button>
 
       <!-- Records -->
       <div v-if="Object.values(records).some(r => r.length)" class="card overflow-hidden p-0">
         <div class="flex items-center justify-between border-b border-slate-100 bg-slate-50/70 px-5 py-3 dark:border-slate-700 dark:bg-slate-800/50">
           <p class="text-xs font-extrabold uppercase text-teal-700">Personal Records</p>
-          <p v-if="totalCompleted > 0" class="text-xs font-bold text-slate-400">{{ totalCompleted }} total selesai</p>
+          <p v-if="totalCompleted > 0" class="text-xs font-bold text-slate-400">{{ totalCompleted }} total completed</p>
         </div>
         <div class="divide-y divide-slate-100 dark:divide-slate-700">
           <div v-for="lv in ([...REGULAR_LEVELS, 'daily'] as string[])" :key="lv">
@@ -768,8 +768,8 @@ const totalCompleted = computed(() =>
           <span class="font-mono text-sm font-black tabular-nums text-slate-800 sm:text-lg dark:text-slate-100">{{ formatTime(elapsedSeconds) }}</span>
           <button
             class="grid h-8 w-8 place-items-center rounded-xl border border-slate-200 bg-white text-slate-600 transition hover:border-teal-200 hover:text-teal-700 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300"
-            :title="isPaused ? 'Lanjutkan (P)' : 'Pause (P)'"
-            :aria-label="isPaused ? 'Lanjutkan permainan' : 'Jeda permainan'"
+            :title="isPaused ? 'Resume (P)' : 'Pause (P)'"
+            :aria-label="isPaused ? 'Resume game' : 'Pause game'"
             @click="togglePause"
           >
             <svg v-if="isPaused" class="h-4 w-4" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
@@ -806,14 +806,14 @@ const totalCompleted = computed(() =>
                   @click="backToMenu"
                 >
                   <svg class="h-4 w-4 shrink-0 text-slate-400" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" /><polyline points="17 21 17 13 7 13 7 21" /><polyline points="7 3 7 8 15 8" /></svg>
-                  Simpan &amp; keluar
+                  Save &amp; exit
                 </button>
                 <button
                   class="flex w-full items-center gap-3 px-4 py-3 text-left text-sm font-semibold text-slate-700 transition hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-700/50"
                   @click="restartPuzzle"
                 >
                   <svg class="h-4 w-4 shrink-0 text-slate-400" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" /></svg>
-                  Mulai ulang puzzle
+                  Restart puzzle
                 </button>
                 <div class="border-t border-slate-100 dark:border-slate-700"></div>
                 <button
@@ -835,10 +835,10 @@ const totalCompleted = computed(() =>
           <svg class="h-10 w-10 text-slate-500 dark:text-slate-400" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" /></svg>
         </div>
         <div>
-          <p class="text-xl font-black">Dijeda</p>
-          <p class="mt-1 text-sm font-medium text-slate-500">Puzzle tersembunyi untuk menjaga fairness.</p>
+          <p class="text-xl font-black">Paused</p>
+          <p class="mt-1 text-sm font-medium text-slate-500">Puzzle is hidden to keep it fair.</p>
         </div>
-        <button class="btn btn-primary px-8" @click="togglePause">Lanjutkan</button>
+        <button class="btn btn-primary px-8" @click="togglePause">Resume</button>
       </div>
 
       <template v-else>
@@ -903,11 +903,11 @@ const totalCompleted = computed(() =>
             :class="isNoteMode
               ? 'border-teal-300 bg-teal-50 text-teal-700 dark:border-teal-600 dark:bg-teal-900/30 dark:text-teal-300'
               : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300'"
-            title="Catatan (N)"
+            title="Notes (N)"
             @click="isNoteMode = !isNoteMode"
           >
             <svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24"><path d="M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>
-            Catatan
+            Notes
           </button>
         </div>
 
@@ -943,13 +943,13 @@ const totalCompleted = computed(() =>
         <div class="flex items-center gap-2">
           <button
             class="flex flex-1 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white py-2.5 text-sm font-bold text-slate-500 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600 active:scale-95 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-400"
-            title="Hapus (Backspace)"
+            title="Delete (Backspace)"
             @click="inputNumber(null)"
           >
             <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24"><path d="M21 6H8L2 12l6 6h13a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2z" /><path d="m15 9-6 6M9 9l6 6" /></svg>
-            Hapus
+            Delete
           </button>
-          <p class="hidden shrink-0 text-xs font-medium text-slate-400 sm:block">← → ↑ ↓ · Tab: lompat · P: jeda</p>
+          <p class="hidden shrink-0 text-xs font-medium text-slate-400 sm:block">← → ↑ ↓ · Tab: jump · P: pause</p>
         </div>
       </template>
     </template>
@@ -962,11 +962,11 @@ const totalCompleted = computed(() =>
         </div>
         <div>
           <h2 class="text-2xl font-black text-red-600">Game Over</h2>
-          <p class="mt-1 text-sm font-medium text-slate-500">{{ MAX_MISTAKES }} kesalahan — puzzle gagal diselesaikan.</p>
+          <p class="mt-1 text-sm font-medium text-slate-500">{{ MAX_MISTAKES }} mistakes — puzzle not completed.</p>
         </div>
         <div class="grid w-full max-w-xs grid-cols-2 gap-3">
           <div class="rounded-xl bg-slate-50 p-3 text-center dark:bg-slate-800/50">
-            <p class="text-xs font-extrabold uppercase text-slate-400">Waktu</p>
+            <p class="text-xs font-extrabold uppercase text-slate-400">Time</p>
             <p class="mt-1 font-mono text-xl font-black text-slate-700 dark:text-slate-200">{{ formatTime(elapsedSeconds) }}</p>
           </div>
           <div class="rounded-xl bg-slate-50 p-3 text-center dark:bg-slate-800/50">
@@ -975,8 +975,8 @@ const totalCompleted = computed(() =>
           </div>
         </div>
         <div class="flex gap-3">
-          <button class="btn btn-primary" @click="startNewGame(level)">Coba lagi</button>
-          <button class="btn btn-muted" @click="backToMenu">Pilih level</button>
+          <button class="btn btn-primary" @click="startNewGame(level)">Try again</button>
+          <button class="btn btn-muted" @click="backToMenu">Choose level</button>
         </div>
       </div>
     </template>
@@ -989,7 +989,7 @@ const totalCompleted = computed(() =>
         </div>
         <div>
           <h2 class="text-2xl font-black">
-            {{ level === 'daily' ? 'Tantangan Selesai!' : 'Selesai!' }}
+            {{ level === 'daily' ? 'Challenge Complete!' : 'Complete!' }}
           </h2>
           <p class="mt-1 text-sm font-medium text-slate-500">Level {{ LEVEL_LABELS[level] }}</p>
         </div>
@@ -997,7 +997,7 @@ const totalCompleted = computed(() =>
         <div>
           <span class="font-mono text-5xl font-black tabular-nums text-teal-600">{{ formatTime(elapsedSeconds) }}</span>
           <div class="mt-2 flex justify-center">
-            <span v-if="completionRank === 1" class="pill border border-yellow-200 bg-yellow-50 text-yellow-700">Rekor baru!</span>
+            <span v-if="completionRank === 1" class="pill border border-yellow-200 bg-yellow-50 text-yellow-700">New record!</span>
             <span v-else-if="completionRank" class="text-sm font-semibold text-slate-500">Rank #{{ completionRank }} personal</span>
           </div>
         </div>
@@ -1035,8 +1035,8 @@ const totalCompleted = computed(() =>
         </div>
 
         <div class="flex gap-3">
-          <button v-if="level !== 'daily'" class="btn btn-primary" @click="startNewGame(level)">Main lagi</button>
-          <button class="btn btn-muted" @click="backToMenu">Kembali ke menu</button>
+          <button v-if="level !== 'daily'" class="btn btn-primary" @click="startNewGame(level)">Play again</button>
+          <button class="btn btn-muted" @click="backToMenu">Back to menu</button>
         </div>
       </div>
     </template>

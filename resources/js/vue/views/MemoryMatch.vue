@@ -7,13 +7,13 @@ type Level = 'easy' | 'medium' | 'hard' | 'daily';
 type GameState = 'menu' | 'preview' | 'playing' | 'complete';
 
 const LEVEL_LABELS: Record<Level, string> = {
-  easy: 'Mudah', medium: 'Sedang', hard: 'Sulit', daily: 'Harian',
+  easy: 'Easy', medium: 'Medium', hard: 'Hard', daily: 'Daily',
 };
 const LEVEL_DESC: Record<Level, string> = {
-  easy:   '4×4 · 8 pasang · Preview 3 detik',
-  medium: '4×6 · 12 pasang · Preview 2 detik',
-  hard:   '6×6 · 18 pasang · Preview 1.5 detik',
-  daily:  '4×6 · Puzzle sama setiap hari',
+  easy:   '4×4 · 8 pairs · 3s preview',
+  medium: '4×6 · 12 pairs · 2s preview',
+  hard:   '6×6 · 18 pairs · 1.5s preview',
+  daily:  '4×6 · Same puzzle every day',
 };
 const PREVIEW_MS: Record<Level, number> = {
   easy: 3000, medium: 2000, hard: 1500, daily: 2000,
@@ -147,7 +147,7 @@ async function startGame(lv: Level) {
   try {
     const res = await api.post('/api/v1/games/memory/sessions', { level: lv }).then(unwrap);
     await initFromSession(res.session, true);
-  } catch { toast({ tone: 'error', title: 'Gagal memulai game' }); } finally { loading.value = false; }
+  } catch { toast({ tone: 'error', title: 'Failed to start game' }); } finally { loading.value = false; }
 }
 
 async function resumeGame(session: any) {
@@ -226,7 +226,7 @@ async function handleComplete() {
     isPerfect.value = res.perfect;
     records.value = (await api.get('/api/v1/games/memory/records').then(unwrap)).records;
   } catch {
-    toast({ tone: 'error', title: 'Gagal menyimpan hasil' });
+    toast({ tone: 'error', title: 'Failed to save result' });
   }
   gameState.value = 'complete';
   completing.value = false;
@@ -261,10 +261,10 @@ onUnmounted(() => {
         <div>
           <p class="text-sm font-extrabold text-indigo-600 dark:text-indigo-400">Games</p>
           <h1 class="mt-1 text-3xl font-extrabold tracking-tight">Memory Match</h1>
-          <p class="mt-1 text-sm font-medium text-slate-500 dark:text-zinc-400">Balikkan kartu, temukan pasangan, latih ingatan.</p>
+          <p class="mt-1 text-sm font-medium text-slate-500 dark:text-zinc-400">Flip cards, find matching pairs, train your memory.</p>
         </div>
         <button class="btn btn-muted text-xs" @click="showRecords = !showRecords">
-          {{ showRecords ? 'Tutup Rekord' : 'Rekord' }}
+          {{ showRecords ? 'Close Records' : 'Records' }}
         </button>
       </div>
 
@@ -284,10 +284,10 @@ onUnmounted(() => {
             <thead>
               <tr class="text-left text-xs font-bold text-slate-400 dark:text-zinc-500 border-b border-slate-100 dark:border-zinc-700">
                 <th class="pb-2">#</th>
-                <th class="pb-2">Waktu</th>
-                <th class="pb-2">Langkah</th>
-                <th class="pb-2">Salah</th>
-                <th class="pb-2 hidden sm:table-cell">Tanggal</th>
+                <th class="pb-2">Time</th>
+                <th class="pb-2">Moves</th>
+                <th class="pb-2">Mismatches</th>
+                <th class="pb-2 hidden sm:table-cell">Date</th>
               </tr>
             </thead>
             <tbody>
@@ -296,7 +296,7 @@ onUnmounted(() => {
                 <td class="py-2 font-extrabold text-indigo-600 dark:text-indigo-400 font-mono">{{ formatTime(r.duration_seconds) }}</td>
                 <td class="py-2">{{ r.metadata?.moves ?? '—' }}</td>
                 <td class="py-2">
-                  <span v-if="r.metadata?.perfect" class="text-xs font-bold text-yellow-500">⭐ Sempurna</span>
+                  <span v-if="r.metadata?.perfect" class="text-xs font-bold text-yellow-500">⭐ Perfect</span>
                   <span v-else>{{ r.metadata?.mismatches ?? '—' }}</span>
                 </td>
                 <td class="py-2 text-xs text-slate-400 dark:text-zinc-500 hidden sm:table-cell">{{ r.completed_at?.slice(0, 10) }}</td>
@@ -304,18 +304,18 @@ onUnmounted(() => {
             </tbody>
           </table>
         </div>
-        <p v-else class="text-sm text-slate-400 dark:text-zinc-500 text-center py-4">Belum ada rekord untuk level ini.</p>
+        <p v-else class="text-sm text-slate-400 dark:text-zinc-500 text-center py-4">No records yet for this level.</p>
       </div>
 
       <!-- Resume -->
       <div v-if="pendingResume && !showRecords" class="card border-indigo-200 dark:border-indigo-800/40 p-4 flex items-center justify-between gap-4">
         <div>
-          <p class="text-sm font-extrabold text-indigo-600 dark:text-indigo-400">Game tertunda</p>
+          <p class="text-sm font-extrabold text-indigo-600 dark:text-indigo-400">Game in progress</p>
           <p class="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">
-            {{ LEVEL_LABELS[pendingResume.level as Level] }} · {{ pendingResume.user_state?.matched?.length / 2 ?? 0 }} pasang ditemukan · {{ formatTime(pendingResume.elapsed_seconds) }}
+            {{ LEVEL_LABELS[pendingResume.level as Level] }} · {{ pendingResume.user_state?.matched?.length / 2 ?? 0 }} pairs found · {{ formatTime(pendingResume.elapsed_seconds) }}
           </p>
         </div>
-        <button class="btn btn-primary shrink-0" @click="resumeGame(pendingResume)">Lanjutkan</button>
+        <button class="btn btn-primary shrink-0" @click="resumeGame(pendingResume)">Resume</button>
       </div>
 
       <!-- Daily status -->
@@ -325,19 +325,19 @@ onUnmounted(() => {
           {{ dailyStatus.completed_today ? '✅' : '🃏' }}
         </div>
         <div class="flex-1 min-w-0">
-          <p class="text-sm font-extrabold">Harian</p>
+          <p class="text-sm font-extrabold">Daily</p>
           <p class="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">
             <template v-if="dailyStatus.completed_today">
-              Selesai · {{ formatTime(dailyStatus.record?.duration_seconds ?? 0) }} · {{ dailyStatus.record?.metadata?.moves ?? 0 }} langkah
-              <span v-if="dailyStatus.record?.metadata?.perfect" class="ml-1 text-yellow-500 font-bold">⭐ Sempurna</span>
+              Done · {{ formatTime(dailyStatus.record?.duration_seconds ?? 0) }} · {{ dailyStatus.record?.metadata?.moves ?? 0 }} moves
+              <span v-if="dailyStatus.record?.metadata?.perfect" class="ml-1 text-yellow-500 font-bold">⭐ Perfect</span>
             </template>
-            <template v-else-if="dailyStatus.session">Ada sesi tertunda</template>
-            <template v-else>Belum dimainkan hari ini</template>
+            <template v-else-if="dailyStatus.session">Session in progress</template>
+            <template v-else>Not played today</template>
           </p>
         </div>
         <button v-if="!dailyStatus.completed_today" class="btn btn-muted shrink-0 text-xs"
           @click="dailyStatus?.session ? resumeGame(dailyStatus.session) : startGame('daily')">
-          {{ dailyStatus.session ? 'Lanjutkan' : 'Main' }}
+          {{ dailyStatus.session ? 'Resume' : 'Play' }}
         </button>
       </div>
 
@@ -374,29 +374,29 @@ onUnmounted(() => {
       <div class="flex items-center gap-3">
         <button class="btn btn-muted text-xs px-2 py-1" @click="goToMenu">← Menu</button>
         <p class="font-extrabold text-sm">{{ LEVEL_LABELS[level] }}</p>
-        <span v-if="isPreviewing" class="text-xs font-bold text-indigo-500 animate-pulse ml-1">Hafalkan…</span>
-        <span v-if="saving" class="text-xs text-slate-400 dark:text-zinc-500 ml-auto">Menyimpan…</span>
+        <span v-if="isPreviewing" class="text-xs font-bold text-indigo-500 animate-pulse ml-1">Memorize…</span>
+        <span v-if="saving" class="text-xs text-slate-400 dark:text-zinc-500 ml-auto">Saving…</span>
         <button v-if="!isPreviewing" class="ml-auto btn btn-muted text-xs px-2 py-1" @click="togglePause">
-          {{ isPaused ? '▶ Lanjut' : '⏸ Jeda' }}
+          {{ isPaused ? '▶ Resume' : '⏸ Pause' }}
         </button>
       </div>
 
       <!-- Stats bar -->
       <div class="flex gap-3">
         <div class="flex-1 card p-3 text-center">
-          <p class="text-xs font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wide">Pasang</p>
+          <p class="text-xs font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wide">Pairs</p>
           <p class="text-2xl font-extrabold text-indigo-600 dark:text-indigo-400">{{ matchedCount }}<span class="text-base text-slate-400">/{{ totalPairs }}</span></p>
         </div>
         <div class="flex-1 card p-3 text-center">
-          <p class="text-xs font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wide">Langkah</p>
+          <p class="text-xs font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wide">Moves</p>
           <p class="text-2xl font-extrabold">{{ moves }}</p>
         </div>
         <div class="flex-1 card p-3 text-center">
-          <p class="text-xs font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wide">Waktu</p>
+          <p class="text-xs font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wide">Time</p>
           <p class="text-2xl font-extrabold font-mono">{{ formatTime(elapsedSeconds) }}</p>
         </div>
         <div class="card p-3 text-center">
-          <p class="text-xs font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wide">Salah</p>
+          <p class="text-xs font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wide">Mismatches</p>
           <p class="text-2xl font-extrabold" :class="mismatches > 0 ? 'text-red-500' : 'text-slate-400 dark:text-zinc-600'">{{ mismatches }}</p>
         </div>
       </div>
@@ -436,15 +436,15 @@ onUnmounted(() => {
           <div v-if="isPaused" class="absolute inset-0 rounded-2xl flex items-center justify-center bg-white/90 dark:bg-zinc-900/90">
             <div class="text-center">
               <p class="text-4xl">⏸</p>
-              <p class="text-lg font-extrabold mt-2">Dijeda</p>
-              <button class="btn btn-primary mt-4" @click="togglePause">Lanjutkan</button>
+              <p class="text-lg font-extrabold mt-2">Paused</p>
+              <button class="btn btn-primary mt-4" @click="togglePause">Resume</button>
             </div>
           </div>
         </div>
       </div>
 
       <p v-if="!isPreviewing" class="text-xs text-center text-slate-400 dark:text-zinc-500">
-        Klik kartu untuk membaliknya · Temukan semua {{ totalPairs }} pasang
+        Click a card to flip it · Find all {{ totalPairs }} pairs
       </p>
     </template>
 
@@ -458,33 +458,33 @@ onUnmounted(() => {
       <div class="card p-8 text-center space-y-5">
         <div>
           <p class="text-5xl">{{ isPerfect ? '🌟' : '🎉' }}</p>
-          <p class="text-2xl font-extrabold mt-3">Selesai!</p>
-          <p v-if="isPerfect" class="text-sm font-bold text-yellow-500 mt-1">⭐ Permainan Sempurna — Tanpa Kesalahan!</p>
+          <p class="text-2xl font-extrabold mt-3">Done!</p>
+          <p v-if="isPerfect" class="text-sm font-bold text-yellow-500 mt-1">⭐ Perfect — No mismatches!</p>
         </div>
 
         <div class="flex justify-center gap-6">
           <div>
-            <p class="text-xs text-slate-400 dark:text-zinc-500 font-bold uppercase">Waktu</p>
+            <p class="text-xs text-slate-400 dark:text-zinc-500 font-bold uppercase">Time</p>
             <p class="text-3xl font-extrabold text-indigo-600 dark:text-indigo-400 font-mono">{{ formatTime(elapsedSeconds) }}</p>
           </div>
           <div>
-            <p class="text-xs text-slate-400 dark:text-zinc-500 font-bold uppercase">Langkah</p>
+            <p class="text-xs text-slate-400 dark:text-zinc-500 font-bold uppercase">Moves</p>
             <p class="text-3xl font-extrabold">{{ moves }}</p>
           </div>
           <div>
-            <p class="text-xs text-slate-400 dark:text-zinc-500 font-bold uppercase">Salah</p>
+            <p class="text-xs text-slate-400 dark:text-zinc-500 font-bold uppercase">Mismatches</p>
             <p class="text-3xl font-extrabold" :class="mismatches > 0 ? 'text-red-500' : 'text-teal-500'">{{ mismatches }}</p>
           </div>
         </div>
 
         <div v-if="completionRecord" class="text-sm text-slate-500 dark:text-zinc-400">
-          <span v-if="isBest" class="font-extrabold text-indigo-500">🏆 Waktu tercepat baru!</span>
-          <span v-else>Rekord ke-{{ completionRank }}</span>
+          <span v-if="isBest" class="font-extrabold text-indigo-500">🏆 New best time!</span>
+          <span v-else>Record #{{ completionRank }}</span>
         </div>
 
         <div class="flex gap-3 justify-center pt-2">
-          <button class="btn btn-primary" @click="startGame(level)">Main Lagi</button>
-          <button class="btn btn-muted" @click="goToMenu">Ganti Level</button>
+          <button class="btn btn-primary" @click="startGame(level)">Play Again</button>
+          <button class="btn btn-muted" @click="goToMenu">Change Level</button>
         </div>
       </div>
     </template>

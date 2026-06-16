@@ -8,10 +8,10 @@ type CellState = 'hidden' | 'flagged' | 'question' | 'revealed';
 type GameState = 'menu' | 'playing' | 'won' | 'lost';
 
 const PRESETS: Record<string, { rows: number; cols: number; mines: number; label: string; desc: string }> = {
-  beginner:     { rows: 9,  cols: 9,  mines: 10, label: 'Pemula',    desc: '9×9 · 10 ranjau' },
-  intermediate: { rows: 16, cols: 16, mines: 40, label: 'Menengah',  desc: '16×16 · 40 ranjau' },
-  expert:       { rows: 16, cols: 30, mines: 99, label: 'Expert',    desc: '16×30 · 99 ranjau' },
-  daily:        { rows: 16, cols: 16, mines: 40, label: 'Harian',    desc: 'Puzzle sama setiap hari' },
+  beginner:     { rows: 9,  cols: 9,  mines: 10, label: 'Beginner',    desc: '9×9 · 10 mines' },
+  intermediate: { rows: 16, cols: 16, mines: 40, label: 'Intermediate',  desc: '16×16 · 40 mines' },
+  expert:       { rows: 16, cols: 30, mines: 99, label: 'Expert',        desc: '16×30 · 99 mines' },
+  daily:        { rows: 16, cols: 16, mines: 40, label: 'Daily',         desc: 'Same puzzle every day' },
 };
 
 const NUM_CLASSES = [
@@ -229,7 +229,7 @@ async function handleWin() {
     await loadRecords();
     if (levelKey.value === 'daily') await loadDailyStatus();
   } catch {
-    toast({ tone: 'error', title: 'Gagal menyimpan', message: 'Hasil tidak tersimpan.' });
+    toast({ tone: 'error', title: 'Failed to save result' });
   } finally {
     completing.value = false;
   }
@@ -329,7 +329,7 @@ async function startNewGame(chosenLevel: Level) {
     applySession(data.session);
     flagMode.value = false;
   } catch {
-    toast({ tone: 'error', title: 'Gagal memulai', message: 'Coba lagi.' });
+    toast({ tone: 'error', title: 'Failed to start', message: 'Try again.' });
   } finally {
     loading.value = false;
   }
@@ -516,15 +516,15 @@ onUnmounted(() => {
       <!-- Resume banner -->
       <div v-if="pendingResume" class="card flex items-center justify-between gap-3 border-teal-200 bg-teal-50/60 p-4 dark:border-teal-700/60 dark:bg-teal-900/10">
         <div class="min-w-0">
-          <p class="text-xs font-extrabold uppercase text-teal-700">Sesi tersimpan</p>
+          <p class="text-xs font-extrabold uppercase text-teal-700">Saved session</p>
           <p class="mt-0.5 text-sm font-bold text-slate-700 dark:text-slate-200">
             {{ parseLevelLabel(pendingResume.level) }}
             <span class="font-mono font-semibold text-slate-500"> · {{ formatTime(pendingResume.elapsed_seconds) }}</span>
           </p>
         </div>
         <div class="flex shrink-0 gap-2">
-          <button class="btn btn-primary py-1.5 px-3 text-sm" @click="resumeSession">Lanjutkan</button>
-          <button class="btn btn-muted py-1.5 px-3 text-sm" @click="dismissResume">Hapus</button>
+          <button class="btn btn-primary py-1.5 px-3 text-sm" @click="resumeSession">Resume</button>
+          <button class="btn btn-muted py-1.5 px-3 text-sm" @click="dismissResume">Discard</button>
         </div>
       </div>
 
@@ -532,11 +532,11 @@ onUnmounted(() => {
       <div class="card overflow-hidden p-0">
         <div class="flex items-center gap-3 border-b border-slate-100 bg-gradient-to-r from-indigo-50 to-slate-50 px-5 py-3.5 dark:border-slate-700 dark:from-indigo-900/20 dark:to-slate-800/50">
           <svg class="h-5 w-5 shrink-0 text-indigo-500" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="4" rx="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>
-          <p class="text-sm font-extrabold text-indigo-800 dark:text-indigo-300">Tantangan Harian</p>
+          <p class="text-sm font-extrabold text-indigo-800 dark:text-indigo-300">Daily Challenge</p>
         </div>
         <div class="flex items-center justify-between gap-3 px-5 py-4">
           <div class="min-w-0">
-            <p class="text-xs font-medium text-slate-500">16×16 · 40 ranjau. Puzzle sama setiap hari.</p>
+            <p class="text-xs font-medium text-slate-500">16×16 · 40 mines. Same puzzle every day.</p>
             <div class="mt-2">
               <template v-if="dailyStatus?.completed_today">
                 <div class="flex items-center gap-2">
@@ -544,16 +544,16 @@ onUnmounted(() => {
                     <svg class="h-3 w-3 text-white" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="3" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>
                   </span>
                   <span class="text-sm font-bold text-teal-700 dark:text-teal-400">
-                    Selesai hari ini
+                    Completed today
                     <span v-if="dailyStatus.record" class="font-mono"> — {{ formatTime(dailyStatus.record.duration_seconds) }}</span>
                   </span>
                 </div>
               </template>
               <template v-else-if="dailyStatus?.session">
-                <p class="text-sm font-semibold text-slate-600 dark:text-slate-300">Dilanjutkan · <span class="font-mono">{{ formatTime(dailyStatus.session.elapsed_seconds) }}</span></p>
+                <p class="text-sm font-semibold text-slate-600 dark:text-slate-300">In progress · <span class="font-mono">{{ formatTime(dailyStatus.session.elapsed_seconds) }}</span></p>
               </template>
               <template v-else>
-                <p class="text-sm font-semibold text-slate-400">Belum dimulai hari ini</p>
+                <p class="text-sm font-semibold text-slate-400">Not started today</p>
               </template>
             </div>
           </div>
@@ -561,7 +561,7 @@ onUnmounted(() => {
             v-if="!dailyStatus?.completed_today"
             class="shrink-0 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-bold text-indigo-700 hover:bg-indigo-100 dark:border-indigo-700 dark:bg-indigo-900/20 dark:text-indigo-400"
             @click="startDaily"
-          >{{ dailyStatus?.session ? 'Lanjutkan' : 'Mulai' }}</button>
+          >{{ dailyStatus?.session ? 'Resume' : 'Start' }}</button>
           <div v-else class="shrink-0 text-2xl">🏅</div>
         </div>
       </div>
@@ -586,27 +586,27 @@ onUnmounted(() => {
           @click="level = 'custom'"
         >
           <span class="pill text-xs" :class="levelPillClass('custom')">Custom</span>
-          <p class="text-xs font-medium text-slate-500">Ukuran & ranjau sendiri</p>
+          <p class="text-xs font-medium text-slate-500">Custom size & mines</p>
         </button>
       </div>
 
       <!-- Custom config -->
       <div v-if="level === 'custom'" class="card grid gap-4 p-5 sm:grid-cols-3">
         <label>
-          <span class="label mb-1.5">Baris (5–30)</span>
+          <span class="label mb-1.5">Rows (5–30)</span>
           <input v-model.number="customRows" class="field" type="number" min="5" max="30" />
         </label>
         <label>
-          <span class="label mb-1.5">Kolom (5–50)</span>
+          <span class="label mb-1.5">Columns (5–50)</span>
           <input v-model.number="customCols" class="field" type="number" min="5" max="50" />
         </label>
         <label>
-          <span class="label mb-1.5">Ranjau</span>
+          <span class="label mb-1.5">Mines</span>
           <input v-model.number="customMines" class="field" type="number" :min="1" :max="customRows * customCols - 9" />
         </label>
         <p class="text-xs font-semibold text-slate-400 sm:col-span-3">
-          {{ customRows }}×{{ customCols }} = {{ customRows * customCols }} sel ·
-          {{ Math.round(customMines / (customRows * customCols) * 100) }}% ranjau
+          {{ customRows }}×{{ customCols }} = {{ customRows * customCols }} cells ·
+          {{ Math.round(customMines / (customRows * customCols) * 100) }}% mines
         </p>
       </div>
 
@@ -615,21 +615,21 @@ onUnmounted(() => {
         :disabled="loading"
         @click="startNewGame(level)"
       >
-        {{ loading ? 'Membuat papan...' : `Mulai — ${level === 'custom' ? 'Custom' : PRESETS[level]?.label}` }}
+        {{ loading ? 'Setting up board...' : `Start — ${level === 'custom' ? 'Custom' : PRESETS[level]?.label}` }}
       </button>
 
       <!-- Records -->
       <div v-if="Object.values(records).some(r => r.length)" class="card overflow-hidden p-0">
         <div class="flex items-center justify-between border-b border-slate-100 bg-slate-50/70 px-5 py-3 dark:border-slate-700 dark:bg-slate-800/50">
           <p class="text-xs font-extrabold uppercase text-teal-700">Personal Records</p>
-          <p v-if="totalWins > 0" class="text-xs font-bold text-slate-400">{{ totalWins }} total menang</p>
+          <p v-if="totalWins > 0" class="text-xs font-bold text-slate-400">{{ totalWins }} total wins</p>
         </div>
         <div class="divide-y divide-slate-100 dark:divide-slate-700">
           <div v-for="lv in ['beginner','intermediate','expert','daily']" :key="lv">
             <div v-if="records[lv]?.length" class="px-5 py-3">
               <div class="mb-2 flex items-center gap-2">
                 <span class="pill text-xs" :class="levelPillClass(lv)">{{ parseLevelLabel(lv) }}</span>
-                <span class="text-xs font-bold text-slate-400">{{ totals[lv] }}× menang</span>
+                <span class="text-xs font-bold text-slate-400">{{ totals[lv] }}× wins</span>
               </div>
               <div class="space-y-1">
                 <div v-for="(rec, idx) in records[lv]" :key="rec.id" class="flex items-center gap-3 text-sm">
@@ -674,8 +674,8 @@ onUnmounted(() => {
           <span class="font-mono text-sm font-black tabular-nums sm:text-base">{{ formatTime(elapsedSeconds) }}</span>
           <button
             class="grid h-8 w-8 place-items-center rounded-xl border border-slate-200 bg-white text-slate-600 transition hover:border-teal-200 hover:text-teal-700 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
-            :title="isPaused ? 'Lanjutkan' : 'Jeda'"
-            :aria-label="isPaused ? 'Lanjutkan permainan' : 'Jeda permainan'"
+            :title="isPaused ? 'Resume' : 'Pause'"
+            :aria-label="isPaused ? 'Resume game' : 'Pause game'"
             @click="togglePause"
           >
             <svg v-if="isPaused" class="h-4 w-4" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
@@ -685,14 +685,14 @@ onUnmounted(() => {
           <button
             class="grid h-8 w-8 place-items-center rounded-xl border transition text-sm"
             :class="flagMode ? 'border-teal-400 bg-teal-50 text-teal-700 dark:border-teal-600 dark:bg-teal-900/30 dark:text-teal-400' : 'border-slate-200 bg-white text-slate-500 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-400'"
-            title="Mode bendera"
-            aria-label="Toggle mode bendera"
+            title="Flag mode"
+            aria-label="Toggle flag mode"
             @click="flagMode = !flagMode"
           >🚩</button>
           <button
             class="grid h-8 w-8 place-items-center rounded-xl border border-red-200 bg-red-50 text-red-600 transition hover:bg-red-100 dark:border-red-800/40 dark:bg-red-900/20 dark:text-red-400"
-            title="Keluar"
-            aria-label="Keluar tanpa simpan"
+            title="Exit"
+            aria-label="Exit without saving"
             @click="exitWithoutSave"
           >
             <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
@@ -706,10 +706,10 @@ onUnmounted(() => {
           <svg class="h-10 w-10 text-slate-500" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
         </div>
         <div>
-          <p class="text-xl font-black">Dijeda</p>
-          <p class="mt-1 text-sm text-slate-500">Papan tersembunyi untuk menjaga fairness.</p>
+          <p class="text-xl font-black">Paused</p>
+          <p class="mt-1 text-sm text-slate-500">Board is hidden to keep it fair.</p>
         </div>
-        <button class="btn btn-primary px-8" @click="togglePause">Lanjutkan</button>
+        <button class="btn btn-primary px-8" @click="togglePause">Resume</button>
       </div>
 
       <!-- Board -->
@@ -738,7 +738,7 @@ onUnmounted(() => {
 
       <!-- Mobile hint (playing only) -->
       <p v-if="gameState === 'playing'" class="hidden text-center text-xs font-medium text-slate-400 sm:block">
-        Klik kiri: buka · Klik kanan: bendera/tanda tanya · Klik ganda: chord
+        Left click: reveal · Right click: flag/question · Double click: chord
       </p>
 
       <!-- ── LOST overlay card (below the board) ── -->
@@ -746,18 +746,18 @@ onUnmounted(() => {
         <div class="flex items-center gap-4">
           <span class="text-4xl">💥</span>
           <div class="flex-1">
-            <h2 class="text-lg font-black text-red-600 dark:text-red-400">Kena Ranjau!</h2>
+            <h2 class="text-lg font-black text-red-600 dark:text-red-400">Mine Hit!</h2>
             <p class="text-sm font-semibold text-slate-500">
-              Waktu: <span class="font-mono font-black">{{ formatTime(gameStats.time) }}</span>
+              Time: <span class="font-mono font-black">{{ formatTime(gameStats.time) }}</span>
               · Level: <span class="font-bold">{{ parseLevelLabel(levelKey) }}</span>
-              · Ranjau: <span class="font-bold">{{ mineCount }}</span>
+              · Mines: <span class="font-bold">{{ mineCount }}</span>
             </p>
           </div>
           <div class="flex shrink-0 gap-2">
             <button
               class="btn btn-primary"
               @click="startNewGame(levelKey.startsWith('custom') ? 'custom' : levelKey as Level)"
-            >Coba lagi</button>
+            >Try again</button>
             <button class="btn btn-muted" @click="backToMenu">Menu</button>
           </div>
         </div>
@@ -771,13 +771,13 @@ onUnmounted(() => {
           <span class="text-5xl">🏆</span>
         </div>
         <div>
-          <h2 class="text-2xl font-black">Selesai!</h2>
+          <h2 class="text-2xl font-black">Done!</h2>
           <p class="mt-1 text-sm font-medium text-slate-500">Level {{ parseLevelLabel(levelKey) }}</p>
         </div>
         <div>
           <span class="font-mono text-5xl font-black tabular-nums text-teal-600">{{ formatTime(gameStats.time) }}</span>
           <div class="mt-2 flex justify-center">
-            <span v-if="completionRank === 1" class="pill border border-yellow-200 bg-yellow-50 text-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-400">Rekor baru!</span>
+            <span v-if="completionRank === 1" class="pill border border-yellow-200 bg-yellow-50 text-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-400">New record!</span>
             <span v-else-if="completionRank" class="text-sm font-semibold text-slate-500">Rank #{{ completionRank }} personal</span>
           </div>
         </div>
@@ -795,14 +795,14 @@ onUnmounted(() => {
               <span class="w-5 text-center font-black" :class="idx === 0 ? 'text-yellow-500' : 'text-slate-400'">#{{ idx + 1 }}</span>
               <span class="font-mono">{{ formatTime(rec.duration_seconds) }}</span>
               <span class="text-xs text-slate-400">{{ rec.completed_at?.slice(0, 10) }}</span>
-              <span v-if="rec.id === completionRecord?.id" class="ml-auto text-xs font-bold text-teal-600 dark:text-teal-400">baru</span>
+              <span v-if="rec.id === completionRecord?.id" class="ml-auto text-xs font-bold text-teal-600 dark:text-teal-400">new</span>
             </div>
           </div>
         </div>
 
         <div class="flex gap-3">
-          <button class="btn btn-primary" @click="startNewGame(levelKey.startsWith('custom') ? 'custom' : levelKey as Level)">Main lagi</button>
-          <button class="btn btn-muted" @click="backToMenu">Kembali ke menu</button>
+          <button class="btn btn-primary" @click="startNewGame(levelKey.startsWith('custom') ? 'custom' : levelKey as Level)">Play again</button>
+          <button class="btn btn-muted" @click="backToMenu">Back to menu</button>
         </div>
       </div>
     </template>

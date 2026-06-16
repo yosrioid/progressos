@@ -12,7 +12,7 @@ const filterType = ref('');
 const page = ref(1);
 
 const typeOptions = [
-  { value: '', label: 'Semua tipe' },
+  { value: '', label: 'All types' },
   { value: 'WorkLog', label: 'Work Logs' },
   { value: 'Task', label: 'Tasks' },
   { value: 'LearningEntry', label: 'Learning' },
@@ -49,11 +49,11 @@ const dotColors: Record<string, string> = {
 };
 
 const actionLabels: Record<string, string> = {
-  created: 'Dibuat',
-  updated: 'Diperbarui',
-  deleted: 'Dihapus',
-  archived: 'Diarsipkan',
-  restored: 'Dipulihkan',
+  created: 'Created',
+  updated: 'Updated',
+  deleted: 'Deleted',
+  archived: 'Archived',
+  restored: 'Restored',
 };
 
 const typePaths: Record<string, string> = {
@@ -88,9 +88,9 @@ function formatDateHeader(dateStr: string): string {
   const today = new Date();
   const yesterday = new Date(today);
   yesterday.setDate(yesterday.getDate() - 1);
-  if (dateStr === today.toISOString().slice(0, 10)) return 'Hari ini';
-  if (dateStr === yesterday.toISOString().slice(0, 10)) return 'Kemarin';
-  return date.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  if (dateStr === today.toISOString().slice(0, 10)) return 'Today';
+  if (dateStr === yesterday.toISOString().slice(0, 10)) return 'Yesterday';
+  return date.toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 }
 
 function itemPath(item: any) {
@@ -134,7 +134,7 @@ onMounted(load);
       <div>
         <p class="text-xs font-extrabold uppercase text-teal-700 dark:text-teal-500">Timeline</p>
         <h1 class="text-2xl font-extrabold">Activity</h1>
-        <p class="mt-1 text-sm font-medium text-slate-500 dark:text-zinc-500">Semua perubahan dan pencatatan, dari terbaru.</p>
+        <p class="mt-1 text-sm font-medium text-slate-500 dark:text-zinc-500">All changes and records, newest first.</p>
       </div>
       <select v-model="filterType" class="field w-auto">
         <option v-for="opt in typeOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
@@ -152,8 +152,8 @@ onMounted(load);
       <div class="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-2xl bg-slate-100 dark:bg-zinc-800">
         <svg class="h-6 w-6 text-slate-400" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewBox="0 0 24 24"><path d="M12 8v4l3 3M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/></svg>
       </div>
-      <p class="font-extrabold text-slate-700 dark:text-zinc-300">Belum ada aktivitas</p>
-      <p class="mt-1 text-sm text-slate-400 dark:text-zinc-600">Mulai mencatat pekerjaan, tugas, atau pembelajaran.</p>
+      <p class="font-extrabold text-slate-700 dark:text-zinc-300">No activity yet</p>
+      <p class="mt-1 text-sm text-slate-400 dark:text-zinc-600">Start logging work, tasks, or learning.</p>
     </div>
 
     <div v-else class="space-y-6">
@@ -211,9 +211,9 @@ onMounted(load);
           :disabled="loadingMore"
           @click="loadMore"
         >
-          {{ loadingMore ? 'Memuat...' : 'Muat lebih banyak' }}
+          {{ loadingMore ? 'Loading...' : 'Load more' }}
         </button>
-        <p v-else class="text-xs text-slate-400 dark:text-zinc-600">Semua aktivitas sudah dimuat.</p>
+        <p v-else class="text-xs text-slate-400 dark:text-zinc-600">All activity loaded.</p>
       </div>
     </div>
   </div>

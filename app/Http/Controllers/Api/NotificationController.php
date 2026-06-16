@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\InAppNotification;
+use App\Support\ApiResponse;
 use Illuminate\Http\Request;
 
 class NotificationController extends Controller
@@ -17,7 +18,7 @@ class NotificationController extends Controller
 
         $unreadCount = InAppNotification::ownedBy($request->user())->unread()->count();
 
-        return response()->json([
+        return ApiResponse::ok([
             'notifications' => $notifications,
             'unread_count' => $unreadCount,
         ]);
@@ -28,7 +29,7 @@ class NotificationController extends Controller
         abort_if($notification->user_id !== $request->user()->id, 403);
         $notification->update(['read_at' => now()]);
 
-        return response()->json(['read' => true]);
+        return ApiResponse::ok(['read' => true]);
     }
 
     public function markAllRead(Request $request)
@@ -37,7 +38,7 @@ class NotificationController extends Controller
             ->unread()
             ->update(['read_at' => now()]);
 
-        return response()->json(['marked' => true]);
+        return ApiResponse::ok(['marked' => true]);
     }
 
     public function destroy(Request $request, InAppNotification $notification)
@@ -52,12 +53,12 @@ class NotificationController extends Controller
     {
         InAppNotification::ownedBy($request->user())->delete();
 
-        return response()->json(['cleared' => true]);
+        return ApiResponse::ok(['cleared' => true]);
     }
 
     public function unreadCount(Request $request)
     {
-        return response()->json([
+        return ApiResponse::ok([
             'count' => InAppNotification::ownedBy($request->user())->unread()->count(),
         ]);
     }

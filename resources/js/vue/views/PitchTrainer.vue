@@ -58,13 +58,13 @@ const LEVEL_CFG = {
     label: 'Natural',
     notes: ['C', 'D', 'E', 'F', 'G', 'A', 'B'] as string[],
     timeLimit: 60,
-    desc: '7 nada natural · 60 detik',
+    desc: '7 natural notes · 60 seconds',
   },
   chromatic: {
-    label: 'Kromatik',
+    label: 'Chromatic',
     notes: ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'] as string[],
     timeLimit: 60,
-    desc: '12 nada (termasuk tanda #) · 60 detik',
+    desc: '12 notes (including sharps) · 60 seconds',
   },
 };
 
@@ -143,7 +143,7 @@ async function startGame() {
     const res = await api.post('/api/v1/games/pitch/sessions', { level: level.value });
     sessionId.value = res.data.data.session.id;
   } catch {
-    error.value = 'Gagal memulai sesi.';
+    error.value = 'Failed to start session.';
     loading.value = false;
     return;
   }
@@ -261,13 +261,13 @@ loadRecords();
     <div>
       <p class="text-sm font-extrabold text-rose-600 dark:text-rose-400">Games</p>
       <h1 class="mt-1 text-3xl font-extrabold tracking-tight">Pitch Trainer</h1>
-      <p class="mt-1 text-sm font-medium text-slate-500 dark:text-zinc-400">Dengar nada, tebak namanya. Latih ketajaman pendengaranmu.</p>
+      <p class="mt-1 text-sm font-medium text-slate-500 dark:text-zinc-400">Hear a note, guess its name. Train your ear.</p>
     </div>
 
     <!-- ── Menu ─────────────────────────────────────────────────────────────── -->
     <div v-if="phase === 'menu'" class="space-y-6">
       <div class="card p-6 space-y-5">
-        <h2 class="text-lg font-bold">Pilih Level</h2>
+        <h2 class="text-lg font-bold">Choose Level</h2>
         <div class="grid gap-3 sm:grid-cols-2">
           <button
             v-for="(c, lv) in LEVEL_CFG" :key="lv"
@@ -280,17 +280,17 @@ loadRecords();
             <div class="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">{{ c.desc }}</div>
           </button>
         </div>
-        <p class="text-xs text-slate-400 dark:text-zinc-500">Skor: +10 per benar, +2 tiap level streak (streak 5 = +10 bonus)</p>
+        <p class="text-xs text-slate-400 dark:text-zinc-500">Score: +10 per correct, +2 per streak level (streak 5 = +10 bonus)</p>
         <div v-if="error" class="text-sm text-red-500">{{ error }}</div>
         <button @click="startGame" :disabled="loading"
           class="rounded-xl bg-rose-600 px-6 py-2.5 text-sm font-bold text-white hover:bg-rose-700 disabled:opacity-50 transition">
-          {{ loading ? 'Memulai…' : 'Mulai' }}
+          {{ loading ? 'Starting…' : 'Start' }}
         </button>
       </div>
 
       <!-- Records -->
       <div class="card p-6 space-y-4">
-        <h2 class="text-lg font-bold">Rekor Pribadi</h2>
+        <h2 class="text-lg font-bold">Personal Records</h2>
         <div class="flex gap-2">
           <button
             v-for="lv in (['natural', 'chromatic'] as Level[])" :key="lv"
@@ -300,16 +300,16 @@ loadRecords();
             {{ LEVEL_CFG[lv].label }}
           </button>
         </div>
-        <p class="text-xs text-slate-400">{{ totals[recordTab] }} permainan</p>
-        <div v-if="!records[recordTab]?.length" class="text-sm text-slate-400 py-2">Belum ada rekor untuk level ini.</div>
+        <p class="text-xs text-slate-400">{{ totals[recordTab] }} games</p>
+        <div v-if="!records[recordTab]?.length" class="text-sm text-slate-400 py-2">No records yet for this level.</div>
         <table v-else class="w-full text-sm">
           <thead>
             <tr class="text-xs text-slate-400 border-b dark:border-zinc-700">
               <th class="text-left py-1.5 font-semibold">#</th>
-              <th class="text-left py-1.5 font-semibold">Skor</th>
-              <th class="text-left py-1.5 font-semibold">Akurasi</th>
-              <th class="text-left py-1.5 font-semibold">Jawaban</th>
-              <th class="text-left py-1.5 font-semibold">Tanggal</th>
+              <th class="text-left py-1.5 font-semibold">Score</th>
+              <th class="text-left py-1.5 font-semibold">Accuracy</th>
+              <th class="text-left py-1.5 font-semibold">Answers</th>
+              <th class="text-left py-1.5 font-semibold">Date</th>
             </tr>
           </thead>
           <tbody>
@@ -388,13 +388,13 @@ loadRecords();
         <!-- Feedback label -->
         <div class="text-center h-6">
           <span v-if="lastResult === 'correct'" class="text-green-600 dark:text-green-400 font-bold">
-            ✓ Benar! &nbsp;<span class="text-lg">{{ lastCorrectNote }}</span>
+            ✓ Correct! &nbsp;<span class="text-lg">{{ lastCorrectNote }}</span>
             <span v-if="streak > 1" class="ml-2 text-xs font-semibold text-yellow-500">🔥 Streak {{ streak }}</span>
           </span>
           <span v-else-if="lastResult === 'wrong'" class="text-red-500 font-bold">
-            ✗ Salah — itu nada <span class="text-lg">{{ lastCorrectNote }}</span>
+            ✗ Wrong — that was <span class="text-lg">{{ lastCorrectNote }}</span>
           </span>
-          <span v-else class="text-slate-400 text-sm">Nada apa yang baru dimainkan?</span>
+          <span v-else class="text-slate-400 text-sm">What note was just played?</span>
         </div>
 
         <!-- 4 choice buttons -->
@@ -411,17 +411,17 @@ loadRecords();
 
         <!-- Done / saved result -->
         <div v-if="phase === 'done' || phase === 'saved'" class="text-center space-y-3 pt-2">
-          <div class="text-4xl font-extrabold">{{ score }} poin</div>
-          <div class="text-slate-500 dark:text-zinc-400">{{ correct }} benar dari {{ total }} soal · {{ accuracyPct }}% akurasi</div>
-          <div v-if="saving" class="text-sm text-slate-400">Menyimpan…</div>
+          <div class="text-4xl font-extrabold">{{ score }} points</div>
+          <div class="text-slate-500 dark:text-zinc-400">{{ correct }} correct of {{ total }} · {{ accuracyPct }}% accuracy</div>
+          <div v-if="saving" class="text-sm text-slate-400">Saving…</div>
           <div v-else-if="phase === 'saved'" class="text-sm">
-            <span v-if="isBest" class="font-bold text-yellow-500">🏆 Rekor baru!</span>
-            <span v-else class="text-slate-400">Peringkat #{{ savedRank }}</span>
+            <span v-if="isBest" class="font-bold text-yellow-500">🏆 New record!</span>
+            <span v-else class="text-slate-400">Rank #{{ savedRank }}</span>
           </div>
           <div class="flex justify-center gap-3 pt-2">
             <button @click="startGame" :disabled="loading"
               class="rounded-xl bg-rose-600 px-5 py-2 text-sm font-bold text-white hover:bg-rose-700 disabled:opacity-50 transition">
-              Main Lagi
+              Play Again
             </button>
             <button @click="reset"
               class="rounded-xl bg-slate-100 dark:bg-zinc-700 px-5 py-2 text-sm font-bold hover:bg-slate-200 dark:hover:bg-zinc-600 transition">
@@ -433,7 +433,7 @@ loadRecords();
 
       <!-- Live score bonus hint -->
       <p v-if="phase === 'playing' && streak > 0" class="text-center text-xs text-slate-400">
-        Streak {{ streak }} → +{{ BASE_PTS + streak * STREAK_BONUS }} poin per jawaban benar
+        Streak {{ streak }} → +{{ BASE_PTS + streak * STREAK_BONUS }} pts per correct answer
       </p>
     </div>
   </div>

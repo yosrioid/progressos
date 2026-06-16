@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router';
-import { api } from './api';
+import { api, unwrap } from './api';
 import DatePicker from './components/DatePicker.vue';
 import WorkTimer from './components/WorkTimer.vue';
 import { dismissToast, feedback, resolveConfirm, toast } from './feedback';
@@ -133,13 +133,13 @@ const filteredCommands = computed(() => {
 });
 
 async function submitQuick() {
-  const res = await api.post('/api/v1/quick-capture', quickForm.value).then((r) => r.data);
+  const res = await api.post('/api/v1/quick-capture', quickForm.value).then(unwrap);
   const path: string | null = res.data?.record_path ?? null;
   quick.value = false;
   toast({
     tone: 'success',
     title: 'Captured',
-    message: path ? `Tersimpan. <a href="${path}" class="font-bold underline">Lihat record →</a>` : 'Tersimpan.',
+    message: path ? `Saved. <a href="${path}" class="font-bold underline">View record →</a>` : 'Saved.',
   });
   quickForm.value = { type: 'work_log', title: '', project_name: '', duration_minutes: 30, notes: '', date: new Date().toISOString().slice(0, 10) };
   if (path) await router.push(path);
@@ -149,7 +149,7 @@ async function submitQuick() {
 async function loadProjectNames() {
   if (projectNames.value.length) return;
   try {
-    const res = await api.get('/api/v1/projects?per_page=200&sort=name&direction=asc').then((r) => r.data);
+    const res = await api.get('/api/v1/projects?per_page=200&sort=name&direction=asc').then(unwrap);
     projectNames.value = (res.data ?? []).map((p: any) => p.name).filter(Boolean);
   } catch {
     // non-critical
@@ -158,7 +158,7 @@ async function loadProjectNames() {
 
 async function loadOverdueCount() {
   try {
-    const res = await api.get('/api/v1/tasks/overdue-count').then((r) => r.data);
+    const res = await api.get('/api/v1/tasks/overdue-count').then(unwrap);
     overdueCount.value = res.count ?? 0;
   } catch {
     overdueCount.value = 0;
@@ -167,7 +167,7 @@ async function loadOverdueCount() {
 
 async function loadNotifications() {
   try {
-    const res = await api.get('/api/v1/notifications').then((r) => r.data);
+    const res = await api.get('/api/v1/notifications').then(unwrap);
     notifications.value = res.notifications ?? [];
     notifUnread.value = res.unread_count ?? 0;
   } catch {
@@ -409,13 +409,13 @@ onUnmounted(() => window.removeEventListener('keydown', shortcuts));
             <button v-if="notifOpen" class="fixed inset-0 z-10 cursor-default" tabindex="-1" @click="notifOpen = false"></button>
             <div v-if="notifOpen" class="fixed inset-x-3 top-[4.5rem] z-20 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl shadow-slate-900/10 dark:border-zinc-800 dark:bg-zinc-900 dark:shadow-black/30 sm:absolute sm:inset-auto sm:right-0 sm:top-full sm:mt-2 sm:w-80">
               <div class="flex items-center justify-between border-b border-slate-100 px-4 py-3 dark:border-zinc-800">
-                <span class="text-sm font-extrabold text-slate-900 dark:text-zinc-100">Notifikasi</span>
+                <span class="text-sm font-extrabold text-slate-900 dark:text-zinc-100">Notifications</span>
                 <div class="flex gap-2">
-                  <button v-if="notifUnread > 0" @click="markAllNotifRead" class="text-xs text-teal-600 hover:underline dark:text-teal-400">Baca semua</button>
-                  <button v-if="notifications.length" @click="clearAllNotif" class="text-xs text-red-500 hover:underline">Hapus semua</button>
+                  <button v-if="notifUnread > 0" @click="markAllNotifRead" class="text-xs text-teal-600 hover:underline dark:text-teal-400">Mark all read</button>
+                  <button v-if="notifications.length" @click="clearAllNotif" class="text-xs text-red-500 hover:underline">Clear all</button>
                 </div>
               </div>
-              <div v-if="!notifications.length" class="py-8 text-center text-sm text-slate-400 dark:text-zinc-500">Tidak ada notifikasi</div>
+              <div v-if="!notifications.length" class="py-8 text-center text-sm text-slate-400 dark:text-zinc-500">No notifications</div>
               <div v-else class="max-h-96 overflow-y-auto divide-y divide-slate-100 dark:divide-zinc-800">
                 <button
                   v-for="n in notifications"

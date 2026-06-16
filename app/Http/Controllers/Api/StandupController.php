@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Task;
 use App\Models\WorkLog;
+use App\Support\ApiResponse;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
 
@@ -55,7 +56,7 @@ class StandupController extends Controller
         $lines = [];
         $lines[] = '## Standup — '.$today->toFormattedDateString();
         $lines[] = '';
-        $lines[] = '### ✅ Kemarin / Selesai';
+        $lines[] = '### ✅ Yesterday / Done';
         foreach ($doneLogs as $l) {
             /** @var WorkLog $l */
             $lines[] = "- {$l->title}".($l->project_name ? " [{$l->project_name}]" : '');
@@ -69,17 +70,17 @@ class StandupController extends Controller
             $lines[] = "- ✓ Task: {$t->title}";
         }
         if ($doneLogs->isEmpty() && $doneToday->isEmpty() && $completedTasks->isEmpty()) {
-            $lines[] = '- (tidak ada yang selesai)';
+            $lines[] = '- (nothing completed)';
         }
         $lines[] = '';
-        $lines[] = '### 📋 Hari ini';
+        $lines[] = '### 📋 Today';
         foreach ($todayTasks as $t) {
             /** @var Task $t */
             $prefix = $t->status === 'in_progress' ? '🔄' : '▫';
             $lines[] = "{$prefix} {$t->title}";
         }
         if ($todayTasks->isEmpty()) {
-            $lines[] = '- (belum ada task yang direncanakan)';
+            $lines[] = '- (no tasks planned)';
         }
         $lines[] = '';
         $lines[] = '### 🚧 Blocker';
@@ -88,10 +89,10 @@ class StandupController extends Controller
             $lines[] = "- ⛔ {$title}";
         }
         if ($allBlockerTitles->isEmpty()) {
-            $lines[] = '- Tidak ada blocker';
+            $lines[] = '- No blockers';
         }
 
-        return response()->json([
+        return ApiResponse::ok([
             'date' => $today->toDateString(),
             'done_logs' => $doneLogs->merge($doneToday)->values(),
             'completed_tasks' => $completedTasks->values(),

@@ -54,21 +54,21 @@ const milestonePace = computed(() => {
   const current = Number(m.current_value || 0);
   const target = Number(m.target_value || 1);
   const remaining = target - current;
-  if (remaining <= 0) return { label: 'Selesai!', tone: 'green' };
+  if (remaining <= 0) return { label: 'Done!', tone: 'green' };
   if (!start) return null;
   const elapsedDays = Math.max(1, Math.floor((now.getTime() - start.getTime()) / 86400000));
   const dailyRate = current / elapsedDays;
-  if (dailyRate <= 0) return end ? { label: 'Belum ada progress', tone: 'slate' } : null;
+  if (dailyRate <= 0) return end ? { label: 'No progress yet', tone: 'slate' } : null;
   const daysToFinish = Math.ceil(remaining / dailyRate);
   const eta = new Date(now.getTime() + daysToFinish * 86400000)
-    .toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
+    .toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
   if (end) {
     const daysLeft = Math.floor((end.getTime() - now.getTime()) / 86400000);
     if (daysToFinish <= daysLeft) return { label: `On track · ETA ${eta}`, tone: 'green' };
     const over = daysToFinish - daysLeft;
-    return { label: `Behind · terlambat ~${over} hari`, tone: 'amber' };
+    return { label: `Behind · ~${over} days late`, tone: 'amber' };
   }
-  return { label: `~${daysToFinish} hari lagi di pace ini`, tone: 'slate' };
+  return { label: `~${daysToFinish} days left at this pace`, tone: 'slate' };
 });
 
 const learningEntries = ref<any[]>([]);
@@ -153,7 +153,7 @@ async function load() {
     contributingMilestones.value = data.contributing_milestones || [];
   }
   if (props.type === 'milestones' && record.value?.completed_at && !prev?.completed_at) {
-    toast({ tone: 'success', title: 'Milestone tercapai! 🎉', message: `"${record.value.title}" sudah 100%.` });
+    toast({ tone: 'success', title: 'Milestone reached! 🎉', message: `"${record.value.title}" is now 100%.` });
   }
   loading.value = false;
   if (props.type === 'milestones' && record.value?.source_type !== 'manual') {
@@ -287,9 +287,9 @@ onMounted(load);
       <div class="rounded-2xl border bg-slate-50 p-4 dark:border-zinc-700 dark:bg-zinc-800"><p class="label">Rating</p><p class="mt-1 font-semibold">{{ record.rating || '-' }}</p></div>
     </div>
     <div v-if="type === 'learning'" class="mb-5">
-      <p class="label mb-2">Berkontribusi ke Milestone</p>
+      <p class="label mb-2">Contributing to Milestone</p>
       <div v-if="!contributingMilestones.length" class="rounded-2xl border border-dashed border-slate-200 px-4 py-3 text-sm text-slate-400 dark:border-zinc-700 dark:text-zinc-600">
-        Tidak ada milestone aktif yang melacak menit belajar untuk entry ini.
+        No active milestone is tracking learning minutes for this entry.
       </div>
       <div v-else class="space-y-2">
         <button
@@ -305,7 +305,7 @@ onMounted(load);
           <div class="h-1.5 overflow-hidden rounded-full bg-teal-100 dark:bg-teal-900/50">
             <div class="h-full rounded-full bg-teal-600" :style="{ width: `${m.progress_percent}%` }" />
           </div>
-          <p class="mt-1 text-xs text-slate-500 dark:text-zinc-500">{{ m.current_value }} / {{ m.target_value }} menit</p>
+          <p class="mt-1 text-xs text-slate-500 dark:text-zinc-500">{{ m.current_value }} / {{ m.target_value }} min</p>
         </button>
       </div>
     </div>
@@ -365,7 +365,7 @@ onMounted(load);
         <span class="text-sm font-semibold text-slate-500">{{ historySummary(record.source_type, Number(record.current_value)) }}</span>
       </div>
       <div v-if="loadingLearning" class="py-8 text-center text-sm text-slate-400">Loading…</div>
-      <div v-else-if="!learningEntries.length" class="py-8 text-center text-sm text-slate-400">Belum ada data yang cocok.</div>
+      <div v-else-if="!learningEntries.length" class="py-8 text-center text-sm text-slate-400">No matching data.</div>
       <div v-else class="divide-y divide-slate-100 dark:divide-zinc-700">
         <div v-for="item in learningEntries" :key="item.id" class="flex items-center justify-between gap-3 py-2.5">
           <div class="min-w-0 flex-1">
@@ -403,7 +403,7 @@ onMounted(load);
             </div>
           </div>
         </template>
-        <p v-if="!record.references?.length" class="rounded-2xl border border-dashed border-slate-200 px-4 py-3 text-sm text-slate-400 dark:border-zinc-700 dark:text-zinc-600">Belum ada referensi. Tambahkan link, dokumen, atau tiket di bawah.</p>
+        <p v-if="!record.references?.length" class="rounded-2xl border border-dashed border-slate-200 px-4 py-3 text-sm text-slate-400 dark:border-zinc-700 dark:text-zinc-600">No references yet. Add a link, document, or ticket below.</p>
       </div>
       <form class="grid gap-3 md:grid-cols-5" @submit.prevent="addReference">
         <input v-model="referenceForm.label" class="field" placeholder="Label" required />

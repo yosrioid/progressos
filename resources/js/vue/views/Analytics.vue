@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
-import { api } from '../api';
+import { api, unwrap } from '../api';
 import { minutes } from '../format';
 
 const data = ref<any>(null);
 const loading = ref(true);
 
 onMounted(async () => {
-  const res = await api.get('/api/v1/analytics').then(r => r.data);
+  const res = await api.get('/api/v1/analytics').then(unwrap);
   data.value = res;
   loading.value = false;
 });
@@ -58,7 +58,7 @@ const totalTasks = computed(() => {
     <div class="mb-5">
       <p class="text-xs font-extrabold uppercase text-teal-700 dark:text-teal-500">Insights</p>
       <h1 class="text-2xl font-extrabold">Analytics</h1>
-      <p class="mt-1 text-sm font-medium text-slate-500 dark:text-zinc-500">Semua metrik produktivitas dalam satu tampilan.</p>
+      <p class="mt-1 text-sm font-medium text-slate-500 dark:text-zinc-500">All productivity metrics in one view.</p>
     </div>
 
     <div v-if="loading" class="grid gap-4">
@@ -94,7 +94,7 @@ const totalTasks = computed(() => {
         <!-- Work log heatmap -->
         <section class="card p-5 lg:col-span-2">
           <h2 class="mb-1 font-extrabold">Work Session Heatmap</h2>
-          <p class="mb-4 text-xs font-semibold text-slate-400">90 hari terakhir — durasi per hari</p>
+          <p class="mb-4 text-xs font-semibold text-slate-400">Last 90 days — duration per day</p>
           <div class="flex flex-wrap gap-1">
             <div
               v-for="day in data.work_heatmap"
@@ -105,18 +105,18 @@ const totalTasks = computed(() => {
             />
           </div>
           <div class="mt-2 flex items-center gap-2 text-xs text-slate-400">
-            <span>Sedikit</span>
+            <span>Less</span>
             <div class="h-3 w-3 rounded-sm bg-sky-200 dark:bg-sky-900" />
             <div class="h-3 w-3 rounded-sm bg-sky-400 dark:bg-sky-700" />
             <div class="h-3 w-3 rounded-sm bg-sky-700" />
-            <span>Banyak</span>
+            <span>More</span>
           </div>
         </section>
 
         <!-- Task velocity -->
         <section class="card p-5">
           <h2 class="mb-1 font-extrabold">Task Velocity</h2>
-          <p class="mb-4 text-xs font-semibold text-slate-400">Tasks selesai per minggu — 8 minggu terakhir</p>
+          <p class="mb-4 text-xs font-semibold text-slate-400">Tasks completed per week — last 8 weeks</p>
           <div class="flex h-36 items-end gap-1.5 rounded-xl bg-slate-50 p-3 dark:bg-zinc-800/50">
             <div v-for="w in data.task_velocity" :key="w.week" class="flex flex-1 flex-col items-center gap-1">
               <span class="text-xs font-extrabold text-teal-700 dark:text-teal-400">{{ w.count || '' }}</span>
@@ -132,7 +132,7 @@ const totalTasks = computed(() => {
         <!-- Monthly work hours -->
         <section class="card p-5">
           <h2 class="mb-1 font-extrabold">Monthly Work Hours</h2>
-          <p class="mb-4 text-xs font-semibold text-slate-400">6 bulan terakhir</p>
+          <p class="mb-4 text-xs font-semibold text-slate-400">Last 6 months</p>
           <div class="flex h-36 items-end gap-1.5 rounded-xl bg-slate-50 p-3 dark:bg-zinc-800/50">
             <div v-for="m in data.monthly_work" :key="m.month" class="flex flex-1 flex-col items-center gap-1">
               <div
@@ -148,7 +148,7 @@ const totalTasks = computed(() => {
         <!-- Work by category -->
         <section class="card p-5">
           <h2 class="mb-1 font-extrabold">Work by Category</h2>
-          <p class="mb-4 text-xs font-semibold text-slate-400">Semua waktu kerja per kategori</p>
+          <p class="mb-4 text-xs font-semibold text-slate-400">All work time by category</p>
           <div class="space-y-3">
             <div v-for="cat in data.by_category.slice(0, 8)" :key="cat.category">
               <div class="mb-1 flex justify-between text-sm">
@@ -183,23 +183,23 @@ const totalTasks = computed(() => {
         <!-- Learn vs Work last 4 weeks -->
         <section class="card p-5 lg:col-span-2">
           <h2 class="mb-1 font-extrabold">Learning vs Work</h2>
-          <p class="mb-4 text-xs font-semibold text-slate-400">Perbandingan menit belajar vs menit kerja — 4 minggu terakhir</p>
+          <p class="mb-4 text-xs font-semibold text-slate-400">Learning vs work minutes — last 4 weeks</p>
           <div class="flex h-44 items-end gap-3 rounded-xl bg-slate-50 p-4 dark:bg-zinc-800/50">
             <div v-for="w in data.learn_vs_work" :key="w.week" class="flex flex-1 flex-col items-end gap-1">
               <div class="flex w-full items-end justify-center gap-1">
                 <div class="flex w-5 flex-col items-center gap-1">
-                  <div class="w-full rounded-t-lg bg-teal-500" :style="{ height: `${Math.max(4, Math.round((w.learning / maxLearnWork) * 120))}px` }" :title="`Belajar: ${minutes(w.learning)}`" />
+                  <div class="w-full rounded-t-lg bg-teal-500" :style="{ height: `${Math.max(4, Math.round((w.learning / maxLearnWork) * 120))}px` }" :title="`Learning: ${minutes(w.learning)}`" />
                 </div>
                 <div class="flex w-5 flex-col items-center gap-1">
-                  <div class="w-full rounded-t-lg bg-sky-500" :style="{ height: `${Math.max(4, Math.round((w.work / maxLearnWork) * 120))}px` }" :title="`Kerja: ${minutes(w.work)}`" />
+                  <div class="w-full rounded-t-lg bg-sky-500" :style="{ height: `${Math.max(4, Math.round((w.work / maxLearnWork) * 120))}px` }" :title="`Work: ${minutes(w.work)}`" />
                 </div>
               </div>
               <span class="w-full text-center text-[9px] font-bold text-slate-400">{{ w.week }}</span>
             </div>
           </div>
           <div class="mt-3 flex gap-4 text-xs font-bold text-slate-500">
-            <span class="flex items-center gap-1.5"><span class="h-2.5 w-2.5 rounded-full bg-teal-500" />Belajar</span>
-            <span class="flex items-center gap-1.5"><span class="h-2.5 w-2.5 rounded-full bg-sky-500" />Kerja</span>
+            <span class="flex items-center gap-1.5"><span class="h-2.5 w-2.5 rounded-full bg-teal-500" />Learning</span>
+            <span class="flex items-center gap-1.5"><span class="h-2.5 w-2.5 rounded-full bg-sky-500" />Work</span>
           </div>
         </section>
       </div>

@@ -4,21 +4,21 @@
     <div class="flex items-center justify-between gap-3 flex-wrap">
       <div>
         <h1 class="text-xl font-bold text-slate-900 dark:text-white">Habit Tracker</h1>
-        <p class="text-sm text-slate-500 dark:text-slate-400">Bangun konsistensi setiap hari</p>
+        <p class="text-sm text-slate-500 dark:text-slate-400">Build consistency every day</p>
       </div>
       <button @click="openForm()" class="flex items-center gap-2 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg transition-colors">
-        + Habit Baru
+        + New Habit
       </button>
     </div>
 
     <!-- Loading -->
-    <div v-if="loading" class="text-sm text-slate-400 dark:text-slate-500">Memuat...</div>
+    <div v-if="loading" class="text-sm text-slate-400 dark:text-slate-500">Loading...</div>
 
     <!-- Empty state -->
     <div v-else-if="!habits.length" class="text-center py-16 text-slate-400 dark:text-slate-500">
       <div class="text-4xl mb-3">✓</div>
-      <p class="font-medium">Belum ada habit</p>
-      <p class="text-sm mt-1">Mulai dengan membuat habit pertamamu</p>
+      <p class="font-medium">No habits yet</p>
+      <p class="text-sm mt-1">Start by creating your first habit</p>
     </div>
 
     <!-- Habits list -->
@@ -26,7 +26,7 @@
       <!-- Today summary bar -->
       <div class="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg text-sm">
         <span class="font-semibold text-slate-700 dark:text-slate-300">
-          {{ todayDoneCount }}/{{ habits.length }} selesai hari ini
+          {{ todayDoneCount }}/{{ habits.length }} done today
         </span>
         <div class="flex-1 h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
           <div class="h-2 bg-indigo-500 rounded-full transition-all" :style="{ width: (habits.length ? todayDoneCount/habits.length*100 : 0) + '%' }"></div>
@@ -46,7 +46,7 @@
                 : 'bg-slate-100 dark:bg-slate-800 text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
             ]"
             :style="habit.today_done ? { background: habit.color } : {}"
-            :title="habit.today_done ? 'Batalkan' : 'Tandai selesai'"
+            :title="habit.today_done ? 'Undo' : 'Mark done'"
           >
             {{ habit.today_done ? '✓' : habit.icon }}
           </button>
@@ -54,7 +54,7 @@
           <div class="flex-1 min-w-0">
             <div class="flex items-center gap-2 flex-wrap">
               <span class="font-semibold text-slate-900 dark:text-white">{{ habit.name }}</span>
-              <span v-if="habit.streak > 0" class="text-xs font-bold text-orange-500">🔥 {{ habit.streak }} hari</span>
+              <span v-if="habit.streak > 0" class="text-xs font-bold text-orange-500">🔥 {{ habit.streak }} days</span>
               <span class="text-xs text-slate-400">{{ habit.total_logs }} total</span>
             </div>
             <p v-if="habit.description" class="text-xs text-slate-500 dark:text-slate-400 mt-0.5 truncate">{{ habit.description }}</p>
@@ -81,13 +81,13 @@
           <!-- Actions -->
           <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
             <button @click="openForm(habit)" class="p-1.5 text-slate-400 hover:text-indigo-500 dark:hover:text-indigo-400" title="Edit">✏</button>
-            <button @click="confirmDelete(habit)" class="p-1.5 text-slate-400 hover:text-red-500" title="Hapus">✕</button>
+            <button @click="confirmDelete(habit)" class="p-1.5 text-slate-400 hover:text-red-500" title="Delete">✕</button>
           </div>
         </div>
 
         <!-- Heatmap toggle -->
         <div v-if="expandedId === habit.id" class="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800">
-          <div class="text-xs text-slate-500 mb-2">90 hari terakhir</div>
+          <div class="text-xs text-slate-500 mb-2">Last 90 days</div>
           <div class="flex flex-wrap gap-0.5">
             <div
               v-for="cell in getHeatmap(habit)"
@@ -99,7 +99,7 @@
           </div>
         </div>
         <button @click="expandedId = expandedId === habit.id ? null : habit.id" class="mt-2 text-xs text-slate-400 hover:text-indigo-500">
-          {{ expandedId === habit.id ? '▲ Sembunyikan heatmap' : '▼ Lihat heatmap 90 hari' }}
+          {{ expandedId === habit.id ? '▲ Hide heatmap' : '▼ View 90-day heatmap' }}
         </button>
       </div>
     </div>
@@ -107,16 +107,16 @@
     <!-- Form modal -->
     <div v-if="showForm" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4">
       <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-xl w-full max-w-md p-6 space-y-4">
-        <h2 class="text-lg font-bold text-slate-900 dark:text-white">{{ editingHabit ? 'Edit Habit' : 'Habit Baru' }}</h2>
+        <h2 class="text-lg font-bold text-slate-900 dark:text-white">{{ editingHabit ? 'Edit Habit' : 'New Habit' }}</h2>
 
         <div>
-          <label class="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Nama *</label>
-          <input v-model="form.name" class="w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Contoh: Olahraga 30 menit" />
+          <label class="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Name *</label>
+          <input v-model="form.name" class="w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="E.g. Exercise 30 minutes" />
         </div>
 
         <div>
-          <label class="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Deskripsi</label>
-          <input v-model="form.description" class="w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Opsional" />
+          <label class="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Description</label>
+          <input v-model="form.description" class="w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Optional" />
         </div>
 
         <div class="flex gap-3">
@@ -125,7 +125,7 @@
             <input v-model="form.icon" class="w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="✓" maxlength="4" />
           </div>
           <div class="flex-1">
-            <label class="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Warna</label>
+            <label class="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Color</label>
             <div class="flex gap-2 flex-wrap pt-1">
               <button
                 v-for="c in colorOptions"
@@ -139,19 +139,19 @@
         </div>
 
         <div>
-          <label class="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Frekuensi</label>
+          <label class="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Frequency</label>
           <select v-model="form.frequency" class="w-full border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
-            <option value="daily">Harian</option>
-            <option value="weekly">Mingguan</option>
+            <option value="daily">Daily</option>
+            <option value="weekly">Weekly</option>
           </select>
         </div>
 
         <div v-if="formError" class="text-sm text-red-500">{{ formError }}</div>
 
         <div class="flex justify-end gap-2 pt-2">
-          <button @click="closeForm" class="px-4 py-2 text-sm text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">Batal</button>
+          <button @click="closeForm" class="px-4 py-2 text-sm text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">Cancel</button>
           <button @click="submitForm" :disabled="saving" class="px-4 py-2 text-sm font-semibold bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg disabled:opacity-50">
-            {{ saving ? 'Menyimpan...' : (editingHabit ? 'Simpan' : 'Buat') }}
+            {{ saving ? 'Saving...' : (editingHabit ? 'Save' : 'Create') }}
           </button>
         </div>
       </div>
@@ -161,7 +161,8 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { api } from '../api'
+import { api, unwrap } from '../api'
+import { toast } from '../feedback'
 
 interface Habit {
   id: number
@@ -194,7 +195,6 @@ const form = ref({ name: '', description: '', icon: '✓', color: '#6366f1', fre
 
 const todayDoneCount = computed(() => habits.value.filter(h => h.today_done).length)
 
-// Build last 7 days for week view
 const weekDays = computed(() => {
   const days = []
   for (let i = 6; i >= 0; i--) {
@@ -229,9 +229,9 @@ function getHeatmap(habit: Habit) {
 async function load() {
   loading.value = true
   try {
-    const res = await api.get('/api/v1/habits')
-    habits.value = res.data.habits
-    today.value = res.data.today
+    const res = await api.get('/api/v1/habits').then(unwrap)
+    habits.value = res.habits
+    today.value = res.today
   } finally {
     loading.value = false
   }
@@ -277,7 +277,7 @@ function closeForm() {
 }
 
 async function submitForm() {
-  if (!form.value.name.trim()) { formError.value = 'Nama wajib diisi'; return }
+  if (!form.value.name.trim()) { formError.value = 'Name is required'; return }
   saving.value = true
   formError.value = ''
   try {
@@ -289,19 +289,19 @@ async function submitForm() {
     closeForm()
     await load()
   } catch (e: any) {
-    formError.value = e?.response?.data?.message ?? 'Gagal menyimpan'
+    formError.value = e?.response?.data?.message ?? 'Failed to save'
   } finally {
     saving.value = false
   }
 }
 
 async function confirmDelete(habit: Habit) {
-  if (!confirm(`Hapus habit "${habit.name}"? Semua log akan ikut terhapus.`)) return
+  if (!confirm(`Delete habit "${habit.name}"? All logs will also be removed.`)) return
   try {
     await api.delete(`/api/v1/habits/${habit.id}`)
     await load()
   } catch (e: any) {
-    alert(e?.response?.data?.message ?? 'Gagal menghapus habit')
+    toast({ tone: 'error', title: e?.response?.data?.message ?? 'Failed to delete habit' })
   }
 }
 

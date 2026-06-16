@@ -55,7 +55,7 @@ class TaskController extends Controller
                 ]);
         }
 
-        return response()->json(['board' => $board]);
+        return ApiResponse::ok(['board' => $board]);
     }
 
     public function overdueCount(Request $request)
@@ -66,7 +66,7 @@ class TaskController extends Controller
             ->whereDate('due_date', '<', today())
             ->count();
 
-        return response()->json(['count' => $count]);
+        return ApiResponse::ok(['count' => $count]);
     }
 
     public function show(Request $request, Task $task)

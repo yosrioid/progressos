@@ -76,7 +76,7 @@ onMounted(async () => {
           <h2 class="font-extrabold">Tasks</h2>
           <RouterLink class="text-sm font-extrabold text-teal-700 hover:underline dark:text-teal-400" :to="`/tasks?project_id=${data.project.id}`">View all</RouterLink>
         </div>
-        <div v-if="!data.tasks.length" class="py-6 text-center text-sm text-slate-400 dark:text-zinc-600">Belum ada task.</div>
+        <div v-if="!data.tasks.length" class="py-6 text-center text-sm text-slate-400 dark:text-zinc-600">No tasks yet.</div>
         <div v-else class="divide-y divide-slate-100 dark:divide-zinc-800">
           <RouterLink
             v-for="task in data.tasks"
@@ -95,7 +95,7 @@ onMounted(async () => {
       <!-- Monthly work chart -->
       <section class="card p-5">
         <h2 class="mb-1 font-extrabold">Monthly Work</h2>
-        <p class="mb-4 text-xs font-semibold text-slate-400">6 bulan terakhir</p>
+        <p class="mb-4 text-xs font-semibold text-slate-400">Last 6 months</p>
         <div v-if="data.monthly_work.length" class="flex h-28 items-end gap-1.5 rounded-xl bg-slate-50 p-3 dark:bg-zinc-800/50">
           <div v-for="m in data.monthly_work" :key="m.month" class="flex flex-1 flex-col items-center gap-1">
             <div
@@ -106,7 +106,7 @@ onMounted(async () => {
             <span class="text-[9px] font-bold text-slate-400">{{ m.month.slice(5) }}</span>
           </div>
         </div>
-        <p v-else class="py-4 text-center text-xs text-slate-400">Belum ada data.</p>
+        <p v-else class="py-4 text-center text-xs text-slate-400">No data yet.</p>
 
         <div v-if="data.by_category.length" class="mt-4">
           <p class="label mb-2">By category</p>
@@ -130,7 +130,7 @@ onMounted(async () => {
           <h2 class="font-extrabold">Recent Work Logs</h2>
           <RouterLink class="text-sm font-extrabold text-teal-700 hover:underline dark:text-teal-400" :to="`/work-logs?project_name=${encodeURIComponent(data.project.name)}`">View all</RouterLink>
         </div>
-        <div v-if="!data.workLogs.length" class="py-6 text-center text-sm text-slate-400 dark:text-zinc-600">Belum ada work log.</div>
+        <div v-if="!data.workLogs.length" class="py-6 text-center text-sm text-slate-400 dark:text-zinc-600">No work logs yet.</div>
         <div v-else class="divide-y divide-slate-100 dark:divide-zinc-800">
           <RouterLink
             v-for="log in data.workLogs"

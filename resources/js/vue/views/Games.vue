@@ -7,7 +7,7 @@ import { RouterLink } from 'vue-router';
     <div>
       <p class="text-sm font-extrabold text-teal-700 dark:text-teal-400">Games</p>
       <h1 class="mt-1 text-3xl font-extrabold tracking-tight">Mini Games</h1>
-      <p class="mt-1 text-sm font-medium text-slate-500 dark:text-zinc-400">Latih fokus, logika, dan pendengaran di sela kerja.</p>
+      <p class="mt-1 text-sm font-medium text-slate-500 dark:text-zinc-400">Train focus, logic, and memory between work sessions.</p>
     </div>
 
     <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-2">
@@ -25,7 +25,7 @@ import { RouterLink } from 'vue-router';
           <p class="mt-1 text-sm font-medium text-slate-500 dark:text-zinc-400">5 level · Timer · Notes · Personal record</p>
         </div>
         <span class="mt-auto inline-flex items-center gap-1 text-sm font-bold text-teal-600 group-hover:text-teal-700 dark:text-teal-400">
-          Main sekarang
+          Play now
           <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>
         </span>
       </RouterLink>
@@ -37,10 +37,10 @@ import { RouterLink } from 'vue-router';
         </div>
         <div>
           <h2 class="text-lg font-extrabold">Minesweeper</h2>
-          <p class="mt-1 text-sm font-medium text-slate-500 dark:text-zinc-400">Pemula hingga Expert · Custom · Harian</p>
+          <p class="mt-1 text-sm font-medium text-slate-500 dark:text-zinc-400">Beginner to Expert · Custom · Daily</p>
         </div>
         <span class="mt-auto inline-flex items-center gap-1 text-sm font-bold text-orange-600 group-hover:text-orange-700 dark:text-orange-400">
-          Main sekarang
+          Play now
           <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>
         </span>
       </RouterLink>
@@ -52,10 +52,10 @@ import { RouterLink } from 'vue-router';
         </div>
         <div>
           <h2 class="text-lg font-extrabold">2048</h2>
-          <p class="mt-1 text-sm font-medium text-slate-500 dark:text-zinc-400">4 level · Undo · Swipe · Harian</p>
+          <p class="mt-1 text-sm font-medium text-slate-500 dark:text-zinc-400">4 levels · Undo · Swipe · Daily</p>
         </div>
         <span class="mt-auto inline-flex items-center gap-1 text-sm font-bold text-amber-600 group-hover:text-amber-700 dark:text-amber-400">
-          Main sekarang
+          Play now
           <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>
         </span>
       </RouterLink>
@@ -67,10 +67,10 @@ import { RouterLink } from 'vue-router';
         </div>
         <div>
           <h2 class="text-lg font-extrabold">Memory Match</h2>
-          <p class="mt-1 text-sm font-medium text-slate-500 dark:text-zinc-400">3 level · Preview · Flip animasi · Harian</p>
+          <p class="mt-1 text-sm font-medium text-slate-500 dark:text-zinc-400">3 levels · Preview · Flip animation · Daily</p>
         </div>
         <span class="mt-auto inline-flex items-center gap-1 text-sm font-bold text-indigo-600 group-hover:text-indigo-700 dark:text-indigo-400">
-          Main sekarang
+          Play now
           <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>
         </span>
       </RouterLink>
