@@ -342,8 +342,15 @@ watch(() => route.fullPath, () => {
   profileMenu.value = false;
   commandOpen.value = false;
 });
-onMounted(() => window.addEventListener('keydown', shortcuts));
-onUnmounted(() => window.removeEventListener('keydown', shortcuts));
+let notifInterval: ReturnType<typeof setInterval> | null = null;
+onMounted(() => {
+  window.addEventListener('keydown', shortcuts);
+  notifInterval = setInterval(() => { if (auth.user) loadNotifications(); }, 60_000);
+});
+onUnmounted(() => {
+  window.removeEventListener('keydown', shortcuts);
+  if (notifInterval) clearInterval(notifInterval);
+});
 </script>
 
 <template>

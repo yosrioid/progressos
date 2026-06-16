@@ -338,6 +338,14 @@ onMounted(load);
         </span>
       </div>
     </div>
+    <div v-if="type === 'tasks' && record?.recurrence_rule" class="mb-4 flex items-center gap-2 rounded-2xl border border-sky-100 bg-sky-50/60 px-4 py-3 dark:border-sky-800/30 dark:bg-sky-900/10">
+      <svg class="h-4 w-4 shrink-0 text-sky-600 dark:text-sky-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+      <p class="text-sm font-semibold text-slate-700 dark:text-zinc-300">
+        Repeats <span class="font-extrabold capitalize">{{ record.recurrence_rule }}</span>
+        <template v-if="record.recurrence_interval > 1"> · every {{ record.recurrence_interval }}</template>
+        <template v-if="record.recurrence_ends_at"> · ends {{ formatDate(record.recurrence_ends_at) }}</template>
+      </p>
+    </div>
     <div class="grid gap-4 md:grid-cols-2">
       <div v-for="[key, value] in visibleEntries(record)" :key="key" class="rounded-2xl border border-slate-200 bg-white p-4" :class="String(value).length > 120 ? 'md:col-span-2' : ''">
         <p class="label mb-2">{{ key.replaceAll('_', ' ') }}</p>
