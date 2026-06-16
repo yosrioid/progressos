@@ -11,19 +11,19 @@ class GoalRequest extends FormRequest
         $isUpdate = (bool) $this->route('goal');
 
         return [
-            'title'        => [$isUpdate ? 'sometimes' : 'required', 'required', 'string', 'max:255'],
-            'description'  => ['nullable', 'string'],
+            'title' => [$isUpdate ? 'sometimes' : 'required', 'required', 'string', 'max:255'],
+            'description' => ['nullable', 'string'],
             'period_label' => ['nullable', 'string', 'max:50'],
-            'start_date'   => ['nullable', 'date'],
-            'end_date'     => ['nullable', 'date'],
-            'status'       => ['nullable', 'in:draft,active,completed,abandoned'],
-            'color'        => ['nullable', 'string', 'max:20'],
-            ...(!$isUpdate ? [
-                'key_results'              => ['nullable', 'array'],
-                'key_results.*.title'      => ['required', 'string', 'max:255'],
+            'start_date' => ['nullable', 'date'],
+            'end_date' => ['nullable', 'date'],
+            'status' => ['nullable', 'in:draft,active,completed,abandoned'],
+            'color' => ['nullable', 'string', 'max:20'],
+            ...(! $isUpdate ? [
+                'key_results' => ['nullable', 'array'],
+                'key_results.*.title' => ['required', 'string', 'max:255'],
                 'key_results.*.metric_type' => ['nullable', 'in:percentage,number,boolean'],
                 'key_results.*.target_value' => ['nullable', 'numeric'],
-                'key_results.*.unit'       => ['nullable', 'string', 'max:30'],
+                'key_results.*.unit' => ['nullable', 'string', 'max:30'],
             ] : []),
         ];
     }

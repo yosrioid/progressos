@@ -11,12 +11,12 @@ class KeyResultRequest extends FormRequest
         $isUpdate = (bool) $this->route('keyResult');
 
         return [
-            'title'         => [$isUpdate ? 'sometimes' : 'required', 'required', 'string', 'max:255'],
-            'metric_type'   => ['nullable', 'in:percentage,number,boolean'],
+            'title' => [$isUpdate ? 'sometimes' : 'required', 'required', 'string', 'max:255'],
+            'metric_type' => ['nullable', 'in:percentage,number,boolean'],
             'current_value' => ['nullable', 'numeric'],
-            'target_value'  => ['nullable', 'numeric'],
-            'unit'          => ['nullable', 'string', 'max:30'],
-            'notes'         => ['nullable', 'string'],
+            'target_value' => ['nullable', 'numeric'],
+            'unit' => ['nullable', 'string', 'max:30'],
+            'notes' => ['nullable', 'string'],
             ...($isUpdate ? [
                 'status' => ['nullable', 'in:active,done,abandoned'],
             ] : []),
