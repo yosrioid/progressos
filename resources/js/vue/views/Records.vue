@@ -358,6 +358,10 @@ onMounted(async () => {
           <div class="min-w-0 flex-1">
             <div class="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
               <h2 class="truncate font-extrabold text-slate-900 dark:text-zinc-100">{{ row.title || row.topic }}</h2>
+              <span v-if="type === 'tasks' && row.recurrence_rule" title="Recurring task" class="inline-flex items-center gap-0.5 rounded-full bg-sky-100 px-1.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-sky-700 dark:bg-sky-900/30 dark:text-sky-400">
+                <svg class="h-2.5 w-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+                {{ row.recurrence_rule }}
+              </span>
               <div class="flex shrink-0 items-center gap-2">
                 <span v-if="type === 'tasks' && row.priority && row.priority !== 'medium'" class="text-[10px] font-extrabold uppercase" :class="priorityTextColors[row.priority]">{{ row.priority }}</span>
                 <button

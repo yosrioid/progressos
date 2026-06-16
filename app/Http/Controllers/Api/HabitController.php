@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\HabitRequest;
 use App\Models\Habit;
 use App\Models\HabitLog;
+use App\Services\NotificationService;
 use App\Support\ApiResponse;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -128,7 +129,30 @@ class HabitController extends Controller
             ['user_id' => $request->user()->id, 'notes' => $data['notes'] ?? null]
         );
 
-        return ApiResponse::ok(['logged' => true, 'date' => $date, 'log_id' => $log->id]);
+        if ($log->wasRecentlyCreated) {
+            $allDates = HabitLog::where('habit_id', $habit->id)
+                ->orderByDesc('date')
+                ->pluck('date')
+                ->map(fn ($d) => $d->toDateString())
+                ->toArray();
+
+            $streak = 0;
+            $check = Carbon::today()->toDateString();
+            foreach ($allDates as $logDate) {
+                if ($logDate === $check) {
+                    $streak++;
+                    $check = Carbon::parse($check)->subDay()->toDateString();
+                } else {
+                    break;
+                }
+            }
+
+            if ($streak > 0) {
+                app(NotificationService::class)->notifyHabitStreak($request->user(), $habit->id, $habit->name, $streak);
+            }
+        }
+
+        return ApiResponse::ok(['logged' => true, 'date' => $date, 'log_id' => $log->id, 'streak' => $streak ?? 0]);
     }
 
     public function unlog(Request $request, Habit $habit)
