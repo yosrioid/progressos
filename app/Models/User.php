@@ -17,7 +17,7 @@ class User extends Authenticatable
 
     protected $fillable = ['name', 'email', 'password', 'google_id', 'avatar_path', 'timezone', 'theme', 'dashboard_layout', 'notification_preferences'];
 
-    protected $hidden = ['password', 'remember_token'];
+    protected $hidden = ['password', 'remember_token', 'google_id'];
 
     public function dailyProgressEntries(): HasMany
     {

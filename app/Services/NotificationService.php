@@ -20,28 +20,33 @@ class NotificationService
             ->whereDate('due_date', '<', today())
             ->get(['id', 'title', 'due_date', 'priority']);
 
+        $notifiedToday = InAppNotification::where('user_id', $user->id)
+            ->where('type', 'task_overdue')
+            ->whereDate('created_at', today())
+            ->get(['data'])
+            ->map(fn ($n) => $n->data['task_id'] ?? null)
+            ->filter()
+            ->flip()
+            ->all();
+
         $created = 0;
         foreach ($overdue as $task) {
-            $exists = InAppNotification::where('user_id', $user->id)
-                ->where('type', 'task_overdue')
-                ->where('data->task_id', $task->id)
-                ->whereDate('created_at', today())
-                ->exists();
+            if (isset($notifiedToday[$task->id])) {
+                continue;
+            }
 
-            if (! $exists) {
-                try {
-                    InAppNotification::create([
-                        'user_id' => $user->id,
-                        'type' => 'task_overdue',
-                        'title' => 'Task overdue',
-                        'body' => $task->title.' passed its deadline ('.$task->due_date->format('M d').')',
-                        'action_url' => '/tasks/'.$task->id,
-                        'data' => ['task_id' => $task->id, 'priority' => $task->priority],
-                    ]);
-                    $created++;
-                } catch (\Throwable $e) {
-                    Log::error('Failed to create overdue notification', ['task_id' => $task->id, 'error' => $e->getMessage()]);
-                }
+            try {
+                InAppNotification::create([
+                    'user_id' => $user->id,
+                    'type' => 'task_overdue',
+                    'title' => 'Task overdue',
+                    'body' => $task->title.' passed its deadline ('.$task->due_date->format('M d').')',
+                    'action_url' => '/tasks/'.$task->id,
+                    'data' => ['task_id' => $task->id, 'priority' => $task->priority],
+                ]);
+                $created++;
+            } catch (\Throwable $e) {
+                Log::error('Failed to create overdue notification', ['task_id' => $task->id, 'error' => $e->getMessage()]);
             }
         }
 
@@ -57,28 +62,33 @@ class NotificationService
             ->whereDate('due_date', today()->addDay())
             ->get(['id', 'title', 'due_date', 'priority']);
 
+        $notifiedToday = InAppNotification::where('user_id', $user->id)
+            ->where('type', 'task_due_soon')
+            ->whereDate('created_at', today())
+            ->get(['data'])
+            ->map(fn ($n) => $n->data['task_id'] ?? null)
+            ->filter()
+            ->flip()
+            ->all();
+
         $created = 0;
         foreach ($dueSoon as $task) {
-            $exists = InAppNotification::where('user_id', $user->id)
-                ->where('type', 'task_due_soon')
-                ->where('data->task_id', $task->id)
-                ->whereDate('created_at', today())
-                ->exists();
+            if (isset($notifiedToday[$task->id])) {
+                continue;
+            }
 
-            if (! $exists) {
-                try {
-                    InAppNotification::create([
-                        'user_id' => $user->id,
-                        'type' => 'task_due_soon',
-                        'title' => 'Task due tomorrow',
-                        'body' => $task->title,
-                        'action_url' => '/tasks/'.$task->id,
-                        'data' => ['task_id' => $task->id, 'priority' => $task->priority],
-                    ]);
-                    $created++;
-                } catch (\Throwable $e) {
-                    Log::error('Failed to create due-soon notification', ['task_id' => $task->id, 'error' => $e->getMessage()]);
-                }
+            try {
+                InAppNotification::create([
+                    'user_id' => $user->id,
+                    'type' => 'task_due_soon',
+                    'title' => 'Task due tomorrow',
+                    'body' => $task->title,
+                    'action_url' => '/tasks/'.$task->id,
+                    'data' => ['task_id' => $task->id, 'priority' => $task->priority],
+                ]);
+                $created++;
+            } catch (\Throwable $e) {
+                Log::error('Failed to create due-soon notification', ['task_id' => $task->id, 'error' => $e->getMessage()]);
             }
         }
 
@@ -105,28 +115,33 @@ class NotificationService
                 return false;
             });
 
+        $notifiedHabitIds = InAppNotification::where('user_id', $user->id)
+            ->where('type', 'habit_reminder')
+            ->whereDate('created_at', $today)
+            ->get(['data'])
+            ->map(fn ($n) => $n->data['habit_id'] ?? null)
+            ->filter()
+            ->flip()
+            ->all();
+
         $created = 0;
         foreach ($unlogged as $habit) {
-            $exists = InAppNotification::where('user_id', $user->id)
-                ->where('type', 'habit_reminder')
-                ->where('data->habit_id', $habit->id)
-                ->whereDate('created_at', $today)
-                ->exists();
+            if (isset($notifiedHabitIds[$habit->id])) {
+                continue;
+            }
 
-            if (! $exists) {
-                try {
-                    InAppNotification::create([
-                        'user_id' => $user->id,
-                        'type' => 'habit_reminder',
-                        'title' => 'Habit reminder',
-                        'body' => ($habit->icon ? $habit->icon.' ' : '').$habit->name.' not logged yet today.',
-                        'action_url' => '/habits',
-                        'data' => ['habit_id' => $habit->id],
-                    ]);
-                    $created++;
-                } catch (\Throwable $e) {
-                    Log::error('Failed to create habit reminder notification', ['habit_id' => $habit->id, 'error' => $e->getMessage()]);
-                }
+            try {
+                InAppNotification::create([
+                    'user_id' => $user->id,
+                    'type' => 'habit_reminder',
+                    'title' => 'Habit reminder',
+                    'body' => ($habit->icon ? $habit->icon.' ' : '').$habit->name.' not logged yet today.',
+                    'action_url' => '/habits',
+                    'data' => ['habit_id' => $habit->id],
+                ]);
+                $created++;
+            } catch (\Throwable $e) {
+                Log::error('Failed to create habit reminder notification', ['habit_id' => $habit->id, 'error' => $e->getMessage()]);
             }
         }
 

@@ -109,20 +109,30 @@ function recordLabel(item: any) {
 async function load() {
   loading.value = true;
   page.value = 1;
-  const data = await api.get('/api/v1/activity', { params: { per_page: 30 } }).then(unwrap);
-  items.value = data.activity?.data || [];
-  meta.value = data.activity;
-  loading.value = false;
+  try {
+    const data = await api.get('/api/v1/activity', { params: { per_page: 30 } }).then(unwrap);
+    items.value = data.activity?.data || [];
+    meta.value = data.activity;
+  } catch {
+    items.value = [];
+  } finally {
+    loading.value = false;
+  }
 }
 
 async function loadMore() {
   if (!meta.value || meta.value.current_page >= meta.value.last_page) return;
   loadingMore.value = true;
   page.value++;
-  const data = await api.get('/api/v1/activity', { params: { per_page: 30, page: page.value } }).then(unwrap);
-  items.value.push(...(data.activity?.data || []));
-  meta.value = data.activity;
-  loadingMore.value = false;
+  try {
+    const data = await api.get('/api/v1/activity', { params: { per_page: 30, page: page.value } }).then(unwrap);
+    items.value.push(...(data.activity?.data || []));
+    meta.value = data.activity;
+  } catch {
+    page.value--;
+  } finally {
+    loadingMore.value = false;
+  }
 }
 
 onMounted(load);

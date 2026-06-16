@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import DOMPurify from 'dompurify';
 import { computed, onMounted, ref, watch } from 'vue';
 import { RouterLink, useRoute, useRouter } from 'vue-router';
 import { api, unwrap } from '../api';
@@ -72,7 +73,8 @@ function highlight(text: string, term: string) {
   const safe = escapeHtml(text);
   if (!term.trim()) return safe;
   const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  return safe.replace(new RegExp(`(${escapeHtml(escaped)})`, 'gi'), '<mark class="bg-yellow-100 dark:bg-yellow-800/50 rounded px-0.5">$1</mark>');
+  const marked = safe.replace(new RegExp(`(${escapeHtml(escaped)})`, 'gi'), '<mark class="bg-yellow-100 dark:bg-yellow-800/50 rounded px-0.5">$1</mark>');
+  return DOMPurify.sanitize(marked, { ALLOWED_TAGS: ['mark'], ALLOWED_ATTR: ['class'] });
 }
 
 function loadRecent() {
@@ -98,10 +100,15 @@ async function load() {
   q.value = String(route.query.q || '');
   if (!q.value.trim()) { results.value = {}; return; }
   loading.value = true;
-  saveRecent(q.value.trim());
-  const data = await api.get('/api/v1/search', { params: { q: q.value } }).then(unwrap);
-  results.value = data.results || {};
-  loading.value = false;
+  try {
+    saveRecent(q.value.trim());
+    const data = await api.get('/api/v1/search', { params: { q: q.value } }).then(unwrap);
+    results.value = data.results || {};
+  } catch {
+    results.value = {};
+  } finally {
+    loading.value = false;
+  }
 }
 
 async function submit() {

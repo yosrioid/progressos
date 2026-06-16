@@ -83,6 +83,7 @@ class DashboardData
                     ->where('status', 'active')
                     ->whereNotNull('end_date')
                     ->whereDate('end_date', '>', $today)
+                    ->take(20)
                     ->get()
                     ->map(fn ($m) => $m->toArray() + ['progress_percent' => $m->progressPercent()])
                     ->filter(function ($m) {

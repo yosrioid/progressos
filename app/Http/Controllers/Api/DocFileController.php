@@ -99,10 +99,14 @@ class DocFileController extends Controller
             abort(404);
         }
 
+        $safeMime = in_array($docFile->mime_type, self::ALLOWED_MIME_TYPES)
+            ? $docFile->mime_type
+            : 'application/octet-stream';
+
         return Storage::disk('local')->download(
             $docFile->path,
             $docFile->original_name,
-            ['Content-Type' => $docFile->mime_type]
+            ['Content-Type' => $safeMime, 'Content-Disposition' => 'attachment']
         );
     }
 

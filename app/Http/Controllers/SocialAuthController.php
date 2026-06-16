@@ -26,6 +26,10 @@ class SocialAuthController extends Controller
             return redirect('/login?error=google_failed');
         }
 
+        if (! ($googleUser->user['email_verified'] ?? false)) {
+            return redirect('/login?error=google_unverified');
+        }
+
         $user = User::where('google_id', $googleUser->getId())->first()
             ?? User::where('email', $googleUser->getEmail())->first();
 

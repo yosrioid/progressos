@@ -19,7 +19,7 @@ Artisan::command('backups:run-due', function (BackupExportService $exports) {
 
 Artisan::command('notifications:generate', function (NotificationService $notifs) {
     $count = 0;
-    User::all()->each(function (User $user) use ($notifs, &$count) {
+    User::query()->lazyById()->each(function (User $user) use ($notifs, &$count) {
         $count += $notifs->generateOverdueTaskNotifications($user);
         $count += $notifs->generateDueSoonNotifications($user);
         $count += $notifs->generateHabitReminderNotifications($user);
@@ -29,7 +29,7 @@ Artisan::command('notifications:generate', function (NotificationService $notifs
 
 Artisan::command('milestones:recalculate', function (MilestoneRecalculationService $service) {
     $count = 0;
-    User::all()->each(function (User $user) use ($service, &$count) {
+    User::query()->lazyById()->each(function (User $user) use ($service, &$count) {
         $count += $service->recalculateForUser($user);
     });
     $this->info("Updated {$count} milestone(s).");

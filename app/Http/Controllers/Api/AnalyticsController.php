@@ -4,10 +4,14 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Goal;
+use App\Models\HabitLog;
+use App\Models\LearningEntry;
 use App\Models\Task;
+use App\Models\WorkLog;
 use App\Support\ApiResponse;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 class AnalyticsController extends Controller
@@ -15,6 +19,12 @@ class AnalyticsController extends Controller
     public function __invoke(Request $request)
     {
         $user = $request->user();
+
+        $cached = Cache::get("analytics:{$user->id}");
+        if ($cached !== null) {
+            return ApiResponse::ok($cached);
+        }
+
         $now = CarbonImmutable::now($user->timezone ?? 'UTC');
         $from90 = $now->subDays(89)->toDateString();
 
@@ -30,17 +40,21 @@ class AnalyticsController extends Controller
             'minutes' => (int) ($workHeatRaw[$now->subDays(89 - $i)->toDateString()] ?? 0),
         ]);
 
-        // Task velocity — completed tasks per week for last 8 weeks
-        $velocity = collect(range(7, 0))->map(function ($weeksAgo) use ($now) {
+        // Task velocity — fetch once, bucket in PHP (8 queries → 1)
+        $from8Weeks = $now->subWeeks(8)->startOfWeek();
+        $completedTasks = $user->tasks()
+            ->where('status', 'done')
+            ->whereNotNull('completed_at')
+            ->whereDate('completed_at', '>=', $from8Weeks)
+            ->pluck('completed_at');
+
+        $velocity = collect(range(7, 0))->map(function (int $weeksAgo) use ($now, $completedTasks) {
             $weekStart = $now->subWeeks($weeksAgo)->startOfWeek();
             $weekEnd = $weekStart->endOfWeek();
 
             return [
                 'week' => $weekStart->format('M d'),
-                'count' => Task::where('user_id', request()->user()->id)
-                    ->where('status', 'done')
-                    ->whereBetween('completed_at', [$weekStart, $weekEnd])
-                    ->count(),
+                'count' => $completedTasks->filter(fn ($d) => $d->between($weekStart, $weekEnd))->count(),
             ];
         });
 
@@ -69,25 +83,35 @@ class AnalyticsController extends Controller
             ->groupBy('status')
             ->pluck('count', 'status');
 
-        // Learning vs work comparison — last 4 weeks each
-        $learnWeeks = collect(range(3, 0))->map(function ($w) use ($now) {
-            $start = $now->subWeeks($w)->startOfWeek();
-            $end = $start->endOfWeek();
+        // Learning vs work comparison — fetch once, bucket in PHP (8 queries → 2)
+        $from4Weeks = $now->subWeeks(4)->startOfWeek();
+        $learnEntries = $user->learningEntries()->whereDate('date', '>=', $from4Weeks)->get(['date', 'duration_minutes']);
+        $workEntries = $user->workLogs()->whereDate('date', '>=', $from4Weeks)->get(['date', 'actual_duration']);
+
+        $learnWeeks = collect(range(3, 0))->map(function (int $w) use ($now, $learnEntries, $workEntries) {
+            $weekStart = $now->subWeeks($w)->startOfWeek();
+            $weekEnd = $weekStart->endOfWeek();
 
             return [
-                'week' => $start->format('M d'),
-                'learning' => request()->user()->learningEntries()->whereBetween('date', [$start, $end])->sum('duration_minutes'),
-                'work' => request()->user()->workLogs()->whereBetween('date', [$start, $end])->sum('actual_duration'),
+                'week' => $weekStart->format('M d'),
+                'learning' => $learnEntries->filter(fn (LearningEntry $e) => (string) $e->date >= $weekStart->toDateString() && (string) $e->date <= $weekEnd->toDateString())->sum('duration_minutes'),
+                'work' => $workEntries->filter(fn (WorkLog $e) => (string) $e->date >= $weekStart->toDateString() && (string) $e->date <= $weekEnd->toDateString())->sum('actual_duration'),
             ];
         });
 
-        // Habit completion rates — last 4 weeks
+        // Habit completion rates — fetch once, bucket in PHP (4 queries → 1)
         $activeHabitCount = $user->habits()->where('active', true)->count();
-        $habitWeeks = collect(range(3, 0))->map(function (int $w) use ($user, $now, $activeHabitCount) {
+        $habitLogEntries = $user->habitLogs()
+            ->whereDate('date', '>=', $now->subWeeks(4)->startOfWeek()->toDateString())
+            ->get(['habit_id', 'date']);
+
+        $habitWeeks = collect(range(3, 0))->map(function (int $w) use ($now, $activeHabitCount, $habitLogEntries) {
             $week = $now->subWeeks($w)->startOfWeek();
             $start = $week->toDateString();
             $end = $week->endOfWeek()->toDateString();
-            $logged = $user->habitLogs()->whereBetween('date', [$start, $end])->distinct('habit_id')->count('habit_id');
+            $logged = $habitLogEntries
+                ->filter(fn (HabitLog $l) => (string) $l->date >= $start && (string) $l->date <= $end)
+                ->pluck('habit_id')->unique()->count();
 
             return [
                 'week' => $week->format('M d'),
@@ -117,7 +141,7 @@ class AnalyticsController extends Controller
             + min(20, $totalWorkMins / 3000)
         ));
 
-        return ApiResponse::ok([
+        $payload = [
             'work_heatmap' => $workHeatmap,
             'task_velocity' => $velocity,
             'monthly_work' => $monthly,
@@ -136,6 +160,10 @@ class AnalyticsController extends Controller
             'productivity_score' => $score,
             'habit_weeks' => $habitWeeks,
             'active_goals' => $activeGoals,
-        ]);
+        ];
+
+        Cache::put("analytics:{$user->id}", $payload, now()->addMinutes(5));
+
+        return ApiResponse::ok($payload);
     }
 }
