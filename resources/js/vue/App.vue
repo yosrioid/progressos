@@ -134,7 +134,7 @@ const filteredCommands = computed(() => {
 
 async function submitQuick() {
   const res = await api.post('/api/v1/quick-capture', quickForm.value).then(unwrap);
-  const path: string | null = res.data?.record_path ?? null;
+  const path: string | null = res.record_path ?? null;
   quick.value = false;
   toast({
     tone: 'success',

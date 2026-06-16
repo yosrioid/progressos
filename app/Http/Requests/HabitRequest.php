@@ -8,10 +8,10 @@ class HabitRequest extends FormRequest
 {
     public function rules(): array
     {
-        $isUpdate = (bool) $this->route('habit');
+        $isUpdate = ! $this->isMethod('POST');
 
         return [
-            'name' => [$isUpdate ? 'sometimes' : 'required', 'required', 'string', 'max:255'],
+            'name' => [$isUpdate ? 'sometimes' : 'required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
             'color' => ['nullable', 'string', 'max:20'],
             'icon' => ['nullable', 'string', 'max:10'],

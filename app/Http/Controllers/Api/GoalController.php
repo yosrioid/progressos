@@ -54,7 +54,7 @@ class GoalController extends Controller
         $this->authorize('update', $goal);
         $goal->update($request->validated());
 
-        return ApiResponse::item('goal', $this->formatGoal($goal->fresh()->load('keyResults')), 200, 'Goal updated.');
+        return ApiResponse::item('goal', $this->formatGoal($goal->load('keyResults')), 200, 'Goal updated.');
     }
 
     public function destroy(Goal $goal)

@@ -8,10 +8,10 @@ class KeyResultRequest extends FormRequest
 {
     public function rules(): array
     {
-        $isUpdate = (bool) $this->route('keyResult');
+        $isUpdate = ! $this->isMethod('POST');
 
         return [
-            'title' => [$isUpdate ? 'sometimes' : 'required', 'required', 'string', 'max:255'],
+            'title' => [$isUpdate ? 'sometimes' : 'required', 'string', 'max:255'],
             'metric_type' => ['nullable', 'in:percentage,number,boolean'],
             'current_value' => ['nullable', 'numeric'],
             'target_value' => ['nullable', 'numeric'],

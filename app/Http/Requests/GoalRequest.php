@@ -8,10 +8,10 @@ class GoalRequest extends FormRequest
 {
     public function rules(): array
     {
-        $isUpdate = (bool) $this->route('goal');
+        $isUpdate = ! $this->isMethod('POST');
 
         return [
-            'title' => [$isUpdate ? 'sometimes' : 'required', 'required', 'string', 'max:255'],
+            'title' => [$isUpdate ? 'sometimes' : 'required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
             'period_label' => ['nullable', 'string', 'max:50'],
             'start_date' => ['nullable', 'date'],
