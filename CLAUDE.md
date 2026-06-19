@@ -51,6 +51,20 @@ php artisan serve --host=127.0.0.1 --port=8000
 npm run dev
 ```
 
+## API Documentation
+
+- Interactive docs: `http://127.0.0.1:8000/api-docs` (Swagger UI, local only)
+- OpenAPI spec: `docs/openapi.yaml` — maintained manually, update when adding/changing endpoints
+- AI context file: `public/llms.txt` — auto-generated from openapi.yaml
+
+After updating `docs/openapi.yaml`, always run:
+
+```bash
+php artisan docs:sync
+```
+
+This regenerates `public/llms.txt` (444-line AI-readable summary). Paste `llms.txt` content into any AI assistant (Claude, Cursor, ChatGPT) as context when building the Telegram bot or other integrations.
+
 For frontend changes, run at least `npm run build`; run Playwright when behavior, routing, forms, navigation, date display, or responsive UI changes.
 
 ## Backend Patterns
