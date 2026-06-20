@@ -26,7 +26,7 @@ class DocsSync extends Command
 
         file_put_contents(public_path('llms.txt'), $out);
 
-        $this->info('llms.txt generated → public/llms.txt (' . substr_count($out, "\n") . ' lines)');
+        $this->info('llms.txt generated → public/llms.txt ('.substr_count($out, "\n").' lines)');
 
         return self::SUCCESS;
     }
@@ -43,11 +43,11 @@ class DocsSync extends Command
 
         // ── Header ───────────────────────────────────────────────────────────
 
-        $lines[] = '# ' . ($info['title'] ?? 'API') . ' — LLM Context';
-        $lines[] = 'Version: ' . ($info['version'] ?? '1.0');
-        $lines[] = 'Base URL: ' . $baseUrl;
-        $lines[] = 'Interactive docs: ' . $baseUrl . '/api-docs';
-        $lines[] = 'OpenAPI spec: ' . $baseUrl . '/api-docs/openapi.yaml';
+        $lines[] = '# '.($info['title'] ?? 'API').' — LLM Context';
+        $lines[] = 'Version: '.($info['version'] ?? '1.0');
+        $lines[] = 'Base URL: '.$baseUrl;
+        $lines[] = 'Interactive docs: '.$baseUrl.'/api-docs';
+        $lines[] = 'OpenAPI spec: '.$baseUrl.'/api-docs/openapi.yaml';
         $lines[] = '';
 
         // ── Auth ─────────────────────────────────────────────────────────────
@@ -102,28 +102,28 @@ class DocsSync extends Command
 
         foreach ($grouped as $tag => $entries) {
             $desc = $tags[$tag]['description'] ?? '';
-            $lines[] = '### ' . $tag . ($desc ? ' — ' . $desc : '');
+            $lines[] = '### '.$tag.($desc ? ' — '.$desc : '');
 
             foreach ($entries as ['method' => $method, 'path' => $path, 'op' => $op]) {
                 $ability = $this->ability($op);
                 $summary = $op['summary'] ?? '';
-                $prefix = strtoupper($method) . ' ' . $path;
-                $suffix = ($ability ? "  [{$ability}]" : '') . ($summary ? "  — {$summary}" : '');
-                $lines[] = $prefix . $suffix;
+                $prefix = strtoupper($method).' '.$path;
+                $suffix = ($ability ? "  [{$ability}]" : '').($summary ? "  — {$summary}" : '');
+                $lines[] = $prefix.$suffix;
 
                 $qp = $this->queryParams($op);
                 if ($qp) {
-                    $lines[] = '  Query: ' . $qp;
+                    $lines[] = '  Query: '.$qp;
                 }
 
                 $body = $this->bodyFields($op, $schemas);
                 if ($body) {
-                    $lines[] = '  Body: ' . $body;
+                    $lines[] = '  Body: '.$body;
                 }
 
                 $ret = $this->returnShape($op);
                 if ($ret) {
-                    $lines[] = '  Returns: ' . $ret;
+                    $lines[] = '  Returns: '.$ret;
                 }
             }
 
@@ -148,9 +148,9 @@ class DocsSync extends Command
             }
             $fields = $this->schemaFields($schemas[$name], $schemas);
             if ($fields) {
-                $lines[] = $name . ':';
+                $lines[] = $name.':';
                 foreach ($fields as $f) {
-                    $lines[] = '  ' . $f;
+                    $lines[] = '  '.$f;
                 }
                 $lines[] = '';
             }
@@ -190,10 +190,10 @@ class DocsSync extends Command
         // ── Footer ────────────────────────────────────────────────────────────
 
         $lines[] = '---';
-        $lines[] = 'Generated: ' . now()->toDateTimeString();
+        $lines[] = 'Generated: '.now()->toDateTimeString();
         $lines[] = 'Source: docs/openapi.yaml — run `php artisan docs:sync` to regenerate';
 
-        return implode("\n", $lines) . "\n";
+        return implode("\n", $lines)."\n";
     }
 
     private function ability(array $op): string
@@ -206,7 +206,7 @@ class DocsSync extends Command
     private function queryParams(array $op): string
     {
         $params = array_filter($op['parameters'] ?? [], fn ($p) => ($p['in'] ?? '') === 'query');
-        $names = array_map(fn ($p) => $p['name'] . (($p['required'] ?? false) ? '*' : ''), $params);
+        $names = array_map(fn ($p) => $p['name'].(($p['required'] ?? false) ? '*' : ''), $params);
 
         return implode(', ', $names);
     }
@@ -228,13 +228,13 @@ class DocsSync extends Command
             $fields = $this->inlineFields($schema, $schemas);
             $extra = count($fields) > 8 ? ', ...' : '';
 
-            return implode(', ', array_slice($fields, 0, 8)) . $extra;
+            return implode(', ', array_slice($fields, 0, 8)).$extra;
         }
 
         $props = $content['schema']['properties'] ?? [];
         $required = $content['schema']['required'] ?? [];
         $fields = array_map(
-            fn ($n) => $n . (in_array($n, $required) ? '*' : ''),
+            fn ($n) => $n.(in_array($n, $required) ? '*' : ''),
             array_keys($props)
         );
 
@@ -252,14 +252,14 @@ class DocsSync extends Command
         if ($allOf) {
             foreach ($allOf as $part) {
                 if (isset($part['properties'])) {
-                    return '{ ' . implode(', ', array_keys($part['properties'])) . ' }';
+                    return '{ '.implode(', ', array_keys($part['properties'])).' }';
                 }
             }
         }
 
         $example = $resp['content']['application/json']['example'] ?? null;
         if ($example && is_array($example)) {
-            return '{ ' . implode(', ', array_slice(array_keys($example), 0, 5)) . ' }';
+            return '{ '.implode(', ', array_slice(array_keys($example), 0, 5)).' }';
         }
 
         return $resp['description'] ?? '';
@@ -287,7 +287,7 @@ class DocsSync extends Command
         $required = array_merge($required, $schema['required'] ?? []);
 
         return array_map(
-            fn ($n) => $n . (in_array($n, $required) ? '*' : ''),
+            fn ($n) => $n.(in_array($n, $required) ? '*' : ''),
             array_keys($props)
         );
     }
@@ -317,9 +317,9 @@ class DocsSync extends Command
         foreach ($props as $name => $def) {
             $req = in_array($name, $required) ? ' (required)' : '';
             $type = is_array($def['type'] ?? null) ? implode('|', $def['type']) : ($def['type'] ?? 'any');
-            $enum = isset($def['enum']) ? ' [' . implode('|', array_filter($def['enum'])) . ']' : '';
-            $desc = isset($def['description']) ? ' — ' . $def['description'] : '';
-            $lines[] = $name . $req . ': ' . $type . $enum . $desc;
+            $enum = isset($def['enum']) ? ' ['.implode('|', array_filter($def['enum'])).']' : '';
+            $desc = isset($def['description']) ? ' — '.$def['description'] : '';
+            $lines[] = $name.$req.': '.$type.$enum.$desc;
         }
 
         return $lines;
