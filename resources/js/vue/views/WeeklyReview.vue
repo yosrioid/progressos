@@ -153,9 +153,9 @@ onMounted(load);
         </div>
       </div>
 
-      <div class="grid gap-5 lg:grid-cols-3">
+      <div class="grid gap-6 lg:grid-cols-3">
         <!-- Left column -->
-        <div class="lg:col-span-2 grid gap-5 content-start">
+        <div class="lg:col-span-2 grid gap-6 content-start">
           <!-- Tasks done this week -->
           <section class="card p-5">
             <h2 class="mb-3 text-sm font-extrabold uppercase text-slate-500 dark:text-zinc-500">Tasks Completed</h2>
@@ -200,7 +200,7 @@ onMounted(load);
         </div>
 
         <!-- Right column: reflection + snapshots -->
-        <div class="grid gap-5 content-start">
+        <div class="grid gap-6 content-start">
           <!-- Reflection -->
           <section class="card p-5">
             <h2 class="mb-3 text-sm font-extrabold uppercase text-slate-500 dark:text-zinc-500">This Week's Reflection</h2>

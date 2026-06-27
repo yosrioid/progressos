@@ -299,7 +299,7 @@ onMounted(load);
     <div class="skeleton h-96 rounded-2xl"></div>
     <div class="skeleton h-72 rounded-2xl"></div>
   </div>
-  <div v-else class="grid gap-5 lg:grid-cols-[1fr_20rem]">
+  <div v-else class="grid gap-6 lg:grid-cols-[1fr_20rem]">
   <section class="card overflow-hidden p-0">
     <div class="border-b border-slate-100 bg-gradient-to-r from-teal-50 via-white to-sky-50 px-5 py-4">
       <h2 class="font-extrabold">Record workspace</h2>
@@ -439,7 +439,7 @@ onMounted(load);
           <div>
             <div class="mb-2 flex items-center gap-1.5">
               <span :class="['inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-extrabold uppercase', refTypeBadge[String(refType)] || refTypeBadge.other]">
-                <svg class="h-3 w-3" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewBox="0 0 24 24"><path :d="refTypeIcons[String(refType)] || refTypeIcons.other" /></svg>
+                <svg class="h-3 w-3" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" viewBox="0 0 24 24"><path :d="refTypeIcons[String(refType)] || refTypeIcons.other" /></svg>
                 {{ String(refType) }}
               </span>
             </div>

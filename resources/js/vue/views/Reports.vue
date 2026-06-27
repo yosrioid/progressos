@@ -109,7 +109,7 @@ onMounted(async () => { await load(); loadSnapshots(); });
     </div>
 
     <!-- Main sections -->
-    <div class="grid gap-5 xl:grid-cols-2">
+    <div class="grid gap-6 xl:grid-cols-2">
       <section class="card p-5">
         <h2 class="mb-4 font-extrabold">Key achievements</h2>
         <ul class="grid gap-2">

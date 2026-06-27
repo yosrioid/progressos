@@ -97,12 +97,12 @@ async function copyStandup() {
         <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4"><p class="label">Learning</p><p class="mt-3 text-3xl font-extrabold text-slate-900">{{ minutes(data.summary.learning_minutes_this_week) }}</p><p class="mt-1 text-xs font-semibold text-slate-500">this week</p></div>
       </div>
     </section>
-    <div class="grid gap-5 xl:grid-cols-3">
+    <div class="grid gap-6 xl:grid-cols-3">
       <section class="card p-5 xl:col-span-1"><div class="mb-4 flex items-center justify-between"><h2 class="font-extrabold">Weekly activity</h2><span class="rounded-full bg-teal-50 px-2.5 py-1 text-xs font-bold text-teal-700">7 days</span></div><div class="flex h-44 items-end gap-1.5 rounded-2xl bg-slate-50 p-3"><div v-for="item in data.weekly_activity" :key="item.date" class="flex flex-1 flex-col items-center gap-2"><div class="w-full rounded-t-lg bg-gradient-to-t from-teal-700 to-sky-400 shadow-sm" :style="{ height: `${Math.max(6, (item.work + item.learning + item.progress) * 24)}px` }" /><span class="text-[10px] font-bold text-slate-500">{{ item.date.slice(8) }}</span></div></div></section>
-      <section class="card p-5"><h2 class="mb-4 font-extrabold">Latest work</h2><div class="space-y-3"><RouterLink v-for="log in data.latest_work_logs" :key="log.id" :to="`/work-logs`" class="block rounded-2xl border border-slate-200 p-3.5 transition hover:-translate-y-0.5 hover:border-teal-200 hover:bg-teal-50/40"><b class="text-slate-900">{{ log.title }}</b><p class="mt-1 text-sm font-medium text-slate-500">{{ log.project_name }} · {{ minutes(log.actual_duration) }}</p></RouterLink></div></section>
-      <section class="card p-5"><h2 class="mb-4 font-extrabold">Projects</h2><div class="space-y-2"><RouterLink v-for="project in data.projects" :key="project.id" :to="`/projects/${project.id}`" class="block rounded-2xl border border-slate-200 p-3.5 transition hover:-translate-y-0.5 hover:border-teal-200 hover:bg-teal-50/40"><b class="text-slate-900">{{ project.name }}</b><p class="mt-1 text-sm font-medium text-slate-500">{{ project.open_tasks_count }} open tasks</p></RouterLink></div></section>
+      <section class="card p-5"><h2 class="mb-4 font-extrabold">Latest work</h2><div class="space-y-3"><RouterLink v-for="log in data.latest_work_logs" :key="log.id" :to="`/work-logs`" class="block rounded-2xl border border-slate-200 p-3.5 transition hover:border-teal-200 hover:bg-teal-50/40 hover:shadow-sm"><b class="text-slate-900">{{ log.title }}</b><p class="mt-1 text-sm font-medium text-slate-500">{{ log.project_name }} · {{ minutes(log.actual_duration) }}</p></RouterLink></div></section>
+      <section class="card p-5"><h2 class="mb-4 font-extrabold">Projects</h2><div class="space-y-2"><RouterLink v-for="project in data.projects" :key="project.id" :to="`/projects/${project.id}`" class="block rounded-2xl border border-slate-200 p-3.5 transition hover:border-teal-200 hover:bg-teal-50/40 hover:shadow-sm"><b class="text-slate-900">{{ project.name }}</b><p class="mt-1 text-sm font-medium text-slate-500">{{ project.open_tasks_count }} open tasks</p></RouterLink></div></section>
     </div>
-    <div class="mt-5 grid gap-5 xl:grid-cols-3">
+    <div class="mt-5 grid gap-6 xl:grid-cols-3">
       <section class="card p-5 xl:col-span-2">
         <div class="mb-4 flex items-center justify-between"><h2 class="font-extrabold">Today focus</h2><RouterLink class="text-sm font-extrabold text-teal-700 hover:underline" to="/tasks">Open tasks</RouterLink></div>
         <div class="grid gap-3 md:grid-cols-2">
@@ -181,12 +181,12 @@ async function copyStandup() {
         </div>
       </div>
     </section>
-    <div class="mt-5 grid gap-5 xl:grid-cols-3">
+    <div class="mt-5 grid gap-6 xl:grid-cols-3">
       <section class="card p-5 xl:col-span-2"><div class="mb-4 flex items-center justify-between"><h2 class="font-extrabold">Monthly rhythm</h2><span class="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-500">heatmap</span></div><div class="grid grid-cols-7 gap-1 rounded-2xl bg-slate-50 p-3"><div v-for="item in data.monthly_activity" :key="item.date" class="h-8 rounded-lg transition hover:ring-2 hover:ring-teal-200" :class="(item.work + item.learning + item.progress) > 2 ? 'bg-teal-700' : (item.work + item.learning + item.progress) > 0 ? 'bg-teal-300' : 'bg-white border border-slate-200'" :title="item.date" /></div></section>
       <section class="card p-5"><h2 class="mb-4 font-extrabold">Weekly review</h2><div v-if="report" class="space-y-3 text-sm"><div class="rounded-2xl border border-slate-200 bg-slate-50 p-3.5"><b>Work delta</b><p class="mt-1 text-slate-500">{{ report.trends.completed_work_delta }} completed logs vs previous period</p></div><div class="rounded-2xl border border-slate-200 bg-slate-50 p-3.5"><b>Learning delta</b><p class="mt-1 text-slate-500">{{ minutes(report.trends.learning_minutes_delta) }} vs previous period</p></div><RouterLink class="btn btn-primary w-full" to="/reports/weekly">Open report</RouterLink></div></section>
     </div>
     <!-- Habits today + Active Goals -->
-    <div class="mt-5 grid gap-5 xl:grid-cols-2">
+    <div class="mt-5 grid gap-6 xl:grid-cols-2">
       <section class="card p-5">
         <div class="mb-4 flex items-center justify-between">
           <h2 class="font-extrabold">Habits Today</h2>

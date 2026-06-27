@@ -95,7 +95,7 @@ const totalTasks = computed(() => {
         </div>
       </div>
 
-      <div class="grid gap-5 lg:grid-cols-2">
+      <div class="grid gap-6 lg:grid-cols-2">
         <!-- Work log heatmap -->
         <section class="card p-5 lg:col-span-2">
           <h2 class="mb-1 font-extrabold">Work Session Heatmap</h2>

@@ -229,7 +229,7 @@ onMounted(load);
 
     <div v-else-if="!items.length" class="card p-10 text-center">
       <div class="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-2xl bg-slate-100 dark:bg-zinc-800">
-        <svg class="h-6 w-6 text-slate-400" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewBox="0 0 24 24"><path d="M12 8v4l3 3M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/></svg>
+        <svg class="h-6 w-6 text-slate-400" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" viewBox="0 0 24 24"><path d="M12 8v4l3 3M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/></svg>
       </div>
       <p class="font-extrabold text-slate-700 dark:text-zinc-300">No activity yet</p>
       <p class="mt-1 text-sm text-slate-400 dark:text-zinc-600">Start logging work, tasks, or learning.</p>
