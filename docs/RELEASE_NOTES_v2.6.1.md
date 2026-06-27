@@ -1,4 +1,4 @@
-# ProgressOS Release v2.6.0
+# ProgressOS Release v2.6.1
 
 Release ini mencakup penambahan fitur baru seperti modul Lists, tracker Tagihan Bulanan, import Transaksi, fitur privasi PIN-lock, perbaikan bug krusial, pembersihan UI/UX secara menyeluruh, serta panduan deployment ke VPS.
 
@@ -10,7 +10,7 @@ Release ini mencakup penambahan fitur baru seperti modul Lists, tracker Tagihan 
 
 ### 2. Finansial & Tracking
 * **Tagihan Bulanan (Monthly Bill Tracker)**:
-  * Pelacakan tagihan bulanan dengan opsi *recurring* (berulang) vs *one-off* (sekali payar).
+  * Pelacakan tagihan bulanan dengan opsi *recurring* (berulang) vs *one-off* (sekali bayar).
   * Fitur untuk melewati (*skip*) bulan tertentu pada tagihan berulang.
 * **Transaksi (Money Manager Import & Viewer)**:
   * Fitur import data transaksi keuangan dengan parser XLSX aman.
@@ -39,3 +39,4 @@ Release ini mencakup penambahan fitur baru seperti modul Lists, tracker Tagihan 
   * Pencegahan fatal crash XML pada file XLSX korup di `XlsxParser`.
   * Pembersihan rute mati (dead routes) Analytics dan WeeklyReview di `router.ts`.
   * Integrasi transisi tab visibility auto-pause untuk menghentikan timer game Sudoku.
+  * **Tiptap Dependency Pin**: Mengunci versi dependensi `@tiptap/*` secara presisi ke `3.26.0` di `package.json` & `package-lock.json` untuk mengatasi konflik instalasi npm peer dependency (`ERESOLVE`).
