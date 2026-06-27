@@ -72,6 +72,15 @@ class ProjectController extends Controller
         ]);
     }
 
+    public function store(ProjectRequest $request)
+    {
+        $this->authorize('create', Project::class);
+
+        $project = $request->user()->projects()->create($request->validated());
+
+        return ApiResponse::item('project', new ProjectResource($project), 201, 'Project created.');
+    }
+
     public function update(ProjectRequest $request, Project $project)
     {
         $this->authorize('update', $project);
