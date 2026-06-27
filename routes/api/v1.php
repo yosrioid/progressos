@@ -14,6 +14,7 @@ use App\Http\Controllers\Api\GoalController;
 use App\Http\Controllers\Api\HabitController;
 use App\Http\Controllers\Api\LearningController;
 use App\Http\Controllers\Api\MilestoneController;
+use App\Http\Controllers\Api\MoneyController;
 use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\ProjectController;
 use App\Http\Controllers\Api\ReferenceController;
@@ -58,6 +59,8 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
         Route::apiResource('docs', DocController::class)->only(['index', 'show']);
         Route::get('lists', [TodoListController::class, 'index']);
         Route::get('lists/{todoList}', [TodoListController::class, 'show']);
+        Route::get('money/months', [MoneyController::class, 'months']);
+        Route::get('money/month/{month}', [MoneyController::class, 'month']);
         Route::get('bills', [BillController::class, 'index']);
         Route::get('bills/month/{month}', [BillController::class, 'month']);
         Route::get('bills/annual/{year}', [BillController::class, 'annual']);
@@ -94,6 +97,7 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
         Route::apiResource('references', ReferenceController::class)->only(['store', 'destroy']);
         Route::apiResource('docs', DocController::class)->only(['store', 'update', 'destroy']);
         Route::post('docs/{doc}/share', [DocController::class, 'share']);
+        Route::post('money/import', [MoneyController::class, 'import']);
         Route::post('bills', [BillController::class, 'store']);
         Route::patch('bills/{bill}', [BillController::class, 'update']);
         Route::delete('bills/{bill}', [BillController::class, 'destroy']);

@@ -41,6 +41,7 @@ const navGroups = [
       { label: 'Docs', href: '/docs', icon: 'docs' },
       { label: 'Lists', href: '/lists', icon: 'check' },
       { label: 'Tagihan', href: '/bills', icon: 'billing' },
+      { label: 'Transaksi', href: '/money', icon: 'money' },
     ],
   },
   {
@@ -117,6 +118,7 @@ const icons: Record<string, string[]> = {
   chevron: ['m6 9 6 6 6-6'],
   docs: ['M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z', 'M14 2v6h6M16 13H8M16 17H8M10 9H8'],
   billing: ['M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2M9 12h6M9 16h4'],
+  money: ['M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2', 'M12 6v12M9 9a3 3 0 0 1 6 0c0 1.5-1.5 2-3 3-1.5 1-3 1.5-3 3a3 3 0 0 0 6 0'],
 };
 const initials = computed(() => (auth.user?.name || 'U').split(' ').map((part) => part[0]).join('').slice(0, 2).toUpperCase());
 const activeTheme = computed(() => configuration.appearance.theme || auth.user?.theme || 'system');

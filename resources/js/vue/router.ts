@@ -21,6 +21,7 @@ import Docs from './views/Docs.vue';
 import Lists from './views/Lists.vue';
 import ListDetail from './views/ListDetail.vue';
 import Bills from './views/Bills.vue';
+import Money from './views/Money.vue';
 import Activity from './views/Activity.vue';
 import Analytics from './views/Analytics.vue';
 import Goals from './views/Goals.vue';
@@ -78,6 +79,7 @@ export const router = createRouter({
     { path: '/lists', component: Lists },
     { path: '/lists/:id', component: ListDetail },
     { path: '/bills', component: Bills },
+    { path: '/money', component: Money },
     { path: '/docs/:id', component: DocDetail },
     { path: '/docs/:id/edit', component: DocForm },
     { path: '/games', component: Games },
