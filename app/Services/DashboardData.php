@@ -65,6 +65,7 @@ class DashboardData
                     $user->learningEntries()->whereDate('date', '>=', now()->subDays(400))->pluck('date')->map->toDateString()->all()
                 ),
             ],
+            'bills_summary' => $this->billsSummary($user, $today),
             'focus' => [
                 'overdue_tasks' => $user->tasks()
                     ->whereIn('status', ['todo', 'in_progress', 'blocked'])
@@ -100,6 +101,37 @@ class DashboardData
                     ->take(3)
                     ->values(),
             ],
+        ];
+    }
+
+    private function billsSummary(User $user, string $today): array
+    {
+        $month = substr($today, 0, 7);
+        $todayDay = (int) substr($today, 8, 2);
+
+        $bills = $user->bills()
+            ->where('is_active', true)
+            ->where(fn ($q) => $q->where('is_recurring', true)->orWhere('month', $month))
+            ->with(['payments' => fn ($q) => $q->where('month', $month)])
+            ->get();
+
+        $active = $bills->map(function ($bill) {
+            $payment = $bill->payments->first();
+            $skipped = $payment?->skipped ?? false;
+            $paid = $payment !== null && ! $skipped;
+
+            return ['paid' => $paid, 'skipped' => $skipped, 'due_day' => $bill->due_day, 'estimated_amount' => (float) ($bill->estimated_amount ?? 0)];
+        })->filter(fn ($b) => ! $b['skipped']);
+
+        $unpaid = $active->filter(fn ($b) => ! $b['paid']);
+        $overdue = $unpaid->filter(fn ($b) => $b['due_day'] && $b['due_day'] < $todayDay);
+
+        return [
+            'month' => $month,
+            'total_count' => $active->count(),
+            'unpaid_count' => $unpaid->count(),
+            'overdue_count' => $overdue->count(),
+            'unpaid_amount' => round($unpaid->sum('estimated_amount'), 0),
         ];
     }
 

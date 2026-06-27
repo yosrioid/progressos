@@ -7,6 +7,7 @@ use App\Models\Bill;
 use App\Models\BillPayment;
 use App\Models\Configuration;
 use App\Support\ApiResponse;
+use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -29,6 +30,7 @@ class BillController extends Controller
         validator(['month' => $month], ['month' => 'required|date_format:Y-m'])->validate();
 
         $user = $request->user();
+        $prevMonth = Carbon::createFromFormat('Y-m', $month)->subMonth()->format('Y-m');
 
         $bills = Bill::ownedBy($user)
             ->where('is_active', true)
@@ -42,11 +44,19 @@ class BillController extends Controller
             ->orderBy('id')
             ->get();
 
+        $billIds = $bills->pluck('id');
+        $prevPayments = BillPayment::whereIn('bill_id', $billIds)
+            ->where('month', $prevMonth)
+            ->where('skipped', false)
+            ->get()
+            ->keyBy('bill_id');
+
         $budgetConfig = Configuration::getValue($user, 'bills', "budget_{$month}");
 
-        $items = $bills->map(function (Bill $bill) {
+        $items = $bills->map(function (Bill $bill) use ($prevPayments, $prevMonth) {
             $payment = $bill->payments->first();
             $skipped = $payment?->skipped ?? false;
+            $prevPayment = $prevPayments->get($bill->id);
 
             return [
                 'id' => $bill->id,
@@ -64,6 +74,10 @@ class BillController extends Controller
                     'notes' => $payment->notes,
                     'paid_at' => $payment->paid_at?->toISOString(),
                 ] : null,
+                'last_payment' => $prevPayment ? [
+                    'month' => $prevMonth,
+                    'actual_amount' => $prevPayment->actual_amount,
+                ] : null,
             ];
         });
 
@@ -71,6 +85,66 @@ class BillController extends Controller
             'bills' => $items,
             'month' => $month,
             'budget' => $budgetConfig['amount'] ?? null,
+        ]);
+    }
+
+    public function history(Request $request, Bill $bill): JsonResponse
+    {
+        abort_if($bill->user_id !== $request->user()->id, 403);
+
+        $payments = BillPayment::where('bill_id', $bill->id)
+            ->where('skipped', false)
+            ->orderBy('month', 'desc')
+            ->limit(12)
+            ->get()
+            ->map(fn ($p) => [
+                'month' => $p->month,
+                'actual_amount' => $p->actual_amount,
+                'notes' => $p->notes,
+                'paid_at' => $p->paid_at?->toISOString(),
+            ]);
+
+        $avg = $payments->whereNotNull('actual_amount')->avg('actual_amount');
+
+        return ApiResponse::ok([
+            'bill_name' => $bill->name,
+            'estimated_amount' => $bill->estimated_amount,
+            'history' => $payments,
+            'average_actual' => $avg ? round((float) $avg, 0) : null,
+        ]);
+    }
+
+    public function annual(Request $request, string $year): JsonResponse
+    {
+        validator(['year' => $year], ['year' => 'required|digits:4'])->validate();
+
+        $user = $request->user();
+
+        $payments = BillPayment::where('user_id', $user->id)
+            ->where('skipped', false)
+            ->where('month', 'like', $year.'-%')
+            ->get();
+
+        $totalActual = $payments->sum(fn ($p) => (float) ($p->actual_amount ?? 0));
+
+        $monthlyBreakdown = $payments
+            ->groupBy('month')
+            ->map(fn ($group) => round($group->sum(fn ($p) => (float) ($p->actual_amount ?? 0)), 0))
+            ->sortKeys();
+
+        $recurringEstimate = Bill::ownedBy($user)
+            ->where('is_active', true)
+            ->where('is_recurring', true)
+            ->sum('estimated_amount');
+
+        $annualEstimate = (float) $recurringEstimate * 12;
+
+        return ApiResponse::ok([
+            'year' => $year,
+            'total_actual' => round($totalActual, 0),
+            'annual_estimate' => round($annualEstimate, 0),
+            'monthly_breakdown' => $monthlyBreakdown,
+            'paid_months' => $monthlyBreakdown->count(),
         ]);
     }
 

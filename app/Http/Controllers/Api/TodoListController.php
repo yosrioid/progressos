@@ -16,7 +16,7 @@ class TodoListController extends Controller
             ->withCount([
                 'items',
                 'items as completed_count' => fn ($q) => $q->where('completed', true),
-                'items as due_today_count'  => fn ($q) => $q->where('completed', false)->whereDate('due_date', today()),
+                'items as due_today_count' => fn ($q) => $q->where('completed', false)->whereDate('due_date', today()),
             ])
             ->latest()
             ->get();
@@ -79,12 +79,12 @@ class TodoListController extends Controller
         }
 
         $data = $request->validate([
-            'content'   => ['sometimes', 'string', 'max:1000'],
+            'content' => ['sometimes', 'string', 'max:1000'],
             'completed' => ['sometimes', 'boolean'],
-            'position'  => ['sometimes', 'integer', 'min:0'],
-            'priority'  => ['sometimes', 'integer', 'in:0,1,2,3'],
-            'due_date'  => ['sometimes', 'nullable', 'date'],
-            'notes'     => ['sometimes', 'nullable', 'string', 'max:5000'],
+            'position' => ['sometimes', 'integer', 'min:0'],
+            'priority' => ['sometimes', 'integer', 'in:0,1,2,3'],
+            'due_date' => ['sometimes', 'nullable', 'date'],
+            'notes' => ['sometimes', 'nullable', 'string', 'max:5000'],
         ]);
         $item->update($data);
 

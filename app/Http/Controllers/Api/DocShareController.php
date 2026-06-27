@@ -3,12 +3,14 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Http\Resources\DocFileResource;
 use App\Http\Resources\DocResource;
 use App\Models\Doc;
 use App\Models\DocFile;
 use App\Support\ApiResponse;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Storage;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class DocShareController extends Controller
 {
@@ -39,14 +41,14 @@ class DocShareController extends Controller
         'application/vnd.rar',
     ];
 
-    public function show(string $token): \Illuminate\Http\JsonResponse
+    public function show(string $token): JsonResponse
     {
         $doc = Doc::where('share_token', $token)->firstOrFail();
 
         return ApiResponse::item('doc', new DocResource($doc->load('files')));
     }
 
-    public function file(string $token, DocFile $docFile): \Symfony\Component\HttpFoundation\StreamedResponse|\Illuminate\Http\Response
+    public function file(string $token, DocFile $docFile): StreamedResponse|Response
     {
         $doc = Doc::where('share_token', $token)->firstOrFail();
 

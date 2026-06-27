@@ -3,7 +3,6 @@
 use App\Http\Controllers\Api\ActivityController;
 use App\Http\Controllers\Api\AnalyticsController;
 use App\Http\Controllers\Api\BillController;
-use App\Http\Controllers\Api\TodoListController;
 use App\Http\Controllers\Api\CaptureController;
 use App\Http\Controllers\Api\ConfigurationController;
 use App\Http\Controllers\Api\DailyProgressController;
@@ -23,6 +22,7 @@ use App\Http\Controllers\Api\SavedViewController;
 use App\Http\Controllers\Api\SearchController;
 use App\Http\Controllers\Api\StandupController;
 use App\Http\Controllers\Api\TaskController;
+use App\Http\Controllers\Api\TodoListController;
 use App\Http\Controllers\Api\WorkLogController;
 use Illuminate\Support\Facades\Route;
 
@@ -60,6 +60,8 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
         Route::get('lists/{todoList}', [TodoListController::class, 'show']);
         Route::get('bills', [BillController::class, 'index']);
         Route::get('bills/month/{month}', [BillController::class, 'month']);
+        Route::get('bills/annual/{year}', [BillController::class, 'annual']);
+        Route::get('bills/{bill}/history', [BillController::class, 'history']);
         Route::get('doc-files/{docFile}', [DocFileController::class, 'show']);
     });
 
