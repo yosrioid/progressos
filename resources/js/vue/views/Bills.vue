@@ -18,7 +18,6 @@ interface HistoryEntry { month: string; actual_amount: string | null; notes: str
 
 const bills = ref<BillItem[]>([]);
 const loading = ref(true);
-const month = ref(new Date().toISOString().slice(0, 7));
 const budget = ref<number | null>(null);
 const budgetInput = ref<string>('');
 const editingBudget = ref(false);
@@ -54,8 +53,23 @@ const showAnnual = ref(false);
 // grouping
 const groupByCategory = ref(false);
 
+function pad2(n: number): string {
+  return String(n).padStart(2, '0');
+}
+function monthValue(date = new Date()): string {
+  return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}`;
+}
+function parseMonth(m: string): { year: number; monthIndex: number } {
+  const [year, monthNumber] = m.split('-').map(Number);
+  return { year, monthIndex: monthNumber - 1 };
+}
+function makeMonth(year: number, monthIndex: number): string {
+  return `${year}-${pad2(monthIndex + 1)}`;
+}
+
+const month = ref(monthValue());
 const today = new Date();
-const todayMonth = today.toISOString().slice(0, 7);
+const todayMonth = monthValue(today);
 const todayDay = today.getDate();
 
 function isOverdue(bill: BillItem): boolean {
@@ -63,16 +77,18 @@ function isOverdue(bill: BillItem): boolean {
 }
 
 function monthLabel(m: string) {
-  return new Date(m + '-02').toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
+  const { year, monthIndex } = parseMonth(m);
+  return new Date(year, monthIndex, 2).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
 }
 function shortMonthLabel(m: string) {
-  return new Date(m + '-02').toLocaleDateString('id-ID', { month: 'short', year: '2-digit' });
+  const { year, monthIndex } = parseMonth(m);
+  return new Date(year, monthIndex, 2).toLocaleDateString('id-ID', { month: 'short', year: '2-digit' });
 }
 
 function shiftMonth(delta: number) {
-  const [y, mo] = month.value.split('-').map(Number);
-  const d = new Date(y, mo - 1 + delta, 1);
-  month.value = d.toISOString().slice(0, 7);
+  const { year, monthIndex } = parseMonth(month.value);
+  const d = new Date(year, monthIndex + delta, 1);
+  month.value = makeMonth(d.getFullYear(), d.getMonth());
   historyId.value = null;
   load();
 }

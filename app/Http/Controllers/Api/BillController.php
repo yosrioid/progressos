@@ -30,7 +30,7 @@ class BillController extends Controller
         validator(['month' => $month], ['month' => 'required|date_format:Y-m'])->validate();
 
         $user = $request->user();
-        $prevMonth = Carbon::createFromFormat('Y-m', $month)->subMonth()->format('Y-m');
+        $prevMonth = Carbon::createFromFormat('!Y-m', $month)->startOfMonth()->subMonthNoOverflow()->format('Y-m');
 
         $bills = Bill::ownedBy($user)
             ->where('is_active', true)
