@@ -107,54 +107,58 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
     Route::post('reports/{period}/snapshots', [ReportController::class, 'storeSnapshot'])
         ->middleware(['ability:reports,write', 'throttle:api-write']);
 
-    Route::put('configuration/auth', [ConfigurationController::class, 'updateAuthConfig']);
-    Route::put('configuration/mail', [ConfigurationController::class, 'updateMailConfig']);
+    Route::put('configuration/auth', [ConfigurationController::class, 'updateAuthConfig'])
+        ->middleware(['ability:write', 'throttle:api-write']);
+    Route::put('configuration/mail', [ConfigurationController::class, 'updateMailConfig'])
+        ->middleware(['ability:write', 'throttle:api-write']);
 
-    Route::prefix('games/2048')->group(function () {
-        Route::get('active', [GameController::class, 'active2048Session']);
-        Route::get('daily', [GameController::class, 'daily2048Status']);
-        Route::get('records', [GameController::class, 'records2048']);
-        Route::post('sessions', [GameController::class, 'start2048Session']);
-        Route::patch('sessions/{session}', [GameController::class, 'saveProgress']);
-        Route::post('sessions/{session}/complete', [GameController::class, 'complete2048Session']);
-    });
+    Route::middleware(['throttle:api-write'])->group(function () {
+        Route::prefix('games/2048')->group(function () {
+            Route::get('active', [GameController::class, 'active2048Session']);
+            Route::get('daily', [GameController::class, 'daily2048Status']);
+            Route::get('records', [GameController::class, 'records2048']);
+            Route::post('sessions', [GameController::class, 'start2048Session']);
+            Route::patch('sessions/{session}', [GameController::class, 'saveProgress']);
+            Route::post('sessions/{session}/complete', [GameController::class, 'complete2048Session']);
+        });
 
-    Route::prefix('games/memory')->group(function () {
-        Route::get('active', [GameController::class, 'activeMemorySession']);
-        Route::get('daily', [GameController::class, 'memoryDailyStatus']);
-        Route::get('records', [GameController::class, 'memoryRecords']);
-        Route::post('sessions', [GameController::class, 'startMemorySession']);
-        Route::patch('sessions/{session}', [GameController::class, 'saveProgress']);
-        Route::post('sessions/{session}/complete', [GameController::class, 'completeMemorySession']);
-    });
+        Route::prefix('games/memory')->group(function () {
+            Route::get('active', [GameController::class, 'activeMemorySession']);
+            Route::get('daily', [GameController::class, 'memoryDailyStatus']);
+            Route::get('records', [GameController::class, 'memoryRecords']);
+            Route::post('sessions', [GameController::class, 'startMemorySession']);
+            Route::patch('sessions/{session}', [GameController::class, 'saveProgress']);
+            Route::post('sessions/{session}/complete', [GameController::class, 'completeMemorySession']);
+        });
 
-    Route::prefix('games/melody')->group(function () {
-        Route::get('records', [GameController::class, 'melodyRecords']);
-        Route::post('sessions', [GameController::class, 'startMelodySession']);
-        Route::post('sessions/{session}/complete', [GameController::class, 'completeMelodySession']);
-    });
+        Route::prefix('games/melody')->group(function () {
+            Route::get('records', [GameController::class, 'melodyRecords']);
+            Route::post('sessions', [GameController::class, 'startMelodySession']);
+            Route::post('sessions/{session}/complete', [GameController::class, 'completeMelodySession']);
+        });
 
-    Route::prefix('games/pitch')->group(function () {
-        Route::get('records', [GameController::class, 'pitchRecords']);
-        Route::post('sessions', [GameController::class, 'startPitchSession']);
-        Route::post('sessions/{session}/complete', [GameController::class, 'completePitchSession']);
-    });
+        Route::prefix('games/pitch')->group(function () {
+            Route::get('records', [GameController::class, 'pitchRecords']);
+            Route::post('sessions', [GameController::class, 'startPitchSession']);
+            Route::post('sessions/{session}/complete', [GameController::class, 'completePitchSession']);
+        });
 
-    Route::prefix('games/minesweeper')->group(function () {
-        Route::get('active', [GameController::class, 'activeMinesweeperSession']);
-        Route::get('daily', [GameController::class, 'minesweeperDailyStatus']);
-        Route::get('records', [GameController::class, 'minesweeperRecords']);
-        Route::post('sessions', [GameController::class, 'startMinesweeperSession']);
-        Route::patch('sessions/{session}', [GameController::class, 'saveProgress']);
-        Route::post('sessions/{session}/complete', [GameController::class, 'completeMinesweeperSession']);
-    });
+        Route::prefix('games/minesweeper')->group(function () {
+            Route::get('active', [GameController::class, 'activeMinesweeperSession']);
+            Route::get('daily', [GameController::class, 'minesweeperDailyStatus']);
+            Route::get('records', [GameController::class, 'minesweeperRecords']);
+            Route::post('sessions', [GameController::class, 'startMinesweeperSession']);
+            Route::patch('sessions/{session}', [GameController::class, 'saveProgress']);
+            Route::post('sessions/{session}/complete', [GameController::class, 'completeMinesweeperSession']);
+        });
 
-    Route::prefix('games/sudoku')->group(function () {
-        Route::get('active', [GameController::class, 'activeSession']);
-        Route::get('daily', [GameController::class, 'dailyStatus']);
-        Route::get('records', [GameController::class, 'records']);
-        Route::post('sessions', [GameController::class, 'startSession']);
-        Route::patch('sessions/{session}', [GameController::class, 'saveProgress']);
-        Route::post('sessions/{session}/complete', [GameController::class, 'completeSession']);
-    });
+        Route::prefix('games/sudoku')->group(function () {
+            Route::get('active', [GameController::class, 'activeSession']);
+            Route::get('daily', [GameController::class, 'dailyStatus']);
+            Route::get('records', [GameController::class, 'records']);
+            Route::post('sessions', [GameController::class, 'startSession']);
+            Route::patch('sessions/{session}', [GameController::class, 'saveProgress']);
+            Route::post('sessions/{session}/complete', [GameController::class, 'completeSession']);
+        });
+    }); // end throttle:api-write game group
 });

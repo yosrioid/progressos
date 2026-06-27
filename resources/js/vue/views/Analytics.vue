@@ -7,9 +7,14 @@ const data = ref<any>(null);
 const loading = ref(true);
 
 onMounted(async () => {
-  const res = await api.get('/api/v1/analytics').then(unwrap);
-  data.value = res;
-  loading.value = false;
+  try {
+    const res = await api.get('/api/v1/analytics').then(unwrap);
+    data.value = res;
+  } catch {
+    // error handled by global 401 interceptor; loading stays true to show skeleton
+  } finally {
+    loading.value = false;
+  }
 });
 
 function heatColor(mins: number) {

@@ -1,0 +1,444 @@
+# ProgressOS API — LLM Context
+Version: 2.0.0
+Base URL: http://127.0.0.1:8000
+Interactive docs: http://127.0.0.1:8000/api-docs
+OpenAPI spec: http://127.0.0.1:8000/api-docs/openapi.yaml
+
+## Authentication
+
+Bearer token via Laravel Sanctum. Prefix: pos_
+Header: Authorization: Bearer pos_your_token_here
+Header: Accept: application/json
+
+Create token: POST /api/tokens
+Body: {"name":"BotName","abilities":["read","write","capture"]}
+Response includes plain_text_token (shown once only).
+Abilities: read, write, capture, reports, tokens
+
+## Quick Capture — primary endpoint for AI/bot integration
+
+POST /api/v1/quick-capture  (ability: capture)
+Optional header: Idempotency-Key — deduplicates retried requests for 24h
+
+Required fields: type, title (max 180)
+Optional fields: date (YYYY-MM-DD), project_name (max 120), duration_minutes, notes
+
+type values and what they create:
+  task           → Task with status=todo
+  blocker        → Task with status=blocked
+  work_log       → Work Log entry
+  daily_progress → Daily Progress entry
+  learning       → Learning entry (title used as topic)
+
+Response: {"data":{...},"record":{...},"record_path":"/tasks/42","message":"Captured."}
+
+## All Endpoints
+
+### Auth — Registrasi, login, profil
+POST /api/register  — Daftar user baru
+  Body: name*, email*, timezone, password*, password_confirmation*
+POST /api/login  — Login dengan email dan password
+  Body: email*, password*, remember
+POST /api/logout  — Logout sesi saat ini
+GET /api/me  [read]  — Data user yang sedang login
+PATCH /api/profile  [write]  — Update profil
+  Body: name*, email*, timezone*, theme*
+POST /api/profile/avatar  [write]  — Upload avatar
+PUT /api/profile/password  [write]  — Ganti password
+  Body: current_password*, password*, password_confirmation*
+POST /api/forgot-password  — Kirim link reset password
+  Body: email*
+POST /api/reset-password  — Reset password dengan token
+  Body: token*, email*, password*, password_confirmation*
+
+### Tokens — Manajemen personal access token
+GET /api/tokens  [tokens]  — Daftar personal access token
+  Returns: { tokens }
+POST /api/tokens  [tokens]  — Buat personal access token
+  Body: name*, abilities, expires_at
+  Returns: { data, token, plain_text_token }
+DELETE /api/tokens/{token}  [tokens]  — Cabut personal access token
+
+### Dashboard — Ringkasan metrik dan aktivitas terkini
+GET /api/v1/dashboard  [read]  — Metrik dashboard, chart, dan record terbaru
+  Returns: Payload dashboard
+
+### Analytics — Chart dan statistik agregat
+GET /api/v1/analytics  [read]  — Statistik dan chart agregat
+  Returns: { work_heatmap, task_velocity, monthly_work, by_category, task_status, learn_vs_work, totals, productivity_score, habit_weeks, active_goals }
+
+### Standup — Generator laporan standup harian
+GET /api/v1/standup  [read]  — Generate laporan standup harian
+  Returns: { date, done_logs, completed_tasks, today_tasks, blockers, text }
+
+### Projects — Manajemen proyek
+GET /api/v1/projects  [read]  — Daftar proyek aktif
+  Returns: { projects }
+GET /api/v1/projects/{project}  [read]  — Detail proyek dengan task, work log, dan metrik
+  Returns: { project, tasks, workLogs, metrics }
+PATCH /api/v1/projects/{project}  [write]  — Update proyek
+  Returns: Proyek diperbarui
+
+### Daily Progress — Entri progress harian / end-of-day
+GET /api/v1/daily-progress  [read]  — Daftar entri progress harian
+  Query: tag, archived
+POST /api/v1/daily-progress  [write]  — Buat entri progress harian
+  Returns: { entry }
+GET /api/v1/daily-progress/{dailyProgress}  [read]  — Detail entri progress harian
+  Returns: { entry }
+PATCH /api/v1/daily-progress/{dailyProgress}  [write]  — Update entri progress harian
+  Returns: Entri diperbarui
+DELETE /api/v1/daily-progress/{dailyProgress}  [write]  — Hapus entri progress harian
+
+### Work Logs — Log sesi kerja dengan project, kategori, dan durasi
+GET /api/v1/work-logs  [read]  — Daftar work log
+  Query: status, category, priority, project_name
+POST /api/v1/work-logs  [write]  — Buat work log
+  Returns: { log }
+GET /api/v1/work-logs/{workLog}  [read]  — Detail work log
+  Returns: { log }
+PATCH /api/v1/work-logs/{workLog}  [write]  — Update work log
+  Returns: Work log diperbarui
+DELETE /api/v1/work-logs/{workLog}  [write]  — Hapus work log
+
+### Tasks — Manajemen task dengan status, prioritas, dan recurrence
+GET /api/v1/tasks  [read]  — Daftar task (paginated)
+  Query: status, priority, project_id
+POST /api/v1/tasks  [write]  — Buat task
+  Returns: { task }
+GET /api/v1/tasks/kanban  [read]  — Board kanban task dikelompokkan per status
+  Returns: { board }
+GET /api/v1/tasks/overdue-count  [read]  — Jumlah task overdue
+  Returns: { count }
+GET /api/v1/tasks/{task}  [read]  — Detail task
+  Returns: { task }
+PATCH /api/v1/tasks/{task}  [write]  — Update task
+  Returns: Task diperbarui
+DELETE /api/v1/tasks/{task}  [write]  — Hapus task
+PATCH /api/v1/tasks/{task}/status  [write]  — Update status task saja
+  Body: status*
+  Returns: Status diperbarui
+
+### Learning — Log sesi belajar dengan kategori, source type, dan durasi
+GET /api/v1/learning  [read]  — Daftar entri belajar (paginated, key `entries`)
+  Query: category, source_type
+POST /api/v1/learning  [write]  — Buat entri belajar
+  Returns: { entry }
+GET /api/v1/learning/stats  [read]  — Statistik belajar per kategori dan per bulan
+  Returns: { categories, monthly, totals }
+GET /api/v1/learning/heatmap  [read]  — Heatmap menit belajar 90 hari terakhir
+  Returns: { heatmap }
+GET /api/v1/learning/{learning}  [read]  — Detail entri belajar
+  Returns: { entry }
+PATCH /api/v1/learning/{learning}  [write]  — Update entri belajar
+  Returns: Entri diperbarui
+DELETE /api/v1/learning/{learning}  [write]  — Hapus entri belajar
+
+### Milestones — Milestone dengan auto-progress tracking
+GET /api/v1/milestones  [read]  — Daftar milestone
+  Query: status, target_type, category
+POST /api/v1/milestones  [write]  — Buat milestone
+  Returns: { milestone }
+GET /api/v1/milestones/{milestone}  [read]  — Detail milestone
+  Returns: { milestone }
+PATCH /api/v1/milestones/{milestone}  [write]  — Update milestone
+  Returns: Milestone diperbarui
+DELETE /api/v1/milestones/{milestone}  [write]  — Hapus milestone
+GET /api/v1/milestones/{milestone}/history  [read]  — Riwayat record yang berkontribusi ke milestone (paginated, key `items`)
+
+### Habits — Habit tracking dengan streak dan heatmap
+GET /api/v1/habits  [read]  — Daftar habit dengan status hari ini, streak, dan heatmap
+  Returns: { habits, today }
+POST /api/v1/habits  [write]  — Buat habit baru
+  Body: name*, description, color, icon, frequency, target_days
+  Returns: { habit }
+POST /api/v1/habits/reorder  [write]  — Atur ulang urutan habit
+  Body: ids*
+  Returns: { reordered }
+PATCH /api/v1/habits/{habit}  [write]  — Update habit
+  Body: name*, description, color, icon, frequency, target_days, active, archived, ...
+  Returns: Habit diperbarui
+DELETE /api/v1/habits/{habit}  [write]  — Hapus habit
+POST /api/v1/habits/{habit}/log  [write]  — Catat habit selesai untuk tanggal tertentu
+  Body: date, notes
+  Returns: { logged, date, log_id, streak }
+DELETE /api/v1/habits/{habit}/log  [write]  — Batalkan log habit untuk tanggal tertentu
+  Query: date
+  Returns: { unlogged, date }
+
+### Goals — OKR-style goals dengan key results
+GET /api/v1/goals  [read]  — Daftar goal OKR
+  Query: status
+  Returns: { goals }
+POST /api/v1/goals  [write]  — Buat goal baru
+  Body: title*, description, period_label, start_date, end_date, status, color, key_results
+  Returns: { goal }
+GET /api/v1/goals/{goal}  [read]  — Detail goal beserta key results
+  Returns: { goal }
+PATCH /api/v1/goals/{goal}  [write]  — Update goal
+  Body: title, description, period_label, start_date, end_date, status, color
+  Returns: Goal diperbarui
+DELETE /api/v1/goals/{goal}  [write]  — Hapus goal
+POST /api/v1/goals/{goal}/key-results  [write]  — Tambah key result ke goal
+  Body: title*, metric_type, current_value, target_value, unit, notes
+  Returns: { key_result }
+PATCH /api/v1/goals/{goal}/key-results/{keyResult}  [write]  — Update key result
+  Body: title*, metric_type, current_value, target_value, unit, notes, status
+  Returns: { key_result }
+DELETE /api/v1/goals/{goal}/key-results/{keyResult}  [write]  — Hapus key result
+
+### Notifications — Manajemen notifikasi in-app
+GET /api/v1/notifications  [read]  — Daftar notifikasi (50 terbaru)
+  Returns: { notifications, unread_count }
+DELETE /api/v1/notifications  [write]  — Hapus semua notifikasi
+  Returns: { cleared }
+GET /api/v1/notifications/unread-count  [read]  — Jumlah notifikasi belum dibaca
+  Returns: { count }
+POST /api/v1/notifications/mark-all-read  [write]  — Tandai semua notifikasi sebagai sudah dibaca
+  Returns: { marked }
+PATCH /api/v1/notifications/{notification}/read  [write]  — Tandai satu notifikasi sebagai dibaca
+  Returns: Notifikasi ditandai terbaca
+DELETE /api/v1/notifications/{notification}  [write]  — Hapus satu notifikasi
+
+### Docs — Knowledge base dokumen personal
+GET /api/v1/docs  [read]  — Daftar dokumen knowledge base (paginated, key `docs`)
+  Query: category
+POST /api/v1/docs  [write]  — Buat dokumen baru
+  Returns: { doc }
+GET /api/v1/docs/categories  [read]  — Daftar kategori dokumen unik
+  Returns: { categories }
+GET /api/v1/docs/{doc}  [read]  — Detail dokumen beserta file lampiran
+  Returns: { doc }
+PATCH /api/v1/docs/{doc}  [write]  — Update dokumen
+  Returns: Dokumen diperbarui
+DELETE /api/v1/docs/{doc}  [write]  — Hapus dokumen
+POST /api/v1/docs/{doc}/files  [write]  — Upload file ke dokumen
+  Returns: { file }
+DELETE /api/v1/docs/{doc}/files/{docFile}  [write]  — Hapus file dari dokumen
+GET /api/v1/doc-files/{docFile}  [read]  — Download / tampilkan file dokumen
+  Returns: Binary file
+
+### Capture — Quick capture untuk bot dan automation
+POST /api/v1/quick-capture  [capture]  — Quick capture — buat record dari payload ringkas
+  Body: type*, title*, date, project_name, duration_minutes, notes
+  Returns: { record, record_path }
+
+### Reports — Laporan mingguan / bulanan dan export
+GET /api/v1/reports/{period}  [reports]  — Laporan mingguan atau bulanan
+  Query: date
+  Returns: Payload laporan
+GET /api/v1/reports/{period}/export  [reports]  — Export laporan ke CSV
+  Query: date
+  Returns: File CSV
+GET /api/v1/reports/{period}/export-pdf  [reports]  — Export laporan ke PDF
+  Query: date
+  Returns: File PDF
+GET /api/v1/reports/{period}/snapshots  [reports]  — Daftar snapshot laporan tersimpan
+  Returns: Koleksi snapshot
+POST /api/v1/reports/{period}/snapshots  [reports]  — Simpan snapshot laporan
+  Query: date
+  Returns: Snapshot disimpan
+
+### Search — Pencarian global lintas semua modul
+GET /api/v1/search  [read]  — Pencarian global lintas semua modul
+  Query: q*
+  Returns: { query, results }
+
+### Activity — Feed audit aktivitas
+GET /api/v1/activity  [read]  — Feed audit aktivitas (paginated, key `activity`)
+  Query: per_page
+  Returns: { activity }
+
+### Saved Views — Preset filter tersimpan per modul
+GET /api/v1/saved-views  [read]  — Daftar saved view
+  Query: module
+  Returns: { saved_views }
+POST /api/v1/saved-views  [write]  — Simpan atau update saved view (upsert by module+name)
+  Returns: Saved view disimpan
+DELETE /api/v1/saved-views/{savedView}  [write]  — Hapus saved view
+POST /api/v1/saved-views/{savedView}/set-default  [write]  — Toggle default saved view untuk modul
+  Returns: { saved_view }
+
+### References — Link referensi yang dilampirkan ke record
+POST /api/v1/references  [write]  — Tambah referensi link ke sebuah record
+  Returns: Referensi dibuat
+DELETE /api/v1/references/{reference}  [write]  — Hapus referensi
+
+### Configuration — Pengaturan app, backup, dan integrasi
+GET /api/v1/configuration  [read]  — Baca konfigurasi app (settings, backup, mail, notifikasi)
+  Returns: Payload konfigurasi lengkap
+PUT /api/v1/configuration/settings  [write]  — Update pengaturan umum, tampilan, dan notifikasi
+  Body: general, appearance, notifications
+  Returns: Pengaturan disimpan
+PUT /api/v1/configuration/auth  [write]  — Update konfigurasi auth (Google SSO, dll.)
+  Returns: Konfigurasi auth disimpan
+PUT /api/v1/configuration/mail  [write]  — Update konfigurasi mail (Resend / SMTP)
+  Body: mailer*, from_address, from_name, api_key, host, port, username, password
+  Returns: Konfigurasi mail disimpan
+PUT /api/v1/configuration/backup-connection  [write]  — Simpan kredensial koneksi backup (Google Sheets)
+  Returns: Koneksi backup disimpan
+POST /api/v1/configuration/backup-connection/verify  [write]  — Verifikasi koneksi backup Google Sheets
+  Returns: Hasil verifikasi
+POST /api/v1/configuration/backup-syncs  [write]  — Buat jadwal backup sync
+  Returns: Sync dibuat
+PATCH /api/v1/configuration/backup-syncs/{sync}  [write]  — Update jadwal backup sync
+  Returns: Sync diperbarui
+DELETE /api/v1/configuration/backup-syncs/{sync}  [write]  — Hapus jadwal backup sync
+POST /api/v1/configuration/backup-syncs/{sync}/run  [write]  — Jalankan backup sync sekarang
+  Returns: Sync dijalankan
+
+## Request Schemas (write operations)
+
+QuickCaptureRequest:
+  type (required): string [task|blocker|work_log|daily_progress|learning] — - `task` → buat task dengan status todo
+- `blocker` → buat task dengan status blocked
+- `work_log` → buat work log
+- `daily_progress` → buat entri progress harian
+- `learning` → buat entri belajar
+
+  title (required): string — Judul record (untuk learning dipakai sebagai topic)
+  date: string|null — Default ke hari ini
+  project_name: string|null — Nama project (untuk work_log dan task)
+  duration_minutes: integer|null — Durasi dalam menit (untuk work_log dan learning)
+  notes: string|null — Catatan tambahan
+
+TaskRequest:
+  project_id: integer|null
+  milestone_id: integer|null
+  work_log_id: integer|null
+  title (required): string
+  notes: string|null
+  status (required): string [todo|in_progress|done|blocked]
+  priority (required): string [low|medium|high|urgent]
+  due_date: string|null
+  recurrence_rule: string|null [daily|weekly|monthly|custom]
+  recurrence_interval: integer|null
+  recurrence_days: array|null
+  recurrence_ends_at: string|null
+
+WorkLogRequest:
+  project_id: integer|null
+  task_id: integer|null
+  date (required): string
+  project_name (required): string
+  ticket_code: string|null
+  title (required): string
+  category (required): string [bug|feature|research|testing|setup|meeting|documentation|refactor|other]
+  status (required): string [todo|in_progress|done|blocked]
+  priority (required): string [low|medium|high|urgent]
+  description: string|null
+  resolution_or_outcome: string|null
+  estimated_duration: integer|null
+  actual_duration: integer|null
+  tags: array
+
+DailyProgressRequest:
+  date (required): string
+  title (required): string
+  in_progress: string|null
+  todo: string|null
+  blockers: string|null
+  notes: string|null
+  completed_items: array
+  mood: string|null
+  archived: boolean
+  tags: array
+
+LearningRequest:
+  date (required): string
+  topic (required): string
+  category (required): string [programming|english|japanese|german|books|career|other]
+  source_type (required): string [book|article|video|course|practice|podcast|other]
+  duration_minutes (required): integer
+  progress_notes: string|null
+  takeaway: string|null
+  next_action: string|null
+  rating: integer|null
+
+MilestoneRequest:
+  title (required): string
+  category (required): string
+  target_type (required): string [count|duration|streak|custom]
+  source_type: string [manual|work_log_count|work_log_minutes|learning_minutes|daily_progress_streak|task_done_count]
+  source_filter: string|null
+  target_value (required): number
+  current_value: number
+  start_date: string|null
+  end_date: string|null
+  status (required): string [active|paused|completed|cancelled]
+  notes: string|null
+
+HabitRequest:
+  name (required): string
+  description: string|null
+  color: string|null
+  icon: string|null — Emoji
+  frequency: string [daily|weekly]
+  target_days: array|null
+
+GoalRequest:
+  title (required): string
+  description: string|null
+  period_label: string|null
+  start_date: string|null
+  end_date: string|null
+  status: string [draft|active|completed|abandoned]
+  color: string|null
+  key_results: array — KR yang langsung dibuat bersama goal
+
+KeyResultRequest:
+  title (required): string
+  metric_type: string [percentage|number|boolean]
+  current_value: number|null
+  target_value: number|null
+  unit: string|null
+  notes: string|null
+
+SavedViewRequest:
+  module (required): string [tasks|work-logs|daily-progress|learning|milestones]
+  name (required): string
+  filters (required): object — Object filter bebas sesuai query params modul
+  pinned: boolean
+
+ReferenceRequest:
+  referenceable_type (required): string [task|work_log|learning|milestone|daily_progress]
+  referenceable_id (required): integer
+  label (required): string
+  url (required): string
+  type (required): string [link|doc|ticket|pr|article|course|other]
+  notes: string|null
+
+DocRequest:
+  title (required): string
+  category (required): string
+  description: string|null
+  reference_urls: array|null
+
+## Response Envelope
+
+Item:       {"data":{...},"message":"...","<key>":{...}}
+Collection: {"data":[...],"<key>":[...]}
+Paginated:  {"data":[...],"meta":{"current_page":1,"last_page":3,"total":55,"per_page":20},"links":{"prev":null,"next":"..."},"<key>":[...]}
+
+Named response keys per module:
+  daily-progress → entry / entries
+  work-logs      → log / logs
+  tasks          → task / tasks
+  learning       → entry / entries
+  milestones     → milestone / milestones
+  projects       → project / projects
+  habits         → habits
+  goals          → goal / goals
+  notifications  → notifications
+  docs           → doc / docs
+
+## Error Responses
+
+401  {"message":"Unauthenticated."}
+403  {"message":"This action is unauthorized."}
+422  {"message":"The given data was invalid.","errors":{"field":["Error message."]}}
+404  {"message":"Not found."}
+
+---
+Generated: 2026-06-19 14:48:08
+Source: docs/openapi.yaml — run `php artisan docs:sync` to regenerate

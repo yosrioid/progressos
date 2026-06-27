@@ -27,6 +27,9 @@ export default defineConfig({
                     if (id.includes('node_modules/dompurify')) {
                         return 'vendor-dompurify';
                     }
+                    if (id.includes('node_modules/@tiptap')) {
+                        return 'vendor-tiptap';
+                    }
                 },
             },
         },

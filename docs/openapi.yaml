@@ -1,33 +1,106 @@
 openapi: 3.1.0
 info:
   title: ProgressOS API
-  version: 1.0.0
-  description: REST API for the ProgressOS Vue client and trusted external integrations.
+  version: 2.0.0
+  description: |
+    REST API untuk ProgressOS — personal productivity operating system.
+
+    ## Autentikasi
+
+    Gunakan **bearer token** yang dibuat via `POST /api/tokens`:
+
+    ```
+    Authorization: Bearer pos_your_token_here
+    Accept: application/json
+    ```
+
+    ### Token abilities
+
+    | Ability | Akses |
+    |---------|-------|
+    | `read` | GET semua resource |
+    | `write` | Create / update / delete record |
+    | `capture` | POST `/api/v1/quick-capture` |
+    | `reports` | Report dan export |
+    | `tokens` | Kelola token |
+
+    Untuk bot Telegram / Groq AI, buat token dengan abilities `["read", "write", "capture"]`.
+
+    ## Response envelope
+
+    Semua response menggunakan envelope JSON konsisten:
+    - **Item**: `{ "data": {...}, "message": "...", "<key>": {...} }`
+    - **Collection**: `{ "data": [...], "<key>": [...] }`
+    - **Paginated**: `{ "data": [...], "meta": {...}, "links": {...}, "<key>": [...] }`
+
+    ## Rate limiting
+
+    - Read: `api-read` limiter
+    - Write: `api-write` limiter
+    - Capture: `api-capture` limiter
+    - Export: `api-export` limiter
+
 servers:
   - url: http://127.0.0.1:8000
+    description: Local development
+
 security:
   - sanctumBearer: []
+
 tags:
   - name: Auth
+    description: Registrasi, login, profil
   - name: Tokens
+    description: Manajemen personal access token
   - name: Dashboard
+    description: Ringkasan metrik dan aktivitas terkini
+  - name: Analytics
+    description: Chart dan statistik agregat
+  - name: Standup
+    description: Generator laporan standup harian
   - name: Projects
+    description: Manajemen proyek
   - name: Daily Progress
+    description: Entri progress harian / end-of-day
   - name: Work Logs
+    description: Log sesi kerja dengan project, kategori, dan durasi
   - name: Tasks
+    description: Manajemen task dengan status, prioritas, dan recurrence
   - name: Learning
+    description: Log sesi belajar dengan kategori, source type, dan durasi
   - name: Milestones
+    description: Milestone dengan auto-progress tracking
+  - name: Habits
+    description: Habit tracking dengan streak dan heatmap
+  - name: Goals
+    description: OKR-style goals dengan key results
+  - name: Notifications
+    description: Manajemen notifikasi in-app
+  - name: Docs
+    description: Knowledge base dokumen personal
   - name: Capture
+    description: Quick capture untuk bot dan automation
   - name: Reports
+    description: Laporan mingguan / bulanan dan export
   - name: Search
+    description: Pencarian global lintas semua modul
   - name: Activity
+    description: Feed audit aktivitas
   - name: Saved Views
+    description: Preset filter tersimpan per modul
   - name: References
+    description: Link referensi yang dilampirkan ke record
+  - name: Configuration
+    description: Pengaturan app, backup, dan integrasi
+
 paths:
+
+  # ─── AUTH ──────────────────────────────────────────────────────────────────
+
   /api/register:
     post:
       tags: [Auth]
-      summary: Register a user
+      summary: Daftar user baru
       security: []
       requestBody:
         required: true
@@ -35,15 +108,22 @@ paths:
           application/json:
             schema:
               $ref: "#/components/schemas/RegisterRequest"
+            example:
+              name: Yosri
+              email: yosri@example.com
+              timezone: Asia/Jakarta
+              password: secret123
+              password_confirmation: secret123
       responses:
         "201":
           $ref: "#/components/responses/UserResponse"
         "422":
           $ref: "#/components/responses/ValidationError"
+
   /api/login:
     post:
       tags: [Auth]
-      summary: Login with email and password
+      summary: Login dengan email dan password
       security: []
       requestBody:
         required: true
@@ -51,31 +131,38 @@ paths:
           application/json:
             schema:
               $ref: "#/components/schemas/LoginRequest"
+            example:
+              email: yosri@example.com
+              password: secret123
+              remember: false
       responses:
         "200":
           $ref: "#/components/responses/UserResponse"
         "422":
           $ref: "#/components/responses/ValidationError"
+
   /api/logout:
     post:
       tags: [Auth]
-      summary: Logout the current session
+      summary: Logout sesi saat ini
       responses:
         "200":
           $ref: "#/components/responses/OkResponse"
+
   /api/me:
     get:
       tags: [Auth]
-      summary: Current authenticated user
+      summary: Data user yang sedang login
       security:
         - sanctumBearer: [read]
       responses:
         "200":
           $ref: "#/components/responses/UserResponse"
+
   /api/profile:
     patch:
       tags: [Auth]
-      summary: Update profile
+      summary: Update profil
       security:
         - sanctumBearer: [write]
       requestBody:
@@ -87,6 +174,9 @@ paths:
       responses:
         "200":
           $ref: "#/components/responses/UserResponse"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
   /api/profile/avatar:
     post:
       tags: [Auth]
@@ -107,10 +197,11 @@ paths:
       responses:
         "200":
           $ref: "#/components/responses/UserResponse"
+
   /api/profile/password:
     put:
       tags: [Auth]
-      summary: Change password
+      summary: Ganti password
       security:
         - sanctumBearer: [write]
       requestBody:
@@ -122,10 +213,11 @@ paths:
       responses:
         "200":
           $ref: "#/components/responses/OkResponse"
+
   /api/forgot-password:
     post:
       tags: [Auth]
-      summary: Send password reset link
+      summary: Kirim link reset password
       security: []
       requestBody:
         required: true
@@ -141,10 +233,11 @@ paths:
       responses:
         "200":
           $ref: "#/components/responses/OkResponse"
+
   /api/reset-password:
     post:
       tags: [Auth]
-      summary: Reset password
+      summary: Reset password dengan token
       security: []
       requestBody:
         required: true
@@ -155,15 +248,19 @@ paths:
       responses:
         "200":
           $ref: "#/components/responses/OkResponse"
+
+  # ─── TOKENS ────────────────────────────────────────────────────────────────
+
   /api/tokens:
     get:
       tags: [Tokens]
-      summary: List personal access tokens
+      summary: Daftar personal access token
+      description: Membutuhkan ability `tokens`.
       security:
         - sanctumBearer: [tokens]
       responses:
         "200":
-          description: Token list
+          description: Daftar token
           content:
             application/json:
               schema:
@@ -175,9 +272,27 @@ paths:
                         type: array
                         items:
                           $ref: "#/components/schemas/Token"
+              example:
+                data:
+                  - id: 1
+                    name: TelegramBot
+                    abilities: [read, write, capture]
+                    last_used_at: "2026-06-19T10:00:00Z"
+                    expires_at: null
+                    created_at: "2026-01-01T00:00:00Z"
+                tokens:
+                  - id: 1
+                    name: TelegramBot
+                    abilities: [read, write, capture]
+                    last_used_at: "2026-06-19T10:00:00Z"
+                    expires_at: null
+                    created_at: "2026-01-01T00:00:00Z"
     post:
       tags: [Tokens]
-      summary: Create a personal access token
+      summary: Buat personal access token
+      description: |
+        Token hanya ditampilkan sekali via `plain_text_token`. Simpan dengan aman.
+        Untuk bot Telegram / Groq, gunakan abilities `["read", "write", "capture"]`.
       security:
         - sanctumBearer: [tokens]
       requestBody:
@@ -186,59 +301,319 @@ paths:
           application/json:
             schema:
               $ref: "#/components/schemas/TokenRequest"
+            examples:
+              bot_token:
+                summary: Token untuk bot Telegram
+                value:
+                  name: TelegramBot
+                  abilities: [read, write, capture]
+              full_token:
+                summary: Token penuh (local dev)
+                value:
+                  name: LocalDev
+                  abilities: ["*"]
+                  expires_at: "2027-01-01T00:00:00+07:00"
       responses:
         "201":
-          description: Token metadata and one-time plain text token
+          description: Token dibuat — `plain_text_token` hanya tampil sekali
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: "#/components/schemas/Token"
+                  token:
+                    $ref: "#/components/schemas/Token"
+                  plain_text_token:
+                    type: string
+                    description: Bearer token yang harus disimpan — tidak bisa diambil lagi
+              example:
+                data:
+                  id: 2
+                  name: TelegramBot
+                  abilities: [read, write, capture]
+                  last_used_at: null
+                  expires_at: null
+                  created_at: "2026-06-19T10:00:00Z"
+                token:
+                  id: 2
+                  name: TelegramBot
+                  abilities: [read, write, capture]
+                  last_used_at: null
+                  expires_at: null
+                  created_at: "2026-06-19T10:00:00Z"
+                plain_text_token: pos_abc123def456ghi789
+
   /api/tokens/{token}:
     delete:
       tags: [Tokens]
-      summary: Revoke a personal access token
+      summary: Cabut personal access token
       security:
         - sanctumBearer: [tokens]
       parameters:
         - $ref: "#/components/parameters/TokenId"
       responses:
         "204":
-          description: Token revoked
+          description: Token dicabut
+
+  # ─── DASHBOARD ─────────────────────────────────────────────────────────────
+
   /api/v1/dashboard:
     get:
       tags: [Dashboard]
-      summary: Dashboard metrics, charts, and recent records
+      summary: Metrik dashboard, chart, dan record terbaru
+      description: Mengembalikan ringkasan metrik, task overdue, log terbaru, dan progress harian.
       security:
         - sanctumBearer: [read]
       responses:
         "200":
-          description: Dashboard payload
+          description: Payload dashboard
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+
+  # ─── ANALYTICS ─────────────────────────────────────────────────────────────
+
+  /api/v1/analytics:
+    get:
+      tags: [Analytics]
+      summary: Statistik dan chart agregat
+      description: Di-cache 5 menit. Mencakup heatmap, task velocity, jam kerja bulanan, kategori, perbandingan belajar vs kerja, habit, dan goals aktif.
+      security:
+        - sanctumBearer: [read]
+      responses:
+        "200":
+          description: Payload analytics
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - type: object
+                    properties:
+                      work_heatmap:
+                        type: array
+                        description: 90 hari terakhir
+                        items:
+                          type: object
+                          properties:
+                            date: { type: string, format: date }
+                            minutes: { type: integer }
+                      task_velocity:
+                        type: array
+                        description: 8 minggu terakhir — task selesai per minggu
+                        items:
+                          type: object
+                          properties:
+                            week: { type: string, example: "Jun 09" }
+                            count: { type: integer }
+                      monthly_work:
+                        type: array
+                        description: 6 bulan terakhir — jam kerja per bulan
+                        items:
+                          type: object
+                          properties:
+                            month: { type: string, example: "2026-06" }
+                            minutes: { type: integer }
+                            logs: { type: integer }
+                      by_category:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            category: { type: string }
+                            minutes: { type: integer }
+                            logs: { type: integer }
+                      task_status:
+                        type: object
+                        properties:
+                          todo: { type: integer }
+                          in_progress: { type: integer }
+                          done: { type: integer }
+                          blocked: { type: integer }
+                      learn_vs_work:
+                        type: array
+                        description: 4 minggu terakhir
+                        items:
+                          type: object
+                          properties:
+                            week: { type: string }
+                            learning: { type: integer }
+                            work: { type: integer }
+                      totals:
+                        type: object
+                        properties:
+                          work_logs: { type: integer }
+                          work_minutes: { type: integer }
+                          tasks_done: { type: integer }
+                          tasks_total: { type: integer }
+                          learning_minutes: { type: integer }
+                          daily_progress: { type: integer }
+                          completion_rate: { type: integer }
+                      productivity_score:
+                        type: integer
+                        minimum: 0
+                        maximum: 100
+                        description: Skor produktivitas komposit (0–100)
+                      habit_weeks:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            week: { type: string }
+                            rate: { type: integer }
+                            logged: { type: integer }
+                            active: { type: integer }
+                      active_goals:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id: { type: integer }
+                            title: { type: string }
+                            color: { type: ["string", "null"] }
+                            progress: { type: integer }
+
+  # ─── STANDUP ───────────────────────────────────────────────────────────────
+
+  /api/v1/standup:
+    get:
+      tags: [Standup]
+      summary: Generate laporan standup harian
+      description: Mengambil work log selesai kemarin/hari ini, task hari ini, dan blocker. Field `text` berisi markdown siap-pakai untuk standup meeting.
+      security:
+        - sanctumBearer: [read]
+      responses:
+        "200":
+          description: Payload standup
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - type: object
+                    properties:
+                      date: { type: string, format: date }
+                      done_logs:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id: { type: integer }
+                            title: { type: string }
+                            project_name: { type: ["string", "null"] }
+                            actual_duration: { type: ["integer", "null"] }
+                      completed_tasks:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id: { type: integer }
+                            title: { type: string }
+                            priority: { type: string }
+                      today_tasks:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id: { type: integer }
+                            title: { type: string }
+                            status: { type: string }
+                            priority: { type: string }
+                      blockers:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id: { type: integer }
+                            title: { type: string }
+                      text:
+                        type: string
+                        description: Teks standup ter-format (Markdown)
+
+  # ─── PROJECTS ──────────────────────────────────────────────────────────────
+
   /api/v1/projects:
     get:
       tags: [Projects]
-      summary: List projects
+      summary: Daftar proyek aktif
       security:
         - sanctumBearer: [read]
       responses:
         "200":
-          description: Project collection
-    post:
-      deprecated: true
-      tags: [Projects]
-      summary: Reserved for future project creation
-      responses:
-        "405":
-          description: Not supported
+          description: Koleksi proyek
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/CollectionEnvelope"
+                  - type: object
+                    properties:
+                      projects:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/Project"
+              example:
+                data:
+                  - id: 1
+                    name: ProgressOS
+                    color: "#6366f1"
+                    archived: false
+                    tasks_count: 12
+                    open_tasks_count: 5
+                    work_logs_count: 48
+                    created_at: "2025-01-01T00:00:00Z"
+                    updated_at: "2026-06-19T10:00:00Z"
+                projects:
+                  - id: 1
+                    name: ProgressOS
+                    color: "#6366f1"
+                    archived: false
+                    tasks_count: 12
+                    open_tasks_count: 5
+                    work_logs_count: 48
+                    created_at: "2025-01-01T00:00:00Z"
+                    updated_at: "2026-06-19T10:00:00Z"
+
   /api/v1/projects/{project}:
     get:
       tags: [Projects]
-      summary: Project detail with recent tasks, work logs, and metrics
+      summary: Detail proyek dengan task, work log, dan metrik
       security:
         - sanctumBearer: [read]
       parameters:
         - $ref: "#/components/parameters/ProjectId"
       responses:
         "200":
-          description: Project detail
+          description: Detail proyek
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - type: object
+                    properties:
+                      project:
+                        $ref: "#/components/schemas/Project"
+                      tasks:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/Task"
+                      workLogs:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/WorkLog"
+                      metrics:
+                        type: object
+                        additionalProperties: true
+        "404":
+          description: Proyek tidak ditemukan
     patch:
       tags: [Projects]
-      summary: Update project
+      summary: Update proyek
       security:
         - sanctumBearer: [write]
       parameters:
@@ -247,11 +622,14 @@ paths:
         $ref: "#/components/requestBodies/Project"
       responses:
         "200":
-          description: Updated project
+          description: Proyek diperbarui
+
+  # ─── DAILY PROGRESS ────────────────────────────────────────────────────────
+
   /api/v1/daily-progress:
     get:
       tags: [Daily Progress]
-      summary: List daily progress entries
+      summary: Daftar entri progress harian
       security:
         - sanctumBearer: [read]
       parameters:
@@ -260,42 +638,61 @@ paths:
         - $ref: "#/components/parameters/To"
         - name: tag
           in: query
-          schema:
-            type: string
+          schema: { type: string }
         - name: archived
           in: query
-          schema:
-            type: boolean
+          schema: { type: boolean }
         - $ref: "#/components/parameters/Sort"
         - $ref: "#/components/parameters/Direction"
         - $ref: "#/components/parameters/PerPage"
       responses:
         "200":
-          $ref: "#/components/responses/PaginatedResponse"
+          $ref: "#/components/responses/PaginatedDailyProgress"
     post:
       tags: [Daily Progress]
-      summary: Create daily progress entry
+      summary: Buat entri progress harian
       security:
         - sanctumBearer: [write]
       requestBody:
         $ref: "#/components/requestBodies/DailyProgress"
       responses:
         "201":
-          description: Created entry
+          description: Entri dibuat
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - type: object
+                    properties:
+                      entry:
+                        $ref: "#/components/schemas/DailyProgress"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
   /api/v1/daily-progress/{dailyProgress}:
     get:
       tags: [Daily Progress]
-      summary: Show daily progress entry
+      summary: Detail entri progress harian
       security:
         - sanctumBearer: [read]
       parameters:
         - $ref: "#/components/parameters/DailyProgressId"
       responses:
         "200":
-          description: Entry detail
+          description: Detail entri
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - type: object
+                    properties:
+                      entry:
+                        $ref: "#/components/schemas/DailyProgress"
     patch:
       tags: [Daily Progress]
-      summary: Update daily progress entry
+      summary: Update entri progress harian
       security:
         - sanctumBearer: [write]
       parameters:
@@ -304,21 +701,24 @@ paths:
         $ref: "#/components/requestBodies/DailyProgress"
       responses:
         "200":
-          description: Updated entry
+          description: Entri diperbarui
     delete:
       tags: [Daily Progress]
-      summary: Delete daily progress entry
+      summary: Hapus entri progress harian
       security:
         - sanctumBearer: [write]
       parameters:
         - $ref: "#/components/parameters/DailyProgressId"
       responses:
         "204":
-          description: Deleted
+          description: Dihapus
+
+  # ─── WORK LOGS ─────────────────────────────────────────────────────────────
+
   /api/v1/work-logs:
     get:
       tags: [Work Logs]
-      summary: List work logs
+      summary: Daftar work log
       security:
         - sanctumBearer: [read]
       parameters:
@@ -332,43 +732,63 @@ paths:
             enum: [todo, in_progress, done, blocked]
         - name: category
           in: query
-          schema:
-            type: string
+          schema: { type: string }
         - name: priority
           in: query
           schema:
             type: string
+            enum: [low, medium, high, urgent]
         - name: project_name
           in: query
-          schema:
-            type: string
+          schema: { type: string }
         - $ref: "#/components/parameters/Sort"
         - $ref: "#/components/parameters/Direction"
         - $ref: "#/components/parameters/PerPage"
       responses:
         "200":
-          $ref: "#/components/responses/PaginatedResponse"
+          $ref: "#/components/responses/PaginatedWorkLogs"
     post:
       tags: [Work Logs]
-      summary: Create work log
+      summary: Buat work log
       security:
         - sanctumBearer: [write]
       requestBody:
         $ref: "#/components/requestBodies/WorkLog"
       responses:
         "201":
-          description: Created work log
+          description: Work log dibuat
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - type: object
+                    properties:
+                      log:
+                        $ref: "#/components/schemas/WorkLog"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
   /api/v1/work-logs/{workLog}:
     get:
       tags: [Work Logs]
-      summary: Show work log
+      summary: Detail work log
       security:
         - sanctumBearer: [read]
       parameters:
         - $ref: "#/components/parameters/WorkLogId"
       responses:
         "200":
-          description: Work log detail
+          description: Detail work log
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - type: object
+                    properties:
+                      log:
+                        $ref: "#/components/schemas/WorkLog"
     patch:
       tags: [Work Logs]
       summary: Update work log
@@ -380,21 +800,24 @@ paths:
         $ref: "#/components/requestBodies/WorkLog"
       responses:
         "200":
-          description: Updated work log
+          description: Work log diperbarui
     delete:
       tags: [Work Logs]
-      summary: Delete work log
+      summary: Hapus work log
       security:
         - sanctumBearer: [write]
       parameters:
         - $ref: "#/components/parameters/WorkLogId"
       responses:
         "204":
-          description: Deleted
+          description: Dihapus
+
+  # ─── TASKS ─────────────────────────────────────────────────────────────────
+
   /api/v1/tasks:
     get:
       tags: [Tasks]
-      summary: List tasks
+      summary: Daftar task (paginated)
       security:
         - sanctumBearer: [read]
       parameters:
@@ -403,14 +826,15 @@ paths:
           in: query
           schema:
             type: string
+            enum: [todo, in_progress, done, blocked]
         - name: priority
           in: query
           schema:
             type: string
+            enum: [low, medium, high, urgent]
         - name: project_id
           in: query
-          schema:
-            type: integer
+          schema: { type: integer }
         - $ref: "#/components/parameters/From"
         - $ref: "#/components/parameters/To"
         - $ref: "#/components/parameters/Sort"
@@ -418,28 +842,106 @@ paths:
         - $ref: "#/components/parameters/PerPage"
       responses:
         "200":
-          $ref: "#/components/responses/PaginatedResponse"
+          $ref: "#/components/responses/PaginatedTasks"
     post:
       tags: [Tasks]
-      summary: Create task
+      summary: Buat task
       security:
         - sanctumBearer: [write]
       requestBody:
         $ref: "#/components/requestBodies/Task"
       responses:
         "201":
-          description: Created task
+          description: Task dibuat
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - type: object
+                    properties:
+                      task:
+                        $ref: "#/components/schemas/Task"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+  /api/v1/tasks/kanban:
+    get:
+      tags: [Tasks]
+      summary: Board kanban task dikelompokkan per status
+      description: Mengembalikan task dikelompokkan ke todo, in_progress, blocked, done. Done dibatasi 20 terbaru, lainnya 50 terbaru.
+      security:
+        - sanctumBearer: [read]
+      responses:
+        "200":
+          description: Board kanban
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - type: object
+                    properties:
+                      board:
+                        type: object
+                        properties:
+                          todo:
+                            type: array
+                            items:
+                              $ref: "#/components/schemas/KanbanCard"
+                          in_progress:
+                            type: array
+                            items:
+                              $ref: "#/components/schemas/KanbanCard"
+                          blocked:
+                            type: array
+                            items:
+                              $ref: "#/components/schemas/KanbanCard"
+                          done:
+                            type: array
+                            items:
+                              $ref: "#/components/schemas/KanbanCard"
+
+  /api/v1/tasks/overdue-count:
+    get:
+      tags: [Tasks]
+      summary: Jumlah task overdue
+      security:
+        - sanctumBearer: [read]
+      responses:
+        "200":
+          description: Jumlah task melewati due date
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - type: object
+                    properties:
+                      count: { type: integer }
+              example:
+                count: 3
+
   /api/v1/tasks/{task}:
     get:
       tags: [Tasks]
-      summary: Show task
+      summary: Detail task
       security:
         - sanctumBearer: [read]
       parameters:
         - $ref: "#/components/parameters/TaskId"
       responses:
         "200":
-          description: Task detail
+          description: Detail task
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - type: object
+                    properties:
+                      task:
+                        $ref: "#/components/schemas/Task"
     patch:
       tags: [Tasks]
       summary: Update task
@@ -451,21 +953,23 @@ paths:
         $ref: "#/components/requestBodies/Task"
       responses:
         "200":
-          description: Updated task
+          description: Task diperbarui
     delete:
       tags: [Tasks]
-      summary: Delete task
+      summary: Hapus task
       security:
         - sanctumBearer: [write]
       parameters:
         - $ref: "#/components/parameters/TaskId"
       responses:
         "204":
-          description: Deleted
+          description: Dihapus
+
   /api/v1/tasks/{task}/status:
     patch:
       tags: [Tasks]
-      summary: Update task status
+      summary: Update status task saja
+      description: Endpoint ringkas untuk mengubah status task. Otomatis set `completed_at` saat status berubah ke `done`. Jika task punya `recurrence_rule`, task berikutnya akan dibuat otomatis.
       security:
         - sanctumBearer: [write]
       parameters:
@@ -481,13 +985,18 @@ paths:
                 status:
                   type: string
                   enum: [todo, in_progress, done, blocked]
+            example:
+              status: done
       responses:
         "200":
-          description: Updated task
+          description: Status diperbarui
+
+  # ─── LEARNING ──────────────────────────────────────────────────────────────
+
   /api/v1/learning:
     get:
       tags: [Learning]
-      summary: List learning entries
+      summary: Daftar entri belajar (paginated, key `entries`)
       security:
         - sanctumBearer: [read]
       parameters:
@@ -498,40 +1007,123 @@ paths:
           in: query
           schema:
             type: string
+            enum: [programming, english, japanese, german, books, career, other]
         - name: source_type
           in: query
           schema:
             type: string
+            enum: [book, article, video, course, practice, podcast, other]
         - $ref: "#/components/parameters/Sort"
         - $ref: "#/components/parameters/Direction"
         - $ref: "#/components/parameters/PerPage"
       responses:
         "200":
-          $ref: "#/components/responses/PaginatedResponse"
+          $ref: "#/components/responses/PaginatedLearning"
     post:
       tags: [Learning]
-      summary: Create learning entry
+      summary: Buat entri belajar
       security:
         - sanctumBearer: [write]
       requestBody:
         $ref: "#/components/requestBodies/Learning"
       responses:
         "201":
-          description: Created learning entry
+          description: Entri belajar dibuat
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - type: object
+                    properties:
+                      entry:
+                        $ref: "#/components/schemas/LearningEntry"
+
+  /api/v1/learning/stats:
+    get:
+      tags: [Learning]
+      summary: Statistik belajar per kategori dan per bulan
+      security:
+        - sanctumBearer: [read]
+      responses:
+        "200":
+          description: Statistik belajar
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - type: object
+                    properties:
+                      categories:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            category: { type: string }
+                            entries: { type: integer }
+                            total_minutes: { type: integer }
+                      monthly:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            month: { type: string, example: "2026-06" }
+                            total_minutes: { type: integer }
+                            entries: { type: integer }
+                      totals:
+                        type: object
+                        properties:
+                          entries: { type: integer }
+                          minutes: { type: integer }
+
+  /api/v1/learning/heatmap:
+    get:
+      tags: [Learning]
+      summary: Heatmap menit belajar 90 hari terakhir
+      security:
+        - sanctumBearer: [read]
+      responses:
+        "200":
+          description: Data heatmap belajar
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - type: object
+                    properties:
+                      heatmap:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            date: { type: string, format: date }
+                            minutes: { type: integer }
+
   /api/v1/learning/{learning}:
     get:
       tags: [Learning]
-      summary: Show learning entry
+      summary: Detail entri belajar
       security:
         - sanctumBearer: [read]
       parameters:
         - $ref: "#/components/parameters/LearningId"
       responses:
         "200":
-          description: Learning detail
+          description: Detail entri
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - type: object
+                    properties:
+                      entry:
+                        $ref: "#/components/schemas/LearningEntry"
     patch:
       tags: [Learning]
-      summary: Update learning entry
+      summary: Update entri belajar
       security:
         - sanctumBearer: [write]
       parameters:
@@ -540,21 +1132,24 @@ paths:
         $ref: "#/components/requestBodies/Learning"
       responses:
         "200":
-          description: Updated learning entry
+          description: Entri diperbarui
     delete:
       tags: [Learning]
-      summary: Delete learning entry
+      summary: Hapus entri belajar
       security:
         - sanctumBearer: [write]
       parameters:
         - $ref: "#/components/parameters/LearningId"
       responses:
         "204":
-          description: Deleted
+          description: Dihapus
+
+  # ─── MILESTONES ────────────────────────────────────────────────────────────
+
   /api/v1/milestones:
     get:
       tags: [Milestones]
-      summary: List milestones
+      summary: Daftar milestone
       security:
         - sanctumBearer: [read]
       parameters:
@@ -563,41 +1158,61 @@ paths:
           in: query
           schema:
             type: string
+            enum: [active, paused, completed, cancelled]
         - name: target_type
           in: query
           schema:
             type: string
+            enum: [count, duration, streak, custom]
         - name: category
           in: query
-          schema:
-            type: string
+          schema: { type: string }
         - $ref: "#/components/parameters/Sort"
         - $ref: "#/components/parameters/Direction"
         - $ref: "#/components/parameters/PerPage"
       responses:
         "200":
-          $ref: "#/components/responses/PaginatedResponse"
+          $ref: "#/components/responses/PaginatedMilestones"
     post:
       tags: [Milestones]
-      summary: Create milestone
+      summary: Buat milestone
       security:
         - sanctumBearer: [write]
       requestBody:
         $ref: "#/components/requestBodies/Milestone"
       responses:
         "201":
-          description: Created milestone
+          description: Milestone dibuat
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - type: object
+                    properties:
+                      milestone:
+                        $ref: "#/components/schemas/Milestone"
+
   /api/v1/milestones/{milestone}:
     get:
       tags: [Milestones]
-      summary: Show milestone
+      summary: Detail milestone
       security:
         - sanctumBearer: [read]
       parameters:
         - $ref: "#/components/parameters/MilestoneId"
       responses:
         "200":
-          description: Milestone detail
+          description: Detail milestone
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - type: object
+                    properties:
+                      milestone:
+                        $ref: "#/components/schemas/Milestone"
     patch:
       tags: [Milestones]
       summary: Update milestone
@@ -609,42 +1224,819 @@ paths:
         $ref: "#/components/requestBodies/Milestone"
       responses:
         "200":
-          description: Updated milestone
+          description: Milestone diperbarui
     delete:
       tags: [Milestones]
-      summary: Delete milestone
+      summary: Hapus milestone
       security:
         - sanctumBearer: [write]
       parameters:
         - $ref: "#/components/parameters/MilestoneId"
       responses:
         "204":
-          description: Deleted
+          description: Dihapus
+
+  /api/v1/milestones/{milestone}/history:
+    get:
+      tags: [Milestones]
+      summary: Riwayat record yang berkontribusi ke milestone (paginated, key `items`)
+      description: Mengembalikan learning entries, work logs, tasks, atau daily progress tergantung `source_type` milestone.
+      security:
+        - sanctumBearer: [read]
+      parameters:
+        - $ref: "#/components/parameters/MilestoneId"
+        - $ref: "#/components/parameters/Sort"
+        - $ref: "#/components/parameters/Direction"
+        - $ref: "#/components/parameters/PerPage"
+      responses:
+        "200":
+          $ref: "#/components/responses/PaginatedResponse"
+
+  # ─── HABITS ────────────────────────────────────────────────────────────────
+
+  /api/v1/habits:
+    get:
+      tags: [Habits]
+      summary: Daftar habit dengan status hari ini, streak, dan heatmap
+      security:
+        - sanctumBearer: [read]
+      responses:
+        "200":
+          description: Daftar habit
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - type: object
+                    properties:
+                      habits:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/Habit"
+                      today:
+                        type: string
+                        format: date
+              example:
+                habits:
+                  - id: 1
+                    name: Olahraga
+                    description: 30 menit setiap hari
+                    color: "#22c55e"
+                    icon: "🏋️"
+                    frequency: daily
+                    target_days: null
+                    active: true
+                    order: 0
+                    today_done: true
+                    streak: 7
+                    week_dates: ["2026-06-13", "2026-06-14", "2026-06-19"]
+                    heatmap: ["2026-04-01", "2026-04-02"]
+                    total_logs: 45
+                today: "2026-06-19"
+    post:
+      tags: [Habits]
+      summary: Buat habit baru
+      security:
+        - sanctumBearer: [write]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HabitRequest"
+            example:
+              name: Baca buku
+              description: 20 halaman per hari
+              color: "#f59e0b"
+              icon: "📚"
+              frequency: daily
+      responses:
+        "201":
+          description: Habit dibuat
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - type: object
+                    properties:
+                      habit:
+                        $ref: "#/components/schemas/Habit"
+
+  /api/v1/habits/reorder:
+    post:
+      tags: [Habits]
+      summary: Atur ulang urutan habit
+      security:
+        - sanctumBearer: [write]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ids]
+              properties:
+                ids:
+                  type: array
+                  items: { type: integer }
+            example:
+              ids: [3, 1, 2]
+      responses:
+        "200":
+          description: Urutan disimpan
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - type: object
+                    properties:
+                      reordered: { type: boolean }
+
+  /api/v1/habits/{habit}:
+    patch:
+      tags: [Habits]
+      summary: Update habit
+      security:
+        - sanctumBearer: [write]
+      parameters:
+        - $ref: "#/components/parameters/HabitId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HabitUpdateRequest"
+      responses:
+        "200":
+          description: Habit diperbarui
+    delete:
+      tags: [Habits]
+      summary: Hapus habit
+      security:
+        - sanctumBearer: [write]
+      parameters:
+        - $ref: "#/components/parameters/HabitId"
+      responses:
+        "204":
+          description: Dihapus
+
+  /api/v1/habits/{habit}/log:
+    post:
+      tags: [Habits]
+      summary: Catat habit selesai untuk tanggal tertentu
+      description: Idempotent — kalau sudah di-log di tanggal yang sama, tidak akan duplikat. Otomatis trigger notifikasi milestone streak.
+      security:
+        - sanctumBearer: [write]
+      parameters:
+        - $ref: "#/components/parameters/HabitId"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                date:
+                  type: string
+                  format: date
+                  description: Default ke hari ini
+                notes:
+                  type: ["string", "null"]
+            example:
+              date: "2026-06-19"
+              notes: 30 menit di gym
+      responses:
+        "200":
+          description: Log dicatat
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - type: object
+                    properties:
+                      logged: { type: boolean }
+                      date: { type: string, format: date }
+                      log_id: { type: integer }
+                      streak: { type: integer }
+              example:
+                logged: true
+                date: "2026-06-19"
+                log_id: 142
+                streak: 7
+    delete:
+      tags: [Habits]
+      summary: Batalkan log habit untuk tanggal tertentu
+      security:
+        - sanctumBearer: [write]
+      parameters:
+        - $ref: "#/components/parameters/HabitId"
+        - name: date
+          in: query
+          schema:
+            type: string
+            format: date
+          description: Default ke hari ini
+      responses:
+        "200":
+          description: Log dibatalkan
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - type: object
+                    properties:
+                      unlogged: { type: boolean }
+                      date: { type: string, format: date }
+
+  # ─── GOALS ─────────────────────────────────────────────────────────────────
+
+  /api/v1/goals:
+    get:
+      tags: [Goals]
+      summary: Daftar goal OKR
+      security:
+        - sanctumBearer: [read]
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [draft, active, completed, abandoned]
+      responses:
+        "200":
+          description: Daftar goal
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - type: object
+                    properties:
+                      goals:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/Goal"
+    post:
+      tags: [Goals]
+      summary: Buat goal baru
+      description: Bisa menyertakan `key_results` array untuk membuat KR sekaligus.
+      security:
+        - sanctumBearer: [write]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GoalRequest"
+            example:
+              title: Kuasai Golang di Q3 2026
+              description: Fokus ke backend dan concurrency patterns
+              period_label: Q3 2026
+              start_date: "2026-07-01"
+              end_date: "2026-09-30"
+              status: active
+              color: "#06b6d4"
+              key_results:
+                - title: Selesaikan 3 project Go
+                  metric_type: number
+                  target_value: 3
+                  unit: project
+                - title: Baca The Go Programming Language
+                  metric_type: boolean
+      responses:
+        "201":
+          description: Goal dibuat
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - type: object
+                    properties:
+                      goal:
+                        $ref: "#/components/schemas/Goal"
+
+  /api/v1/goals/{goal}:
+    get:
+      tags: [Goals]
+      summary: Detail goal beserta key results
+      security:
+        - sanctumBearer: [read]
+      parameters:
+        - $ref: "#/components/parameters/GoalId"
+      responses:
+        "200":
+          description: Detail goal
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - type: object
+                    properties:
+                      goal:
+                        $ref: "#/components/schemas/Goal"
+    patch:
+      tags: [Goals]
+      summary: Update goal
+      security:
+        - sanctumBearer: [write]
+      parameters:
+        - $ref: "#/components/parameters/GoalId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GoalUpdateRequest"
+      responses:
+        "200":
+          description: Goal diperbarui
+    delete:
+      tags: [Goals]
+      summary: Hapus goal
+      security:
+        - sanctumBearer: [write]
+      parameters:
+        - $ref: "#/components/parameters/GoalId"
+      responses:
+        "204":
+          description: Dihapus
+
+  /api/v1/goals/{goal}/key-results:
+    post:
+      tags: [Goals]
+      summary: Tambah key result ke goal
+      security:
+        - sanctumBearer: [write]
+      parameters:
+        - $ref: "#/components/parameters/GoalId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/KeyResultRequest"
+            example:
+              title: Deploy ke production
+              metric_type: boolean
+      responses:
+        "201":
+          description: Key result dibuat
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - type: object
+                    properties:
+                      key_result:
+                        $ref: "#/components/schemas/KeyResult"
+
+  /api/v1/goals/{goal}/key-results/{keyResult}:
+    patch:
+      tags: [Goals]
+      summary: Update key result
+      description: Jika semua KR berstatus `done` atau `abandoned`, goal otomatis berubah ke `completed`.
+      security:
+        - sanctumBearer: [write]
+      parameters:
+        - $ref: "#/components/parameters/GoalId"
+        - $ref: "#/components/parameters/KeyResultId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/KeyResultUpdateRequest"
+            example:
+              current_value: 2
+              status: active
+      responses:
+        "200":
+          description: Key result diperbarui
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - type: object
+                    properties:
+                      key_result:
+                        $ref: "#/components/schemas/KeyResult"
+    delete:
+      tags: [Goals]
+      summary: Hapus key result
+      security:
+        - sanctumBearer: [write]
+      parameters:
+        - $ref: "#/components/parameters/GoalId"
+        - $ref: "#/components/parameters/KeyResultId"
+      responses:
+        "204":
+          description: Dihapus
+
+  # ─── NOTIFICATIONS ─────────────────────────────────────────────────────────
+
+  /api/v1/notifications:
+    get:
+      tags: [Notifications]
+      summary: Daftar notifikasi (50 terbaru)
+      security:
+        - sanctumBearer: [read]
+      responses:
+        "200":
+          description: Daftar notifikasi
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - type: object
+                    properties:
+                      notifications:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/InAppNotification"
+                      unread_count:
+                        type: integer
+    delete:
+      tags: [Notifications]
+      summary: Hapus semua notifikasi
+      security:
+        - sanctumBearer: [write]
+      responses:
+        "200":
+          description: Semua notifikasi dihapus
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - type: object
+                    properties:
+                      cleared: { type: boolean }
+
+  /api/v1/notifications/unread-count:
+    get:
+      tags: [Notifications]
+      summary: Jumlah notifikasi belum dibaca
+      security:
+        - sanctumBearer: [read]
+      responses:
+        "200":
+          description: Jumlah notifikasi unread
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - type: object
+                    properties:
+                      count: { type: integer }
+              example:
+                count: 3
+
+  /api/v1/notifications/mark-all-read:
+    post:
+      tags: [Notifications]
+      summary: Tandai semua notifikasi sebagai sudah dibaca
+      security:
+        - sanctumBearer: [write]
+      responses:
+        "200":
+          description: Semua ditandai terbaca
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - type: object
+                    properties:
+                      marked: { type: boolean }
+
+  /api/v1/notifications/{notification}/read:
+    patch:
+      tags: [Notifications]
+      summary: Tandai satu notifikasi sebagai dibaca
+      security:
+        - sanctumBearer: [write]
+      parameters:
+        - $ref: "#/components/parameters/NotificationId"
+      responses:
+        "200":
+          description: Notifikasi ditandai terbaca
+
+  /api/v1/notifications/{notification}:
+    delete:
+      tags: [Notifications]
+      summary: Hapus satu notifikasi
+      security:
+        - sanctumBearer: [write]
+      parameters:
+        - $ref: "#/components/parameters/NotificationId"
+      responses:
+        "204":
+          description: Dihapus
+
+  # ─── DOCS ──────────────────────────────────────────────────────────────────
+
+  /api/v1/docs:
+    get:
+      tags: [Docs]
+      summary: Daftar dokumen knowledge base (paginated, key `docs`)
+      security:
+        - sanctumBearer: [read]
+      parameters:
+        - $ref: "#/components/parameters/Search"
+        - name: category
+          in: query
+          schema: { type: string }
+        - $ref: "#/components/parameters/Sort"
+        - $ref: "#/components/parameters/Direction"
+        - $ref: "#/components/parameters/PerPage"
+      responses:
+        "200":
+          $ref: "#/components/responses/PaginatedDocs"
+    post:
+      tags: [Docs]
+      summary: Buat dokumen baru
+      security:
+        - sanctumBearer: [write]
+      requestBody:
+        $ref: "#/components/requestBodies/Doc"
+      responses:
+        "201":
+          description: Dokumen dibuat
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - type: object
+                    properties:
+                      doc:
+                        $ref: "#/components/schemas/Doc"
+
+  /api/v1/docs/categories:
+    get:
+      tags: [Docs]
+      summary: Daftar kategori dokumen unik
+      security:
+        - sanctumBearer: [read]
+      responses:
+        "200":
+          description: Daftar kategori
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - type: object
+                    properties:
+                      categories:
+                        type: array
+                        items: { type: string }
+              example:
+                categories: ["AI", "DevOps", "Go", "Python"]
+
+  /api/v1/docs/{doc}:
+    get:
+      tags: [Docs]
+      summary: Detail dokumen beserta file lampiran
+      security:
+        - sanctumBearer: [read]
+      parameters:
+        - $ref: "#/components/parameters/DocId"
+      responses:
+        "200":
+          description: Detail dokumen
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - type: object
+                    properties:
+                      doc:
+                        $ref: "#/components/schemas/Doc"
+    patch:
+      tags: [Docs]
+      summary: Update dokumen
+      security:
+        - sanctumBearer: [write]
+      parameters:
+        - $ref: "#/components/parameters/DocId"
+      requestBody:
+        $ref: "#/components/requestBodies/Doc"
+      responses:
+        "200":
+          description: Dokumen diperbarui
+    delete:
+      tags: [Docs]
+      summary: Hapus dokumen
+      security:
+        - sanctumBearer: [write]
+      parameters:
+        - $ref: "#/components/parameters/DocId"
+      responses:
+        "204":
+          description: Dihapus
+
+  /api/v1/docs/{doc}/files:
+    post:
+      tags: [Docs]
+      summary: Upload file ke dokumen
+      security:
+        - sanctumBearer: [write]
+      parameters:
+        - $ref: "#/components/parameters/DocId"
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        "201":
+          description: File diupload
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - type: object
+                    properties:
+                      file:
+                        $ref: "#/components/schemas/DocFile"
+
+  /api/v1/docs/{doc}/files/{docFile}:
+    delete:
+      tags: [Docs]
+      summary: Hapus file dari dokumen
+      security:
+        - sanctumBearer: [write]
+      parameters:
+        - $ref: "#/components/parameters/DocId"
+        - $ref: "#/components/parameters/DocFileId"
+      responses:
+        "204":
+          description: File dihapus
+
+  /api/v1/doc-files/{docFile}:
+    get:
+      tags: [Docs]
+      summary: Download / tampilkan file dokumen
+      security:
+        - sanctumBearer: [read]
+      parameters:
+        - $ref: "#/components/parameters/DocFileId"
+      responses:
+        "200":
+          description: Binary file
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+
+  # ─── CAPTURE ───────────────────────────────────────────────────────────────
+
   /api/v1/quick-capture:
     post:
       tags: [Capture]
-      summary: Create a task, blocker, work log, daily progress, or learning entry from a compact payload
+      summary: Quick capture — buat record dari payload ringkas
+      description: |
+        Endpoint utama untuk **bot Telegram / Groq AI**. Kirim teks yang sudah diparsing LLM
+        ke endpoint ini untuk membuat task, work log, daily progress, atau learning entry.
+
+        Gunakan header `Idempotency-Key` untuk mencegah duplikasi saat retry (berlaku 24 jam).
+
+        **Mapping type → modul:**
+        - `task` → Tasks
+        - `blocker` → Tasks (dengan status `blocked`)
+        - `work_log` → Work Logs
+        - `daily_progress` → Daily Progress
+        - `learning` → Learning
+
+        Response menyertakan `record_path` yang bisa dipakai untuk redirect ke record yang dibuat.
       security:
         - sanctumBearer: [capture]
       parameters:
         - name: Idempotency-Key
           in: header
-          schema:
-            type: string
-          description: Optional key used to deduplicate retried capture requests for 24 hours.
+          schema: { type: string }
+          description: Key unik untuk deduplikasi retry selama 24 jam
       requestBody:
         required: true
         content:
           application/json:
             schema:
               $ref: "#/components/schemas/QuickCaptureRequest"
+            examples:
+              create_task:
+                summary: Buat task
+                value:
+                  type: task
+                  title: Implementasi endpoint notifications
+                  project_name: ProgressOS
+                  notes: Sesuai spec di notion
+              create_work_log:
+                summary: Catat work log
+                value:
+                  type: work_log
+                  title: Review pull request API docs
+                  project_name: ProgressOS
+                  duration_minutes: 30
+                  date: "2026-06-19"
+              create_blocker:
+                summary: Catat blocker
+                value:
+                  type: blocker
+                  title: Deploy staging gagal — Docker issue
+                  project_name: ProgressOS
+              create_learning:
+                summary: Catat sesi belajar
+                value:
+                  type: learning
+                  title: Goroutines dan channels di Go
+                  duration_minutes: 60
+                  notes: Baca chapter 8 The Go Programming Language
+              create_daily_progress:
+                summary: Catat daily progress
+                value:
+                  type: daily_progress
+                  title: Progress harian 19 Juni
+                  notes: Fokus ke API docs dan Telegram bot integration
       responses:
         "201":
-          description: Created record
+          description: Record dibuat
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - type: object
+                    properties:
+                      record:
+                        type: object
+                        description: Record yang dibuat (shape sesuai type)
+                      record_path:
+                        type: ["string", "null"]
+                        description: Path ke record, misal `/tasks/42`
+              example:
+                data:
+                  id: 42
+                  title: Implementasi endpoint notifications
+                  status: todo
+                  priority: medium
+                record:
+                  id: 42
+                  title: Implementasi endpoint notifications
+                  status: todo
+                  priority: medium
+                record_path: /tasks/42
+                message: Captured.
+
+  # ─── REPORTS ───────────────────────────────────────────────────────────────
+
   /api/v1/reports/{period}:
     get:
       tags: [Reports]
-      summary: Weekly or monthly report
+      summary: Laporan mingguan atau bulanan
+      security:
+        - sanctumBearer: [reports]
+      parameters:
+        - $ref: "#/components/parameters/Period"
+        - name: date
+          in: query
+          schema:
+            type: string
+            format: date
+          description: Tanggal dalam periode yang diinginkan (default minggu/bulan ini)
+      responses:
+        "200":
+          description: Payload laporan
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+
+  /api/v1/reports/{period}/export:
+    get:
+      tags: [Reports]
+      summary: Export laporan ke CSV
       security:
         - sanctumBearer: [reports]
       parameters:
@@ -656,38 +2048,50 @@ paths:
             format: date
       responses:
         "200":
-          description: Derived report payload
-  /api/v1/reports/{period}/export:
-    get:
-      tags: [Reports]
-      summary: Export weekly or monthly report CSV
-      security:
-        - sanctumBearer: [reports]
-      parameters:
-        - $ref: "#/components/parameters/Period"
-      responses:
-        "200":
-          description: CSV report export
+          description: File CSV
           content:
             text/csv:
               schema:
                 type: string
+
+  /api/v1/reports/{period}/export-pdf:
+    get:
+      tags: [Reports]
+      summary: Export laporan ke PDF
+      security:
+        - sanctumBearer: [reports]
+      parameters:
+        - $ref: "#/components/parameters/Period"
+        - name: date
+          in: query
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          description: File PDF
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+
   /api/v1/reports/{period}/snapshots:
     get:
       tags: [Reports]
-      summary: List saved report snapshots
+      summary: Daftar snapshot laporan tersimpan
       security:
         - sanctumBearer: [reports]
       parameters:
         - $ref: "#/components/parameters/Period"
       responses:
         "200":
-          description: Report snapshot collection
+          description: Koleksi snapshot
     post:
       tags: [Reports]
-      summary: Store a report snapshot
+      summary: Simpan snapshot laporan
       security:
-        - sanctumBearer: [reports, write]
+        - sanctumBearer: [reports]
       parameters:
         - $ref: "#/components/parameters/Period"
         - name: date
@@ -697,11 +2101,15 @@ paths:
             format: date
       responses:
         "201":
-          description: Stored report snapshot
+          description: Snapshot disimpan
+
+  # ─── SEARCH ────────────────────────────────────────────────────────────────
+
   /api/v1/search:
     get:
       tags: [Search]
-      summary: Global search across modules
+      summary: Pencarian global lintas semua modul
+      description: Mengembalikan hingga 8 hasil per modul. Mencari di tasks, work logs, daily progress, learning, milestones, projects, goals, habits, dan docs.
       security:
         - sanctumBearer: [read]
       parameters:
@@ -710,22 +2118,68 @@ paths:
           required: true
           schema:
             type: string
+            minLength: 1
+          description: Query pencarian
       responses:
         "200":
-          description: Grouped search results
+          description: Hasil pencarian dikelompokkan per modul
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - type: object
+                    properties:
+                      query: { type: string }
+                      results:
+                        type: object
+                        properties:
+                          daily_progress: { type: array, items: {} }
+                          work_logs: { type: array, items: {} }
+                          tasks: { type: array, items: {} }
+                          learning: { type: array, items: {} }
+                          milestones: { type: array, items: {} }
+                          projects: { type: array, items: {} }
+                          goals: { type: array, items: {} }
+                          habits: { type: array, items: {} }
+                          docs: { type: array, items: {} }
+
+  # ─── ACTIVITY ──────────────────────────────────────────────────────────────
+
   /api/v1/activity:
     get:
       tags: [Activity]
-      summary: Paginated audit activity feed
+      summary: Feed audit aktivitas (paginated, key `activity`)
       security:
         - sanctumBearer: [read]
+      parameters:
+        - name: per_page
+          in: query
+          schema:
+            type: integer
+            minimum: 10
+            maximum: 50
       responses:
         "200":
-          $ref: "#/components/responses/PaginatedResponse"
+          description: Feed aktivitas
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/PaginatedEnvelope"
+                  - type: object
+                    properties:
+                      activity:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/ActivityLog"
+
+  # ─── SAVED VIEWS ───────────────────────────────────────────────────────────
+
   /api/v1/saved-views:
     get:
       tags: [Saved Views]
-      summary: List saved views
+      summary: Daftar saved view
       security:
         - sanctumBearer: [read]
       parameters:
@@ -733,81 +2187,327 @@ paths:
           in: query
           schema:
             type: string
+            enum: [tasks, work-logs, daily-progress, learning, milestones]
       responses:
         "200":
-          description: Saved view collection
+          description: Koleksi saved view
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/CollectionEnvelope"
+                  - type: object
+                    properties:
+                      saved_views:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/SavedView"
     post:
       tags: [Saved Views]
-      summary: Store saved view
+      summary: Simpan atau update saved view (upsert by module+name)
       security:
         - sanctumBearer: [write]
       requestBody:
         $ref: "#/components/requestBodies/SavedView"
       responses:
         "201":
-          description: Stored saved view
+          description: Saved view disimpan
+
   /api/v1/saved-views/{savedView}:
     delete:
       tags: [Saved Views]
-      summary: Delete saved view
+      summary: Hapus saved view
       security:
         - sanctumBearer: [write]
       parameters:
         - $ref: "#/components/parameters/SavedViewId"
       responses:
         "204":
-          description: Deleted
+          description: Dihapus
+
+  /api/v1/saved-views/{savedView}/set-default:
+    post:
+      tags: [Saved Views]
+      summary: Toggle default saved view untuk modul
+      description: Meng-toggle `is_default`. Jika di-set default, view lain di modul yang sama akan di-unset. Panggil lagi untuk unset.
+      security:
+        - sanctumBearer: [write]
+      parameters:
+        - $ref: "#/components/parameters/SavedViewId"
+      responses:
+        "200":
+          description: Status default di-toggle
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Envelope"
+                  - type: object
+                    properties:
+                      saved_view:
+                        $ref: "#/components/schemas/SavedView"
+
+  # ─── REFERENCES ────────────────────────────────────────────────────────────
+
   /api/v1/references:
     post:
       tags: [References]
-      summary: Store reference link on a record
+      summary: Tambah referensi link ke sebuah record
       security:
         - sanctumBearer: [write]
       requestBody:
         $ref: "#/components/requestBodies/Reference"
       responses:
         "201":
-          description: Created reference
+          description: Referensi dibuat
+
   /api/v1/references/{reference}:
     delete:
       tags: [References]
-      summary: Delete reference
+      summary: Hapus referensi
       security:
         - sanctumBearer: [write]
       parameters:
         - $ref: "#/components/parameters/ReferenceId"
       responses:
         "204":
-          description: Deleted
+          description: Dihapus
+
+  # ─── CONFIGURATION ─────────────────────────────────────────────────────────
+
+  /api/v1/configuration:
+    get:
+      tags: [Configuration]
+      summary: Baca konfigurasi app (settings, backup, mail, notifikasi)
+      security:
+        - sanctumBearer: [read]
+      responses:
+        "200":
+          description: Payload konfigurasi lengkap
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+
+  /api/v1/configuration/settings:
+    put:
+      tags: [Configuration]
+      summary: Update pengaturan umum, tampilan, dan notifikasi
+      security:
+        - sanctumBearer: [write]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                general:
+                  type: object
+                  properties:
+                    app_name: { type: string, maxLength: 80 }
+                    project_name: { type: string, maxLength: 120 }
+                    tagline: { type: string, maxLength: 180 }
+                    timezone: { type: string, maxLength: 80 }
+                appearance:
+                  type: object
+                  properties:
+                    theme:
+                      type: string
+                      enum: [system, light, dark]
+                    favicon_url: { type: string, maxLength: 500 }
+                notifications:
+                  type: object
+                  properties:
+                    daily_review_enabled: { type: boolean }
+                    weekly_review_enabled: { type: boolean }
+            example:
+              general:
+                app_name: ProgressOS
+                timezone: Asia/Jakarta
+              appearance:
+                theme: dark
+              notifications:
+                daily_review_enabled: true
+      responses:
+        "200":
+          description: Pengaturan disimpan
+
+  /api/v1/configuration/auth:
+    put:
+      tags: [Configuration]
+      summary: Update konfigurasi auth (Google SSO, dll.)
+      security:
+        - sanctumBearer: [write]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        "200":
+          description: Konfigurasi auth disimpan
+
+  /api/v1/configuration/mail:
+    put:
+      tags: [Configuration]
+      summary: Update konfigurasi mail (Resend / SMTP)
+      security:
+        - sanctumBearer: [write]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [mailer]
+              properties:
+                mailer:
+                  type: string
+                  enum: [log, resend, smtp]
+                from_address:
+                  type: ["string", "null"]
+                  format: email
+                from_name:
+                  type: ["string", "null"]
+                api_key:
+                  type: ["string", "null"]
+                  description: API key Resend
+                host:
+                  type: ["string", "null"]
+                  description: SMTP host
+                port:
+                  type: ["integer", "null"]
+                username:
+                  type: ["string", "null"]
+                password:
+                  type: ["string", "null"]
+            example:
+              mailer: resend
+              from_address: noreply@yourdomain.com
+              from_name: ProgressOS
+              api_key: re_xxx
+      responses:
+        "200":
+          description: Konfigurasi mail disimpan
+
+  /api/v1/configuration/backup-connection:
+    put:
+      tags: [Configuration]
+      summary: Simpan kredensial koneksi backup (Google Sheets)
+      security:
+        - sanctumBearer: [write]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        "200":
+          description: Koneksi backup disimpan
+
+  /api/v1/configuration/backup-connection/verify:
+    post:
+      tags: [Configuration]
+      summary: Verifikasi koneksi backup Google Sheets
+      security:
+        - sanctumBearer: [write]
+      responses:
+        "200":
+          description: Hasil verifikasi
+
+  /api/v1/configuration/backup-syncs:
+    post:
+      tags: [Configuration]
+      summary: Buat jadwal backup sync
+      security:
+        - sanctumBearer: [write]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        "201":
+          description: Sync dibuat
+
+  /api/v1/configuration/backup-syncs/{sync}:
+    patch:
+      tags: [Configuration]
+      summary: Update jadwal backup sync
+      security:
+        - sanctumBearer: [write]
+      parameters:
+        - $ref: "#/components/parameters/SyncId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        "200":
+          description: Sync diperbarui
+    delete:
+      tags: [Configuration]
+      summary: Hapus jadwal backup sync
+      security:
+        - sanctumBearer: [write]
+      parameters:
+        - $ref: "#/components/parameters/SyncId"
+      responses:
+        "204":
+          description: Sync dihapus
+
+  /api/v1/configuration/backup-syncs/{sync}/run:
+    post:
+      tags: [Configuration]
+      summary: Jalankan backup sync sekarang
+      security:
+        - sanctumBearer: [write]
+      parameters:
+        - $ref: "#/components/parameters/SyncId"
+      responses:
+        "200":
+          description: Sync dijalankan
+
 components:
+
   securitySchemes:
     sanctumBearer:
       type: http
       scheme: bearer
-      bearerFormat: Laravel Sanctum personal access token
+      bearerFormat: "Laravel Sanctum personal access token (prefix: pos_)"
+
   parameters:
     Search:
       name: search
       in: query
-      schema:
-        type: string
+      schema: { type: string }
+      description: Full-text search
     From:
       name: from
       in: query
-      schema:
-        type: string
-        format: date
+      schema: { type: string, format: date }
+      description: Filter dari tanggal (YYYY-MM-DD)
     To:
       name: to
       in: query
-      schema:
-        type: string
-        format: date
+      schema: { type: string, format: date }
+      description: Filter sampai tanggal (YYYY-MM-DD)
     Sort:
       name: sort
       in: query
-      schema:
-        type: string
+      schema: { type: string }
+      description: Nama field untuk sorting
     Direction:
       name: direction
       in: query
@@ -821,6 +2521,7 @@ components:
         type: integer
         minimum: 6
         maximum: 50
+      description: Jumlah item per halaman (default 20)
     Period:
       name: period
       in: path
@@ -835,8 +2536,16 @@ components:
     TaskId: { name: task, in: path, required: true, schema: { type: integer } }
     LearningId: { name: learning, in: path, required: true, schema: { type: integer } }
     MilestoneId: { name: milestone, in: path, required: true, schema: { type: integer } }
+    HabitId: { name: habit, in: path, required: true, schema: { type: integer } }
+    GoalId: { name: goal, in: path, required: true, schema: { type: integer } }
+    KeyResultId: { name: keyResult, in: path, required: true, schema: { type: integer } }
+    NotificationId: { name: notification, in: path, required: true, schema: { type: integer } }
+    DocId: { name: doc, in: path, required: true, schema: { type: integer } }
+    DocFileId: { name: docFile, in: path, required: true, schema: { type: integer } }
     SavedViewId: { name: savedView, in: path, required: true, schema: { type: integer } }
     ReferenceId: { name: reference, in: path, required: true, schema: { type: integer } }
+    SyncId: { name: sync, in: path, required: true, schema: { type: integer } }
+
   requestBodies:
     Project:
       required: true
@@ -844,30 +2553,69 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/ProjectRequest"
+          example:
+            name: ProgressOS
+            color: "#6366f1"
+            archived: false
     DailyProgress:
       required: true
       content:
         application/json:
           schema:
             $ref: "#/components/schemas/DailyProgressRequest"
+          example:
+            date: "2026-06-19"
+            title: Progress Kamis 19 Juni
+            in_progress: Implementasi Telegram bot integration
+            todo: Tulis unit tests
+            blockers: null
+            notes: Hari produktif — API docs selesai
+            completed_items: ["Selesaikan openapi.yaml", "Setup Scalar UI"]
+            mood: great
+            tags: [api, docs]
     WorkLog:
       required: true
       content:
         application/json:
           schema:
             $ref: "#/components/schemas/WorkLogRequest"
+          example:
+            date: "2026-06-19"
+            project_name: ProgressOS
+            title: Tulis dokumentasi API lengkap
+            category: documentation
+            status: done
+            priority: high
+            actual_duration: 120
+            estimated_duration: 90
+            description: Rewrite openapi.yaml dengan semua endpoint dan schema
     Task:
       required: true
       content:
         application/json:
           schema:
             $ref: "#/components/schemas/TaskRequest"
+          example:
+            title: Buat Telegram bot client
+            status: todo
+            priority: high
+            project_id: 1
+            notes: Gunakan python-telegram-bot + Groq API
+            due_date: "2026-07-01"
     Learning:
       required: true
       content:
         application/json:
           schema:
             $ref: "#/components/schemas/LearningRequest"
+          example:
+            date: "2026-06-19"
+            topic: Goroutines dan channels
+            category: programming
+            source_type: book
+            duration_minutes: 60
+            takeaway: Goroutine lebih ringan dari thread OS, channels untuk komunikasi
+            rating: 5
     Milestone:
       required: true
       content:
@@ -880,21 +2628,48 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/SavedViewRequest"
+          example:
+            module: tasks
+            name: High Priority Today
+            filters:
+              priority: high
+              status: todo
+            pinned: true
     Reference:
       required: true
       content:
         application/json:
           schema:
             $ref: "#/components/schemas/ReferenceRequest"
+          example:
+            referenceable_type: task
+            referenceable_id: 42
+            label: Design doc Telegram bot
+            url: https://notion.so/abc123
+            type: doc
+    Doc:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/DocRequest"
+          example:
+            title: Panduan Deploy Laravel ke VPS
+            category: DevOps
+            description: Step-by-step dari zero sampai production
+            reference_urls:
+              - title: Laravel Forge Docs
+                url: https://forge.laravel.com/docs
+
   responses:
     OkResponse:
-      description: Standard success response
+      description: Sukses
       content:
         application/json:
           schema:
             $ref: "#/components/schemas/Envelope"
     UserResponse:
-      description: User response envelope
+      description: Data user
       content:
         application/json:
           schema:
@@ -904,22 +2679,140 @@ components:
                 properties:
                   user:
                     $ref: "#/components/schemas/User"
+          example:
+            data:
+              id: 1
+              name: Yosri
+              email: yosri@example.com
+              timezone: Asia/Jakarta
+              theme: dark
+              avatar_url: null
+            user:
+              id: 1
+              name: Yosri
+              email: yosri@example.com
+              timezone: Asia/Jakarta
+              theme: dark
+              avatar_url: null
     PaginatedResponse:
-      description: Standard paginated response
+      description: Response paginated generik
       content:
         application/json:
           schema:
             $ref: "#/components/schemas/PaginatedEnvelope"
+    PaginatedDailyProgress:
+      description: Halaman entri progress harian
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: "#/components/schemas/PaginatedEnvelope"
+              - type: object
+                properties:
+                  entries:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/DailyProgress"
+    PaginatedWorkLogs:
+      description: Halaman work log
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: "#/components/schemas/PaginatedEnvelope"
+              - type: object
+                properties:
+                  logs:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/WorkLog"
+    PaginatedTasks:
+      description: Halaman task
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: "#/components/schemas/PaginatedEnvelope"
+              - type: object
+                properties:
+                  tasks:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Task"
+    PaginatedLearning:
+      description: Halaman entri belajar
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: "#/components/schemas/PaginatedEnvelope"
+              - type: object
+                properties:
+                  entries:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/LearningEntry"
+    PaginatedMilestones:
+      description: Halaman milestone
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: "#/components/schemas/PaginatedEnvelope"
+              - type: object
+                properties:
+                  milestones:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Milestone"
+    PaginatedDocs:
+      description: Halaman dokumen
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: "#/components/schemas/PaginatedEnvelope"
+              - type: object
+                properties:
+                  docs:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Doc"
     ValidationError:
-      description: Validation error
+      description: Data input tidak valid (422)
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              message:
+                type: string
+                example: The given data was invalid.
+              errors:
+                type: object
+                additionalProperties:
+                  type: array
+                  items: { type: string }
+          example:
+            message: The given data was invalid.
+            errors:
+              title: ["The title field is required."]
+              status: ["The selected status is invalid."]
+
   schemas:
+
+    # ── Envelopes ────────────────────────────────────────────────────────────
+
     Envelope:
       type: object
       properties:
-        data: {}
+        data:
+          description: Payload utama record atau koleksi
         message:
           type: string
+          description: Pesan sukses opsional
       additionalProperties: true
+
     CollectionEnvelope:
       allOf:
         - $ref: "#/components/schemas/Envelope"
@@ -928,6 +2821,7 @@ components:
             data:
               type: array
               items: {}
+
     PaginatedEnvelope:
       type: object
       required: [data, meta, links]
@@ -939,29 +2833,47 @@ components:
           type: object
           properties:
             current_page: { type: integer }
-            from: { type: [integer, "null"] }
+            from: { type: ["integer", "null"] }
             last_page: { type: integer }
             path: { type: string }
             per_page: { type: integer }
-            to: { type: [integer, "null"] }
+            to: { type: ["integer", "null"] }
             total: { type: integer }
         links:
           type: object
           properties:
-            first: { type: [string, "null"] }
-            last: { type: [string, "null"] }
-            prev: { type: [string, "null"] }
-            next: { type: [string, "null"] }
+            first: { type: ["string", "null"] }
+            last: { type: ["string", "null"] }
+            prev: { type: ["string", "null"] }
+            next: { type: ["string", "null"] }
       additionalProperties: true
+      example:
+        meta:
+          current_page: 1
+          from: 1
+          last_page: 3
+          path: http://127.0.0.1:8000/api/v1/tasks
+          per_page: 20
+          to: 20
+          total: 55
+        links:
+          first: http://127.0.0.1:8000/api/v1/tasks?page=1
+          last: http://127.0.0.1:8000/api/v1/tasks?page=3
+          prev: null
+          next: http://127.0.0.1:8000/api/v1/tasks?page=2
+
+    # ── User & Auth ──────────────────────────────────────────────────────────
+
     User:
       type: object
       properties:
         id: { type: integer }
         name: { type: string }
         email: { type: string, format: email }
-        timezone: { type: string }
+        timezone: { type: string, example: Asia/Jakarta }
         theme: { type: string, enum: [system, light, dark] }
-        avatar_url: { type: [string, "null"] }
+        avatar_url: { type: ["string", "null"] }
+
     Token:
       type: object
       properties:
@@ -970,98 +2882,351 @@ components:
         abilities:
           type: array
           items: { type: string }
-        last_used_at: { type: [string, "null"], format: date-time }
-        expires_at: { type: [string, "null"], format: date-time }
+        last_used_at: { type: ["string", "null"], format: date-time }
+        expires_at: { type: ["string", "null"], format: date-time }
         created_at: { type: string, format: date-time }
+
+    # ── Projects ─────────────────────────────────────────────────────────────
+
     Project:
       type: object
       properties:
         id: { type: integer }
         name: { type: string }
-        color: { type: string }
+        color: { type: ["string", "null"], example: "#6366f1" }
         archived: { type: boolean }
+        tasks_count: { type: integer }
+        open_tasks_count: { type: integer }
+        work_logs_count: { type: integer }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    # ── Daily Progress ────────────────────────────────────────────────────────
+
     DailyProgress:
       type: object
       properties:
         id: { type: integer }
         date: { type: string, format: date }
         title: { type: string }
-        in_progress: { type: [string, "null"] }
-        todo: { type: [string, "null"] }
-        blockers: { type: [string, "null"] }
-        notes: { type: [string, "null"] }
+        in_progress: { type: ["string", "null"] }
+        todo: { type: ["string", "null"] }
+        blockers: { type: ["string", "null"] }
+        notes: { type: ["string", "null"] }
         completed_items:
           type: array
           items: { type: string }
-        mood: { type: [string, "null"] }
+        mood: { type: ["string", "null"], example: great }
         archived: { type: boolean }
+        tags: { type: array, items: {} }
+        references: { type: array, items: {} }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    # ── Work Logs ─────────────────────────────────────────────────────────────
+
     WorkLog:
       type: object
       properties:
         id: { type: integer }
-        project_id: { type: [integer, "null"] }
+        project_id: { type: ["integer", "null"] }
+        task_id: { type: ["integer", "null"] }
+        task:
+          type: ["object", "null"]
+          properties:
+            id: { type: integer }
+            title: { type: string }
         date: { type: string, format: date }
         project_name: { type: string }
-        ticket_code: { type: [string, "null"] }
+        ticket_code: { type: ["string", "null"] }
         title: { type: string }
-        category: { type: string, enum: [bug, feature, research, testing, setup, meeting, documentation, refactor, other] }
-        status: { type: string, enum: [todo, in_progress, done, blocked] }
-        priority: { type: string, enum: [low, medium, high, urgent] }
-        description: { type: [string, "null"] }
-        resolution_or_outcome: { type: [string, "null"] }
-        estimated_duration: { type: [integer, "null"] }
-        actual_duration: { type: [integer, "null"] }
+        category:
+          type: string
+          enum: [bug, feature, research, testing, setup, meeting, documentation, refactor, other]
+        status:
+          type: string
+          enum: [todo, in_progress, done, blocked]
+        priority:
+          type: string
+          enum: [low, medium, high, urgent]
+        description: { type: ["string", "null"] }
+        resolution_or_outcome: { type: ["string", "null"] }
+        estimated_duration: { type: ["integer", "null"], description: Estimasi menit }
+        actual_duration: { type: ["integer", "null"], description: Durasi aktual menit }
+        tags: { type: array, items: {} }
+        references: { type: array, items: {} }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    # ── Tasks ─────────────────────────────────────────────────────────────────
+
     Task:
       type: object
       properties:
         id: { type: integer }
-        project_id: { type: [integer, "null"] }
-        milestone_id: { type: [integer, "null"] }
-        work_log_id: { type: [integer, "null"] }
+        project_id: { type: ["integer", "null"] }
+        milestone_id: { type: ["integer", "null"] }
+        work_log_id: { type: ["integer", "null"] }
         title: { type: string }
-        notes: { type: [string, "null"] }
-        status: { type: string, enum: [todo, in_progress, done, blocked] }
+        notes: { type: ["string", "null"] }
+        status:
+          type: string
+          enum: [todo, in_progress, done, blocked]
+        priority:
+          type: string
+          enum: [low, medium, high, urgent]
+        due_date: { type: ["string", "null"], format: date }
+        completed_at: { type: ["string", "null"], format: date-time }
+        recurrence_rule: { type: ["string", "null"], enum: [daily, weekly, monthly, custom, null] }
+        recurrence_interval: { type: ["integer", "null"] }
+        recurrence_days: { type: ["array", "null"], items: { type: integer } }
+        recurrence_ends_at: { type: ["string", "null"], format: date }
+        parent_task_id: { type: ["integer", "null"] }
+        project: { type: ["object", "null"] }
+        references: { type: array, items: {} }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    KanbanCard:
+      type: object
+      properties:
+        id: { type: integer }
+        title: { type: string }
         priority: { type: string, enum: [low, medium, high, urgent] }
-        due_date: { type: [string, "null"], format: date }
-        completed_at: { type: [string, "null"], format: date-time }
+        status: { type: string, enum: [todo, in_progress, done, blocked] }
+        due_date: { type: ["string", "null"], format: date }
+        project_name: { type: ["string", "null"] }
+        overdue: { type: boolean }
+
+    # ── Learning ─────────────────────────────────────────────────────────────
+
     LearningEntry:
       type: object
       properties:
         id: { type: integer }
         date: { type: string, format: date }
         topic: { type: string }
-        category: { type: string, enum: [programming, english, japanese, german, books, career, other] }
-        source_type: { type: string, enum: [book, article, video, course, practice, podcast, other] }
+        category:
+          type: string
+          enum: [programming, english, japanese, german, books, career, other]
+        source_type:
+          type: string
+          enum: [book, article, video, course, practice, podcast, other]
         duration_minutes: { type: integer }
-        progress_notes: { type: [string, "null"] }
-        takeaway: { type: [string, "null"] }
-        next_action: { type: [string, "null"] }
-        rating: { type: [integer, "null"], minimum: 1, maximum: 5 }
+        progress_notes: { type: ["string", "null"] }
+        takeaway: { type: ["string", "null"] }
+        next_action: { type: ["string", "null"] }
+        rating: { type: ["integer", "null"], minimum: 1, maximum: 5 }
+        references: { type: array, items: {} }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    # ── Milestones ───────────────────────────────────────────────────────────
+
     Milestone:
       type: object
       properties:
         id: { type: integer }
         title: { type: string }
         category: { type: string }
-        target_type: { type: string, enum: [count, duration, streak, custom] }
-        source_type: { type: string, enum: [manual, work_log_count, work_log_minutes, learning_minutes, daily_progress_streak, task_done_count] }
-        source_filter: { type: [string, "null"] }
+        target_type:
+          type: string
+          enum: [count, duration, streak, custom]
+        source_type:
+          type: string
+          enum: [manual, work_log_count, work_log_minutes, learning_minutes, daily_progress_streak, task_done_count]
+        source_filter: { type: ["string", "null"], description: Filter opsional misal nama project atau kategori }
         target_value: { type: number }
         current_value: { type: number }
-        progress_percent: { type: integer }
-        start_date: { type: [string, "null"], format: date }
-        end_date: { type: [string, "null"], format: date }
-        status: { type: string, enum: [active, paused, completed, cancelled] }
-        notes: { type: [string, "null"] }
+        progress_percent: { type: integer, minimum: 0, maximum: 100 }
+        start_date: { type: ["string", "null"], format: date }
+        end_date: { type: ["string", "null"], format: date }
+        status:
+          type: string
+          enum: [active, paused, completed, cancelled]
+        notes: { type: ["string", "null"] }
+        completed_at: { type: ["string", "null"], format: date-time }
+        references: { type: array, items: {} }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    # ── Habits ───────────────────────────────────────────────────────────────
+
+    Habit:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        description: { type: ["string", "null"] }
+        color: { type: ["string", "null"] }
+        icon: { type: ["string", "null"], description: Emoji icon }
+        frequency:
+          type: string
+          enum: [daily, weekly]
+        target_days:
+          type: ["array", "null"]
+          items: { type: integer, minimum: 0, maximum: 6 }
+          description: "Hari target: 0=Minggu, 1=Senin, ..., 6=Sabtu"
+        active: { type: boolean }
+        order: { type: integer }
+        today_done: { type: boolean, description: Apakah sudah di-log hari ini }
+        streak: { type: integer, description: Streak hari berturut-turut }
+        week_dates:
+          type: array
+          items: { type: string, format: date }
+          description: Tanggal log minggu ini
+        heatmap:
+          type: array
+          items: { type: string, format: date }
+          description: Tanggal log 90 hari terakhir
+        total_logs: { type: integer }
+
+    # ── Goals ─────────────────────────────────────────────────────────────────
+
+    Goal:
+      type: object
+      properties:
+        id: { type: integer }
+        title: { type: string }
+        description: { type: ["string", "null"] }
+        period_label: { type: ["string", "null"], example: "Q3 2026" }
+        start_date: { type: ["string", "null"], format: date }
+        end_date: { type: ["string", "null"], format: date }
+        status:
+          type: string
+          enum: [draft, active, completed, abandoned]
+        color: { type: ["string", "null"] }
+        progress: { type: integer, minimum: 0, maximum: 100, description: Rata-rata progress KR }
+        key_results:
+          type: array
+          items:
+            $ref: "#/components/schemas/KeyResult"
+        created_at: { type: string, format: date-time }
+
+    KeyResult:
+      type: object
+      properties:
+        id: { type: integer }
+        title: { type: string }
+        metric_type:
+          type: string
+          enum: [percentage, number, boolean]
+        current_value: { type: number }
+        target_value: { type: ["number", "null"] }
+        unit: { type: ["string", "null"], example: "project" }
+        notes: { type: ["string", "null"] }
+        status:
+          type: string
+          enum: [active, done, abandoned]
+        order: { type: integer }
+        progress: { type: integer, minimum: 0, maximum: 100 }
+
+    # ── Notifications ─────────────────────────────────────────────────────────
+
+    InAppNotification:
+      type: object
+      properties:
+        id: { type: integer }
+        type: { type: string, example: habit_streak }
+        title: { type: string }
+        body: { type: ["string", "null"] }
+        action_url: { type: ["string", "null"] }
+        data: { type: ["object", "null"] }
+        read_at: { type: ["string", "null"], format: date-time }
+        created_at: { type: string, format: date-time }
+
+    # ── Docs ─────────────────────────────────────────────────────────────────
+
+    Doc:
+      type: object
+      properties:
+        id: { type: integer }
+        title: { type: string }
+        category: { type: string }
+        description: { type: ["string", "null"] }
+        reference_urls:
+          type: array
+          items:
+            type: object
+            properties:
+              title: { type: ["string", "null"] }
+              url: { type: ["string", "null"] }
+        files:
+          type: array
+          items:
+            $ref: "#/components/schemas/DocFile"
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    DocFile:
+      type: object
+      properties:
+        id: { type: integer }
+        original_name: { type: string }
+        mime_type: { type: string }
+        size: { type: integer, description: Ukuran file dalam bytes }
+        url: { type: string, description: "URL download via /api/v1/doc-files/{id}" }
+        created_at: { type: string, format: date-time }
+
+    # ── Activity ─────────────────────────────────────────────────────────────
+
+    ActivityLog:
+      type: object
+      properties:
+        id: { type: integer }
+        event: { type: string, example: task.created }
+        label: { type: string, example: "Task Created" }
+        record_type: { type: string, example: Task }
+        record_id: { type: ["integer", "null"] }
+        metadata: { type: ["object", "null"] }
+        created_at: { type: string, format: date-time }
+
+    # ── Saved Views ──────────────────────────────────────────────────────────
+
+    SavedView:
+      type: object
+      properties:
+        id: { type: integer }
+        module:
+          type: string
+          enum: [tasks, work-logs, daily-progress, learning, milestones]
+        name: { type: string }
+        filters: { type: object }
+        pinned: { type: boolean }
+        is_default: { type: boolean }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    # ── References ───────────────────────────────────────────────────────────
+
+    Reference:
+      type: object
+      properties:
+        id: { type: integer }
+        referenceable_type:
+          type: string
+          enum: [task, work_log, learning, milestone, daily_progress]
+        referenceable_id: { type: integer }
+        label: { type: string }
+        url: { type: string, format: uri }
+        type:
+          type: string
+          enum: [link, doc, ticket, pr, article, course, other]
+        notes: { type: ["string", "null"] }
+        created_at: { type: string, format: date-time }
+
+    # ── Request Schemas ───────────────────────────────────────────────────────
+
     RegisterRequest:
       type: object
       required: [name, email, password, password_confirmation]
       properties:
         name: { type: string, maxLength: 120 }
         email: { type: string, format: email, maxLength: 255 }
-        timezone: { type: string }
-        password: { type: string, format: password }
+        timezone: { type: string, example: Asia/Jakarta }
+        password: { type: string, format: password, minLength: 8 }
         password_confirmation: { type: string, format: password }
+
     LoginRequest:
       type: object
       required: [email, password]
@@ -1069,6 +3234,7 @@ components:
         email: { type: string, format: email }
         password: { type: string, format: password }
         remember: { type: boolean }
+
     ProfileRequest:
       type: object
       required: [name, email, timezone, theme]
@@ -1077,6 +3243,7 @@ components:
         email: { type: string, format: email, maxLength: 255 }
         timezone: { type: string }
         theme: { type: string, enum: [system, light, dark] }
+
     PasswordRequest:
       type: object
       required: [current_password, password, password_confirmation]
@@ -1084,6 +3251,7 @@ components:
         current_password: { type: string, format: password }
         password: { type: string, format: password }
         password_confirmation: { type: string, format: password }
+
     ResetPasswordRequest:
       type: object
       required: [token, email, password, password_confirmation]
@@ -1092,6 +3260,7 @@ components:
         email: { type: string, format: email }
         password: { type: string, format: password }
         password_confirmation: { type: string, format: password }
+
     TokenRequest:
       type: object
       required: [name]
@@ -1099,75 +3268,289 @@ components:
         name: { type: string, maxLength: 120 }
         abilities:
           type: array
+          description: "Default jika kosong: [read, write, capture, reports]"
           items:
             type: string
             enum: ["*", read, write, capture, reports, tokens]
         expires_at: { type: string, format: date-time }
+
     ProjectRequest:
       type: object
       required: [name]
       properties:
         name: { type: string, maxLength: 120 }
-        color: { type: [string, "null"], maxLength: 32 }
+        color: { type: ["string", "null"], maxLength: 32 }
         archived: { type: boolean }
+
     DailyProgressRequest:
-      allOf:
-        - $ref: "#/components/schemas/DailyProgress"
-        - type: object
-          required: [date, title]
-          properties:
-            tags:
-              type: array
-              items: { type: string, maxLength: 40 }
+      type: object
+      required: [date, title]
+      properties:
+        date: { type: string, format: date }
+        title: { type: string }
+        in_progress: { type: ["string", "null"] }
+        todo: { type: ["string", "null"] }
+        blockers: { type: ["string", "null"] }
+        notes: { type: ["string", "null"] }
+        completed_items:
+          type: array
+          items: { type: string }
+        mood: { type: ["string", "null"] }
+        archived: { type: boolean }
+        tags:
+          type: array
+          items: { type: string, maxLength: 40 }
+
     WorkLogRequest:
-      allOf:
-        - $ref: "#/components/schemas/WorkLog"
-        - type: object
-          required: [date, project_name, title, category, status, priority]
-          properties:
-            tags:
-              type: array
-              items: { type: string, maxLength: 40 }
+      type: object
+      required: [date, project_name, title, category, status, priority]
+      properties:
+        project_id: { type: ["integer", "null"] }
+        task_id: { type: ["integer", "null"] }
+        date: { type: string, format: date }
+        project_name: { type: string }
+        ticket_code: { type: ["string", "null"] }
+        title: { type: string }
+        category:
+          type: string
+          enum: [bug, feature, research, testing, setup, meeting, documentation, refactor, other]
+        status:
+          type: string
+          enum: [todo, in_progress, done, blocked]
+        priority:
+          type: string
+          enum: [low, medium, high, urgent]
+        description: { type: ["string", "null"] }
+        resolution_or_outcome: { type: ["string", "null"] }
+        estimated_duration: { type: ["integer", "null"], minimum: 1 }
+        actual_duration: { type: ["integer", "null"], minimum: 1 }
+        tags:
+          type: array
+          items: { type: string, maxLength: 40 }
+
     TaskRequest:
-      allOf:
-        - $ref: "#/components/schemas/Task"
-        - type: object
-          required: [title, status, priority]
+      type: object
+      required: [title, status, priority]
+      properties:
+        project_id: { type: ["integer", "null"] }
+        milestone_id: { type: ["integer", "null"] }
+        work_log_id: { type: ["integer", "null"] }
+        title: { type: string }
+        notes: { type: ["string", "null"] }
+        status:
+          type: string
+          enum: [todo, in_progress, done, blocked]
+        priority:
+          type: string
+          enum: [low, medium, high, urgent]
+        due_date: { type: ["string", "null"], format: date }
+        recurrence_rule:
+          type: ["string", "null"]
+          enum: [daily, weekly, monthly, custom, null]
+        recurrence_interval: { type: ["integer", "null"] }
+        recurrence_days:
+          type: ["array", "null"]
+          items: { type: integer }
+        recurrence_ends_at: { type: ["string", "null"], format: date }
+
     LearningRequest:
-      allOf:
-        - $ref: "#/components/schemas/LearningEntry"
-        - type: object
-          required: [date, topic, category, source_type, duration_minutes]
+      type: object
+      required: [date, topic, category, source_type, duration_minutes]
+      properties:
+        date: { type: string, format: date }
+        topic: { type: string }
+        category:
+          type: string
+          enum: [programming, english, japanese, german, books, career, other]
+        source_type:
+          type: string
+          enum: [book, article, video, course, practice, podcast, other]
+        duration_minutes: { type: integer, minimum: 1 }
+        progress_notes: { type: ["string", "null"] }
+        takeaway: { type: ["string", "null"] }
+        next_action: { type: ["string", "null"] }
+        rating: { type: ["integer", "null"], minimum: 1, maximum: 5 }
+
     MilestoneRequest:
+      type: object
+      required: [title, category, target_type, target_value, status]
+      properties:
+        title: { type: string }
+        category: { type: string }
+        target_type:
+          type: string
+          enum: [count, duration, streak, custom]
+        source_type:
+          type: string
+          enum: [manual, work_log_count, work_log_minutes, learning_minutes, daily_progress_streak, task_done_count]
+        source_filter: { type: ["string", "null"] }
+        target_value: { type: number, minimum: 1 }
+        current_value: { type: number }
+        start_date: { type: ["string", "null"], format: date }
+        end_date: { type: ["string", "null"], format: date }
+        status:
+          type: string
+          enum: [active, paused, completed, cancelled]
+        notes: { type: ["string", "null"] }
+
+    HabitRequest:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, maxLength: 255 }
+        description: { type: ["string", "null"] }
+        color: { type: ["string", "null"], maxLength: 20 }
+        icon: { type: ["string", "null"], maxLength: 10, description: Emoji }
+        frequency:
+          type: string
+          enum: [daily, weekly]
+          default: daily
+        target_days:
+          type: ["array", "null"]
+          items: { type: integer, minimum: 0, maximum: 6 }
+
+    HabitUpdateRequest:
       allOf:
-        - $ref: "#/components/schemas/Milestone"
+        - $ref: "#/components/schemas/HabitRequest"
         - type: object
-          required: [title, category, target_type, target_value, status]
+          properties:
+            active: { type: boolean }
+            archived: { type: boolean }
+            order: { type: integer }
+
+    GoalRequest:
+      type: object
+      required: [title]
+      properties:
+        title: { type: string, maxLength: 255 }
+        description: { type: ["string", "null"] }
+        period_label: { type: ["string", "null"], maxLength: 50 }
+        start_date: { type: ["string", "null"], format: date }
+        end_date: { type: ["string", "null"], format: date }
+        status:
+          type: string
+          enum: [draft, active, completed, abandoned]
+        color: { type: ["string", "null"], maxLength: 20 }
+        key_results:
+          type: array
+          description: KR yang langsung dibuat bersama goal
+          items:
+            type: object
+            required: [title]
+            properties:
+              title: { type: string, maxLength: 255 }
+              metric_type: { type: string, enum: [percentage, number, boolean] }
+              target_value: { type: ["number", "null"] }
+              unit: { type: ["string", "null"], maxLength: 30 }
+
+    GoalUpdateRequest:
+      type: object
+      properties:
+        title: { type: string, maxLength: 255 }
+        description: { type: ["string", "null"] }
+        period_label: { type: ["string", "null"], maxLength: 50 }
+        start_date: { type: ["string", "null"], format: date }
+        end_date: { type: ["string", "null"], format: date }
+        status:
+          type: string
+          enum: [draft, active, completed, abandoned]
+        color: { type: ["string", "null"], maxLength: 20 }
+
+    KeyResultRequest:
+      type: object
+      required: [title]
+      properties:
+        title: { type: string, maxLength: 255 }
+        metric_type:
+          type: string
+          enum: [percentage, number, boolean]
+        current_value: { type: ["number", "null"] }
+        target_value: { type: ["number", "null"] }
+        unit: { type: ["string", "null"], maxLength: 30 }
+        notes: { type: ["string", "null"] }
+
+    KeyResultUpdateRequest:
+      allOf:
+        - $ref: "#/components/schemas/KeyResultRequest"
+        - type: object
+          properties:
+            status:
+              type: string
+              enum: [active, done, abandoned]
+
     QuickCaptureRequest:
       type: object
       required: [type, title]
       properties:
-        type: { type: string, enum: [task, blocker, work_log, daily_progress, learning] }
-        title: { type: string, maxLength: 180 }
-        date: { type: string, format: date }
-        project_name: { type: [string, "null"], maxLength: 120 }
-        duration_minutes: { type: [integer, "null"], minimum: 1, maximum: 10000 }
-        notes: { type: [string, "null"] }
+        type:
+          type: string
+          enum: [task, blocker, work_log, daily_progress, learning]
+          description: |
+            - `task` → buat task dengan status todo
+            - `blocker` → buat task dengan status blocked
+            - `work_log` → buat work log
+            - `daily_progress` → buat entri progress harian
+            - `learning` → buat entri belajar
+        title:
+          type: string
+          maxLength: 180
+          description: Judul record (untuk learning dipakai sebagai topic)
+        date:
+          type: ["string", "null"]
+          format: date
+          description: Default ke hari ini
+        project_name:
+          type: ["string", "null"]
+          maxLength: 120
+          description: Nama project (untuk work_log dan task)
+        duration_minutes:
+          type: ["integer", "null"]
+          minimum: 1
+          maximum: 10000
+          description: Durasi dalam menit (untuk work_log dan learning)
+        notes:
+          type: ["string", "null"]
+          description: Catatan tambahan
+
     SavedViewRequest:
       type: object
       required: [module, name, filters]
       properties:
-        module: { type: string, enum: [tasks, work-logs, daily-progress, learning, milestones] }
+        module:
+          type: string
+          enum: [tasks, work-logs, daily-progress, learning, milestones]
         name: { type: string, maxLength: 80 }
-        filters: { type: object }
+        filters:
+          type: object
+          description: Object filter bebas sesuai query params modul
         pinned: { type: boolean }
+
     ReferenceRequest:
       type: object
       required: [referenceable_type, referenceable_id, label, url, type]
       properties:
-        referenceable_type: { type: string, enum: [task, work_log, learning, milestone, daily_progress] }
+        referenceable_type:
+          type: string
+          enum: [task, work_log, learning, milestone, daily_progress]
         referenceable_id: { type: integer }
         label: { type: string, maxLength: 160 }
         url: { type: string, format: uri, maxLength: 2000 }
-        type: { type: string, enum: [link, doc, ticket, pr, article, course, other] }
-        notes: { type: [string, "null"] }
+        type:
+          type: string
+          enum: [link, doc, ticket, pr, article, course, other]
+        notes: { type: ["string", "null"] }
+
+    DocRequest:
+      type: object
+      required: [title, category]
+      properties:
+        title: { type: string, maxLength: 255 }
+        category: { type: string, maxLength: 100 }
+        description: { type: ["string", "null"] }
+        reference_urls:
+          type: ["array", "null"]
+          items:
+            type: object
+            properties:
+              title: { type: ["string", "null"], maxLength: 255 }
+              url: { type: ["string", "null"], format: uri, maxLength: 2000 }

@@ -10,6 +10,7 @@ use App\Services\NotificationService;
 use App\Support\ApiResponse;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class HabitController extends Controller
 {
@@ -168,9 +169,12 @@ class HabitController extends Controller
     public function reorder(Request $request)
     {
         $request->validate(['ids' => ['required', 'array'], 'ids.*' => ['integer']]);
-        foreach ($request->ids as $order => $id) {
-            Habit::where('id', $id)->where('user_id', $request->user()->id)->update(['order' => $order]);
-        }
+
+        DB::transaction(function () use ($request) {
+            foreach ($request->ids as $order => $id) {
+                Habit::where('id', $id)->where('user_id', $request->user()->id)->update(['order' => $order]);
+            }
+        });
 
         return ApiResponse::ok(['reordered' => true]);
     }
