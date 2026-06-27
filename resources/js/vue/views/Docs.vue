@@ -72,18 +72,24 @@ onMounted(() => { load(); loadCategories(); });
     <button class="btn btn-muted h-9 px-3" @click="onSearch">Search</button>
   </div>
 
-  <div v-if="loading" class="py-12 text-center text-sm font-medium text-slate-400 dark:text-zinc-600">Loading…</div>
+  <div v-if="loading" class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+    <div v-for="i in 6" :key="i" class="skeleton h-24 rounded-xl" />
+  </div>
 
-  <div v-else-if="!docs.length" class="py-12 text-center">
-    <p class="font-extrabold text-slate-600 dark:text-zinc-400">No docs yet.</p>
-    <p class="mt-1 text-sm text-slate-400 dark:text-zinc-600">Create your first doc to get started.</p>
+  <div v-else-if="!docs.length" class="card p-10 text-center">
+    <div class="mx-auto mb-4 grid h-12 w-12 place-items-center rounded-xl bg-teal-50 dark:bg-teal-900/20">
+      <svg class="h-6 w-6 text-teal-700 dark:text-teal-400" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg>
+    </div>
+    <h2 class="text-base font-extrabold text-slate-900 dark:text-zinc-100">Belum ada doc</h2>
+    <p class="mx-auto mt-2 max-w-md text-sm text-slate-400 dark:text-zinc-500">Simpan referensi, catatan, dan file penting ke sini.</p>
+    <button class="btn btn-primary mt-4" @click="router.push('/docs/create')">Buat doc pertama</button>
   </div>
 
   <div v-else class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
     <div
       v-for="doc in docs"
       :key="doc.id"
-      class="card group cursor-pointer p-4 transition hover:shadow-md"
+      class="card group cursor-pointer p-4 hover:border-teal-200 hover:shadow-sm"
       @click="router.push(`/docs/${doc.id}`)"
     >
       <div class="flex items-start justify-between gap-2">
@@ -92,11 +98,11 @@ onMounted(() => { load(); loadCategories(); });
           <p class="truncate font-extrabold text-slate-900 dark:text-zinc-100">{{ doc.title }}</p>
         </div>
         <button
-          class="shrink-0 rounded-lg p-1 text-slate-400 opacity-0 transition hover:bg-red-50 hover:text-red-600 group-hover:opacity-100 dark:hover:bg-red-900/20 dark:hover:text-red-400"
-          title="Delete"
+          class="shrink-0 rounded-lg p-1 text-slate-300 hover:bg-red-50 hover:text-red-600 dark:text-zinc-700 dark:hover:bg-red-900/20 dark:hover:text-red-400 transition-colors"
+          aria-label="Hapus doc"
           @click.stop="remove(doc)"
         >
-          <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" /></svg>
+          <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" /></svg>
         </button>
       </div>
       <div class="mt-3 flex flex-wrap items-center gap-3 text-xs font-medium text-slate-400 dark:text-zinc-600">
@@ -107,7 +113,11 @@ onMounted(() => { load(); loadCategories(); });
     </div>
   </div>
 
-  <div v-if="meta && meta.last_page > 1" class="mt-6 flex justify-center gap-2">
-    <button v-for="p in meta.last_page" :key="p" class="btn btn-muted px-3 py-1.5 text-sm" :class="p === page ? 'bg-teal-700 text-white' : ''" @click="page = p; load()">{{ p }}</button>
+  <div v-if="meta && meta.last_page > 1" class="mt-6 flex items-center justify-between gap-3">
+    <p class="text-sm text-slate-500 dark:text-zinc-500">Halaman {{ meta.current_page }} dari {{ meta.last_page }}</p>
+    <div class="flex gap-2">
+      <button class="btn btn-muted" :disabled="meta.current_page <= 1" @click="page = meta.current_page - 1; load()">← Prev</button>
+      <button class="btn btn-muted" :disabled="meta.current_page >= meta.last_page" @click="page = meta.current_page + 1; load()">Next →</button>
+    </div>
   </div>
 </template>

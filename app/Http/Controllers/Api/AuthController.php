@@ -43,6 +43,10 @@ class AuthController extends Controller
 
     public function register(Request $request)
     {
+        if (! config('app.registration_enabled', false)) {
+            return ApiResponse::ok(['message' => 'Registration is disabled.'], 'Registration is disabled.', 403);
+        }
+
         $data = $request->validate([
             'name' => ['required', 'string', 'max:120'],
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],

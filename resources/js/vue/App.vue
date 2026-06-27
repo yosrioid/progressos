@@ -8,9 +8,11 @@ import { dismissToast, feedback, resolveConfirm, toast } from './feedback';
 import { pasteLinkOverSelection } from './linkPaste';
 import { useAuthStore } from './stores/auth';
 import { useConfigurationStore } from './stores/configuration';
+import { usePrivacyStore } from './stores/privacy';
 
 const auth = useAuthStore();
 const configuration = useConfigurationStore();
+const privacy = usePrivacyStore();
 const router = useRouter();
 const route = useRoute();
 const quick = ref(false);
@@ -37,8 +39,10 @@ const navGroups = [
       { label: 'Dashboard', href: '/dashboard', icon: 'dashboard' },
       { label: 'Projects', href: '/projects', icon: 'folder' },
       { label: 'Activity', href: '/activity', icon: 'chart' },
-      { label: 'Analytics', href: '/analytics', icon: 'chart' },
       { label: 'Docs', href: '/docs', icon: 'docs' },
+      { label: 'Lists', href: '/lists', icon: 'check' },
+      { label: 'Tagihan', href: '/bills', icon: 'billing' },
+      { label: 'Transaksi', href: '/money', icon: 'money' },
     ],
   },
   {
@@ -47,14 +51,12 @@ const navGroups = [
       { label: 'Daily Progress', href: '/daily-progress', icon: 'calendar' },
       { label: 'Work Logs', href: '/work-logs', icon: 'briefcase' },
       { label: 'Tasks', href: '/tasks', icon: 'check' },
-      { label: 'Task Board', href: '/tasks/board', icon: 'check' },
     ],
   },
   {
     label: 'Learning & Goals',
     items: [
       { label: 'Learning', href: '/learning', icon: 'book' },
-      { label: 'Milestones', href: '/milestones', icon: 'target' },
       { label: 'Goals & OKR', href: '/goals', icon: 'target' },
       { label: 'Habits', href: '/habits', icon: 'check' },
     ],
@@ -62,7 +64,6 @@ const navGroups = [
   {
     label: 'Review',
     items: [
-      { label: 'Weekly Review', href: '/weekly-review', icon: 'chart' },
       { label: 'Reports', href: '/reports/weekly', icon: 'chart' },
     ],
   },
@@ -114,6 +115,8 @@ const icons: Record<string, string[]> = {
   games: ['M5 3h4v4H5V3zm5.5 0h4v4h-4V3zM16 3h4v4h-4V3zM5 8.5h4v4H5v-4zm5.5 0h4v4h-4v-4zm5.5 0h4v4h-4v-4zM5 14h4v4H5v-4zm5.5 0h4v4h-4v-4zm5.5 0h4v4h-4v-4z'],
   chevron: ['m6 9 6 6 6-6'],
   docs: ['M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z', 'M14 2v6h6M16 13H8M16 17H8M10 9H8'],
+  billing: ['M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2M9 12h6M9 16h4'],
+  money: ['M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2', 'M12 6v12M9 9a3 3 0 0 1 6 0c0 1.5-1.5 2-3 3-1.5 1-3 1.5-3 3a3 3 0 0 0 6 0'],
 };
 const initials = computed(() => (auth.user?.name || 'U').split(' ').map((part) => part[0]).join('').slice(0, 2).toUpperCase());
 const activeTheme = computed(() => configuration.appearance.theme || auth.user?.theme || 'system');
@@ -354,20 +357,20 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <RouterView v-if="isGuest" />
+  <RouterView v-if="isGuest || route.meta.public" />
   <div v-else class="min-h-screen text-slate-950 dark:text-zinc-100 lg:flex">
     <!-- Desktop sidebar -->
     <aside class="hidden flex-col border-r border-slate-200 bg-white/95 shadow-[12px_0_40px_rgb(15_23_42/0.035)] backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/95 dark:shadow-[12px_0_40px_rgb(0_0_0/0.3)] lg:fixed lg:inset-y-0 lg:flex lg:w-72">
       <RouterLink to="/dashboard" class="shrink-0 px-4 pb-4 pt-5 flex items-center gap-3">
         <span class="grid h-10 w-10 place-items-center rounded-2xl bg-teal-700 text-white shadow-lg shadow-teal-900/10">
-          <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewBox="0 0 24 24"><path v-for="path in icons.spark" :key="path" :d="path" /></svg>
+          <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" viewBox="0 0 24 24"><path v-for="path in icons.spark" :key="path" :d="path" /></svg>
         </span>
         <span>
           <span class="block text-base font-extrabold tracking-tight">{{ configuration.projectName }}</span>
           <span class="text-xs font-semibold text-slate-500 dark:text-zinc-500">{{ configuration.tagline }}</span>
         </span>
       </RouterLink>
-      <nav class="flex-1 space-y-1 overflow-y-auto px-4 pb-5">
+      <nav class="flex-1 space-y-1 overflow-y-auto px-4 pb-2">
         <section v-for="group in navGroups" :key="group.label" class="mb-1">
           <button
             class="mb-0.5 flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-[11px] font-extrabold uppercase text-slate-400 transition hover:bg-slate-50 hover:text-slate-600 dark:hover:bg-zinc-800/40 dark:text-zinc-600 dark:hover:text-zinc-400"
@@ -381,14 +384,14 @@ onUnmounted(() => {
               v-for="item in group.items"
               :key="item.href"
               :to="item.href"
-              class="group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-bold text-slate-600 transition hover:bg-slate-100 hover:text-slate-950 dark:text-zinc-400 dark:hover:bg-zinc-800/60 dark:hover:text-zinc-100"
-              :class="isActive(item.href) ? 'bg-teal-50 text-teal-800 shadow-[inset_0_0_0_1px_rgb(20_184_166/0.18)] dark:bg-teal-500/10 dark:text-teal-400 dark:shadow-[inset_0_0_0_1px_rgb(20_184_166/0.12)]' : ''"
+              class="group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-bold text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900 dark:text-zinc-400 dark:hover:bg-zinc-800/60 dark:hover:text-zinc-100"
+              :class="isActive(item.href) ? 'bg-teal-50 text-teal-800 ring-1 ring-teal-200/60 dark:bg-teal-500/12 dark:text-teal-300 dark:ring-teal-500/20' : ''"
             >
               <span
-                class="grid h-8 w-8 place-items-center rounded-lg bg-slate-100 text-slate-500 transition group-hover:bg-white group-hover:text-teal-700 dark:bg-zinc-800 dark:text-zinc-500 dark:group-hover:bg-zinc-700 dark:group-hover:text-teal-400"
-                :class="isActive(item.href) ? 'bg-white text-teal-700 dark:bg-zinc-800 dark:text-teal-400' : ''"
+                class="grid h-8 w-8 place-items-center rounded-lg transition-colors"
+                :class="isActive(item.href) ? 'bg-teal-100 text-teal-700 dark:bg-teal-500/25 dark:text-teal-300' : 'bg-slate-100 text-slate-500 group-hover:bg-white group-hover:text-teal-700 dark:bg-zinc-800 dark:text-zinc-500 dark:group-hover:bg-zinc-700 dark:group-hover:text-teal-400'"
               >
-                <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewBox="0 0 24 24"><path v-for="path in icons[item.icon]" :key="path" :d="path" /></svg>
+                <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" viewBox="0 0 24 24"><path v-for="path in icons[item.icon]" :key="path" :d="path" /></svg>
               </span>
               <span class="flex-1">{{ item.label }}</span>
               <span v-if="item.href === '/tasks' && overdueCount > 0" class="ml-auto rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-extrabold text-white">{{ overdueCount > 9 ? '9+' : overdueCount }}</span>
@@ -396,6 +399,9 @@ onUnmounted(() => {
           </div>
         </section>
       </nav>
+      <div class="shrink-0 border-t border-slate-100 px-4 py-3 dark:border-zinc-800/80">
+        <p class="text-[10px] font-semibold uppercase tracking-widest text-slate-300 dark:text-zinc-700">v{{ configuration.appVersion }}</p>
+      </div>
     </aside>
 
     <main class="min-w-0 flex-1 lg:pl-72">
@@ -403,18 +409,18 @@ onUnmounted(() => {
       <header class="sticky top-0 z-30 border-b border-slate-200 bg-[#f7f8fa]/90 px-3 py-3 backdrop-blur-xl dark:border-zinc-800 dark:bg-zinc-950/90 sm:px-5">
         <div class="mx-auto flex max-w-7xl flex-wrap items-center gap-2 sm:flex-nowrap">
           <button class="btn btn-muted px-3 lg:hidden" aria-label="Open menu" @click="mobileMenu = true">
-            <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewBox="0 0 24 24"><path v-for="path in icons.menu" :key="path" :d="path" /></svg>
+            <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" viewBox="0 0 24 24"><path v-for="path in icons.menu" :key="path" :d="path" /></svg>
             <span class="hidden sm:inline">Menu</span>
           </button>
           <RouterLink to="/dashboard" class="mr-auto flex items-center gap-2 text-base font-extrabold lg:hidden">
             <span class="grid h-9 w-9 place-items-center rounded-xl bg-teal-700 text-white">
-              <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewBox="0 0 24 24"><path v-for="path in icons.spark" :key="path" :d="path" /></svg>
+              <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" viewBox="0 0 24 24"><path v-for="path in icons.spark" :key="path" :d="path" /></svg>
             </span>
             <span class="hidden sm:inline">{{ configuration.projectName }}</span>
           </RouterLink>
           <!-- Search -->
           <form class="relative order-last mt-2 w-full min-w-0 sm:order-none sm:mt-0 sm:block sm:flex-1" @submit.prevent="search">
-            <svg class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 dark:text-zinc-500" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewBox="0 0 24 24"><path v-for="path in icons.search" :key="path" :d="path" /></svg>
+            <svg class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 dark:text-zinc-500" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" viewBox="0 0 24 24"><path v-for="path in icons.search" :key="path" :d="path" /></svg>
             <input ref="searchInput" v-model="query" class="field h-11 pl-9" placeholder="Search everything" aria-label="Search everything" />
             <button type="button" class="absolute right-2 top-1/2 hidden -translate-y-1/2 rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-bold text-slate-400 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-500 xl:block" @click="commandOpen = true">Cmd K</button>
           </form>
@@ -435,7 +441,7 @@ onUnmounted(() => {
               class="relative grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-slate-200 bg-white text-slate-500 transition hover:border-amber-200 hover:text-amber-600 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:border-amber-600 dark:hover:text-amber-400"
               aria-label="Notifications"
             >
-              <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+              <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0"/></svg>
               <span v-if="notifUnread > 0" class="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-extrabold text-white">{{ notifUnread > 9 ? '9+' : notifUnread }}</span>
             </button>
             <button v-if="notifOpen" class="fixed inset-0 z-10 cursor-default" tabindex="-1" @click="notifOpen = false"></button>
@@ -467,6 +473,19 @@ onUnmounted(() => {
               </div>
             </div>
           </div>
+          <!-- Privacy hide toggle -->
+          <button
+            class="grid h-11 w-11 shrink-0 place-items-center rounded-xl border transition"
+            :class="privacy.hideSensitive ? 'border-amber-300 bg-amber-50 text-amber-600 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-400' : 'border-slate-200 bg-white text-slate-500 hover:border-teal-200 hover:text-teal-700 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:border-teal-700 dark:hover:text-teal-400'"
+            :title="privacy.hideSensitive ? 'Data keuangan disembunyikan — klik untuk tampilkan' : 'Sembunyikan data sensitif'"
+            aria-label="Toggle privacy mode"
+            @click="privacy.toggleHide()"
+          >
+            <!-- Eye open -->
+            <svg v-if="!privacy.hideSensitive" class="h-4 w-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" viewBox="0 0 24 24"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+            <!-- Eye off (hidden) -->
+            <svg v-else class="h-4 w-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" viewBox="0 0 24 24"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24M1 1l22 22"/></svg>
+          </button>
           <!-- Theme toggle -->
           <button
             class="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-slate-200 bg-white text-slate-500 transition hover:border-teal-200 hover:text-teal-700 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:border-teal-700 dark:hover:text-teal-400"
@@ -475,11 +494,11 @@ onUnmounted(() => {
             @click="cycleTheme"
           >
             <!-- Sun: light -->
-            <svg v-if="activeTheme === 'light'" class="h-4 w-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+            <svg v-if="activeTheme === 'light'" class="h-4 w-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
             <!-- Moon: dark -->
-            <svg v-else-if="activeTheme === 'dark'" class="h-4 w-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+            <svg v-else-if="activeTheme === 'dark'" class="h-4 w-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
             <!-- Monitor: system -->
-            <svg v-else class="h-4 w-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+            <svg v-else class="h-4 w-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
           </button>
           <!-- Quick add -->
           <button class="btn btn-primary px-3 sm:px-4" title="Quick add" aria-label="Quick add" @click="quick = true">
@@ -506,11 +525,11 @@ onUnmounted(() => {
                 </div>
               </div>
               <RouterLink to="/profile" class="mt-2 flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-100 dark:text-zinc-300 dark:hover:bg-zinc-800" role="menuitem">
-                <svg class="h-4 w-4 text-slate-400 dark:text-zinc-600" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewBox="0 0 24 24"><path v-for="path in icons.user" :key="path" :d="path" /></svg>
+                <svg class="h-4 w-4 text-slate-400 dark:text-zinc-600" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" viewBox="0 0 24 24"><path v-for="path in icons.user" :key="path" :d="path" /></svg>
                 Profile settings
               </RouterLink>
               <button class="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-bold text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20" role="menuitem" @click="logout">
-                <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewBox="0 0 24 24"><path v-for="path in icons.logout" :key="path" :d="path" /></svg>
+                <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" viewBox="0 0 24 24"><path v-for="path in icons.logout" :key="path" :d="path" /></svg>
                 Logout
               </button>
             </div>
@@ -529,12 +548,12 @@ onUnmounted(() => {
         <div class="mb-6 flex items-center justify-between">
           <RouterLink to="/dashboard" class="flex items-center gap-3">
             <span class="grid h-10 w-10 place-items-center rounded-2xl bg-teal-700 text-white">
-              <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewBox="0 0 24 24"><path v-for="path in icons.spark" :key="path" :d="path" /></svg>
+              <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" viewBox="0 0 24 24"><path v-for="path in icons.spark" :key="path" :d="path" /></svg>
             </span>
             <span class="font-extrabold dark:text-zinc-100">{{ configuration.projectName }}</span>
           </RouterLink>
           <button class="btn btn-muted px-3" aria-label="Close menu" @click="mobileMenu = false">
-            <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewBox="0 0 24 24"><path v-for="path in icons.close" :key="path" :d="path" /></svg>
+            <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" viewBox="0 0 24 24"><path v-for="path in icons.close" :key="path" :d="path" /></svg>
           </button>
         </div>
         <nav class="space-y-1">
@@ -551,11 +570,11 @@ onUnmounted(() => {
                 v-for="item in group.items"
                 :key="item.href"
                 :to="item.href"
-                class="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-bold text-slate-600 hover:bg-slate-100 dark:text-zinc-400 dark:hover:bg-zinc-800"
-                :class="isActive(item.href) ? 'bg-teal-50 text-teal-800 dark:bg-teal-500/10 dark:text-teal-400' : ''"
+                class="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-bold text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900 dark:text-zinc-400 dark:hover:bg-zinc-800"
+                :class="isActive(item.href) ? 'bg-teal-50 text-teal-800 ring-1 ring-teal-200/60 dark:bg-teal-500/12 dark:text-teal-300 dark:ring-teal-500/20' : ''"
               >
-                <span class="grid h-8 w-8 place-items-center rounded-lg dark:bg-zinc-800" :class="isActive(item.href) ? 'bg-white text-teal-700 dark:text-teal-400' : 'bg-slate-100 text-slate-500 dark:text-zinc-500'">
-                  <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewBox="0 0 24 24"><path v-for="path in icons[item.icon]" :key="path" :d="path" /></svg>
+                <span class="grid h-8 w-8 place-items-center rounded-lg" :class="isActive(item.href) ? 'bg-teal-100 text-teal-700 dark:bg-teal-500/25 dark:text-teal-300' : 'bg-slate-100 text-slate-500 dark:bg-zinc-800 dark:text-zinc-500'">
+                  <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" viewBox="0 0 24 24"><path v-for="path in icons[item.icon]" :key="path" :d="path" /></svg>
                 </span>
                 {{ item.label }}
               </RouterLink>
@@ -575,7 +594,7 @@ onUnmounted(() => {
               <h2 id="quick-add-title" class="text-lg font-extrabold">Quick Add</h2>
             </div>
             <button type="button" class="btn btn-muted px-3" aria-label="Close quick add" @click="quick = false">
-              <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewBox="0 0 24 24"><path v-for="path in icons.close" :key="path" :d="path" /></svg>
+              <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" viewBox="0 0 24 24"><path v-for="path in icons.close" :key="path" :d="path" /></svg>
             </button>
           </div>
         </div>
@@ -625,14 +644,14 @@ onUnmounted(() => {
         <div class="border-b border-slate-100 p-3 dark:border-zinc-800">
           <h2 id="command-title" class="sr-only">Command palette</h2>
           <div class="relative">
-            <svg class="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400 dark:text-zinc-500" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewBox="0 0 24 24"><path v-for="path in icons.search" :key="path" :d="path" /></svg>
+            <svg class="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400 dark:text-zinc-500" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" viewBox="0 0 24 24"><path v-for="path in icons.search" :key="path" :d="path" /></svg>
             <input v-model="commandQuery" class="field h-12 border-0 bg-slate-50 pl-10 text-base dark:bg-zinc-800" placeholder="Jump to a page or create something" autofocus @keydown.enter.prevent="filteredCommands[0] && runCommand(filteredCommands[0])" />
           </div>
         </div>
         <div class="max-h-[24rem] overflow-y-auto p-2">
           <button v-for="item in filteredCommands" :key="`${item.group}-${item.label}`" class="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left hover:bg-slate-100 dark:hover:bg-zinc-800" @click="runCommand(item)">
             <span class="grid h-9 w-9 place-items-center rounded-xl bg-slate-100 text-slate-500 dark:bg-zinc-800 dark:text-zinc-400">
-              <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewBox="0 0 24 24"><path v-for="path in icons[item.icon]" :key="path" :d="path" /></svg>
+              <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" viewBox="0 0 24 24"><path v-for="path in icons[item.icon]" :key="path" :d="path" /></svg>
             </span>
             <span class="min-w-0 flex-1">
               <span class="block truncate text-sm font-extrabold text-slate-900 dark:text-zinc-100">{{ item.label }}</span>
@@ -663,7 +682,7 @@ onUnmounted(() => {
             </div>
           </div>
           <button class="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:text-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-300" aria-label="Dismiss notification" @click="dismissToast(item.id)">
-            <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewBox="0 0 24 24"><path v-for="path in icons.close" :key="path" :d="path" /></svg>
+            <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" viewBox="0 0 24 24"><path v-for="path in icons.close" :key="path" :d="path" /></svg>
           </button>
         </div>
       </div>
@@ -689,7 +708,7 @@ onUnmounted(() => {
         <div class="border-b border-slate-100 bg-slate-50/70 px-5 py-4 dark:border-zinc-800 dark:bg-zinc-900/60">
           <div class="flex items-start gap-3">
             <span class="grid h-10 w-10 shrink-0 place-items-center rounded-2xl" :class="feedback.confirm.danger ? 'bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-400' : 'bg-teal-50 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400'">
-              <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewBox="0 0 24 24"><path v-for="path in icons[feedback.confirm.danger ? 'alert' : 'check']" :key="path" :d="path" /></svg>
+              <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" viewBox="0 0 24 24"><path v-for="path in icons[feedback.confirm.danger ? 'alert' : 'check']" :key="path" :d="path" /></svg>
             </span>
             <div>
               <p class="text-xs font-extrabold uppercase" :class="feedback.confirm.danger ? 'text-red-700 dark:text-red-400' : 'text-teal-700 dark:text-teal-500'">{{ feedback.confirm.danger ? 'Needs confirmation' : 'Confirm action' }}</p>
@@ -702,7 +721,7 @@ onUnmounted(() => {
         </div>
         <div class="flex justify-end gap-2 border-t border-slate-100 bg-slate-50/70 px-5 py-4 dark:border-zinc-800 dark:bg-zinc-900/60">
           <button class="btn btn-muted" @click="resolveConfirm(false)">Cancel</button>
-          <button class="btn" :class="feedback.confirm.danger ? 'border border-red-200 bg-red-600 text-white hover:bg-red-700' : 'btn-primary'" @click="resolveConfirm(true)">{{ feedback.confirm.confirmLabel }}</button>
+          <button class="btn" :class="feedback.confirm.danger ? 'btn-danger' : 'btn-primary'" @click="resolveConfirm(true)">{{ feedback.confirm.confirmLabel }}</button>
         </div>
       </section>
     </div>

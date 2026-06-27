@@ -9,6 +9,31 @@ const route = useRoute();
 const router = useRouter();
 const doc = ref<any>(null);
 const loading = ref(true);
+const sharing = ref(false);
+
+async function toggleShare() {
+  if (sharing.value) return;
+  sharing.value = true;
+  try {
+    if (doc.value.share_token) {
+      const data = await api.delete(`/api/v1/docs/${doc.value.id}/share`).then(unwrap);
+      doc.value = data.doc;
+      toast({ tone: 'success', title: 'Link revoked', message: 'Doc is now private.' });
+    } else {
+      const data = await api.post(`/api/v1/docs/${doc.value.id}/share`).then(unwrap);
+      doc.value = data.doc;
+      await navigator.clipboard.writeText(doc.value.share_url);
+      toast({ tone: 'success', title: 'Link copied', message: 'Share link copied to clipboard.' });
+    }
+  } finally {
+    sharing.value = false;
+  }
+}
+
+async function copyShareLink() {
+  await navigator.clipboard.writeText(doc.value.share_url);
+  toast({ tone: 'success', title: 'Copied', message: 'Share link copied.' });
+}
 const safeDescription = computed(() =>
   doc.value?.description ? DOMPurify.sanitize(doc.value.description) : ''
 );
@@ -50,7 +75,12 @@ onMounted(load);
 </script>
 
 <template>
-  <div v-if="loading" class="py-12 text-center text-sm text-slate-400">Loading…</div>
+  <div v-if="loading" class="mx-auto max-w-3xl space-y-4">
+    <div class="skeleton h-10 w-2/3 rounded-2xl" />
+    <div class="skeleton h-5 w-32 rounded-xl" />
+    <div class="skeleton h-48 rounded-2xl" />
+    <div class="skeleton h-32 rounded-2xl" />
+  </div>
   <div v-else-if="doc" class="mx-auto max-w-3xl space-y-5">
     <!-- Header -->
     <div class="flex items-start justify-between gap-3">
@@ -59,7 +89,12 @@ onMounted(load);
         <h1 class="mt-1 text-3xl font-extrabold tracking-tight">{{ doc.title }}</h1>
         <p class="mt-1 text-sm text-slate-400 dark:text-zinc-600">{{ formatDate(doc.created_at) }}</p>
       </div>
-      <div class="flex shrink-0 gap-2">
+      <div class="flex shrink-0 flex-wrap gap-2">
+        <template v-if="doc.share_token">
+          <button class="btn btn-muted text-xs" @click="copyShareLink">Copy Link</button>
+          <button class="btn btn-muted text-xs text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/20" :disabled="sharing" @click="toggleShare">Unshare</button>
+        </template>
+        <button v-else class="btn btn-muted text-xs" :disabled="sharing" @click="toggleShare">Share</button>
         <button class="btn btn-muted" @click="router.push(`/docs/${doc.id}/edit`)">Edit</button>
         <button class="btn btn-muted text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20" @click="remove">Delete</button>
       </div>
@@ -76,7 +111,7 @@ onMounted(load);
     <div v-if="doc.reference_urls?.length" class="card p-5 space-y-2">
       <p class="label mb-2">Reference URLs</p>
       <div v-for="ref in doc.reference_urls" :key="ref.url ?? ref" class="flex items-center gap-2 text-sm">
-        <svg class="h-4 w-4 shrink-0 text-slate-400 dark:text-zinc-500" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" /></svg>
+        <svg class="h-4 w-4 shrink-0 text-slate-400 dark:text-zinc-500" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" /></svg>
         <div class="min-w-0 flex-1">
           <a v-if="safeUrl(ref.url ?? ref)" :href="safeUrl(ref.url ?? ref)!" target="_blank" rel="noopener noreferrer" class="font-semibold text-teal-700 hover:underline dark:text-teal-400">
             {{ ref.title || ref.url || ref }}

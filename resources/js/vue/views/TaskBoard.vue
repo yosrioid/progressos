@@ -122,8 +122,11 @@ onMounted(load);
         <h1 class="text-2xl font-extrabold">Task Board</h1>
         <p class="mt-1 text-sm font-medium text-slate-500 dark:text-zinc-500">{{ total }} tasks total</p>
       </div>
-      <div class="flex gap-2">
-        <router-link class="btn btn-muted" to="/tasks">List view</router-link>
+      <div class="flex items-center gap-2">
+        <div class="inline-flex rounded-xl border border-slate-200 bg-white p-0.5 dark:border-zinc-700 dark:bg-zinc-900">
+          <router-link to="/tasks" class="rounded-lg px-3 py-1.5 text-sm font-bold text-slate-500 hover:text-slate-700 dark:text-zinc-400 dark:hover:text-zinc-200">List</router-link>
+          <span class="rounded-lg px-3 py-1.5 text-sm font-bold bg-slate-900 text-white dark:bg-zinc-100 dark:text-zinc-900">Board</span>
+        </div>
         <router-link class="btn btn-primary" to="/tasks/create">New task</router-link>
       </div>
     </div>

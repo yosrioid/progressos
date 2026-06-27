@@ -16,6 +16,8 @@ class DocResource extends JsonResource
             'description' => $this->description,
             'reference_urls' => $this->reference_urls ?? [],
             'files' => DocFileResource::collection($this->whenLoaded('files')),
+            'share_token' => $this->share_token,
+            'share_url' => $this->share_token ? url('/share/doc/'.$this->share_token) : null,
             'created_at' => $this->created_at?->toJSON(),
             'updated_at' => $this->updated_at?->toJSON(),
         ];

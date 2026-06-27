@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
+import { RouterLink } from 'vue-router';
 import { api, unwrap } from '../api';
-import { toast } from '../feedback';
+import { confirmAction, toast } from '../feedback';
 
 interface KeyResult {
   id: number;
@@ -33,6 +34,37 @@ const goals = ref<Goal[]>([]);
 const loading = ref(true);
 const filterStatus = ref('');
 const expandedGoalId = ref<number | null>(null);
+
+const activeTab = ref<'goals' | 'milestones'>('goals');
+const milestones = ref<any[]>([]);
+const milestonesLoading = ref(false);
+const milestonesLoaded = ref(false);
+
+async function loadMilestones() {
+  if (milestonesLoaded.value) return;
+  milestonesLoading.value = true;
+  try {
+    const res = await api.get('/api/v1/milestones', { params: { per_page: 100, sort: 'end_date', direction: 'asc' } }).then(unwrap);
+    milestones.value = res.milestones?.data || [];
+    milestonesLoaded.value = true;
+  } finally {
+    milestonesLoading.value = false;
+  }
+}
+
+function switchTab(tab: 'goals' | 'milestones') {
+  activeTab.value = tab;
+  if (tab === 'milestones' && !milestonesLoaded.value) loadMilestones();
+}
+
+function milestoneStatusClass(status: string) {
+  return ({
+    active: 'pill-green',
+    paused: 'pill-slate',
+    completed: 'pill-blue',
+    cancelled: 'pill-red',
+  } as Record<string, string>)[status] ?? 'pill-slate';
+}
 
 const showGoalForm = ref(false);
 const editingGoal = ref<Goal | null>(null);
@@ -108,7 +140,8 @@ async function submitGoalForm() {
 }
 
 async function deleteGoal(goal: Goal) {
-  if (!confirm(`Delete goal "${goal.title}"?`)) return;
+  const ok = await confirmAction({ title: 'Hapus goal', message: `Hapus "${goal.title}"?`, confirmLabel: 'Hapus' });
+  if (!ok) return;
   try {
     await api.delete(`/api/v1/goals/${goal.id}`);
     await load();
@@ -171,7 +204,8 @@ async function toggleKrDone(goal: Goal, kr: KeyResult) {
 }
 
 async function deleteKr(goal: Goal, kr: KeyResult) {
-  if (!confirm('Delete this key result?')) return;
+  const ok = await confirmAction({ title: 'Hapus key result', message: `Hapus "${kr.title}"?`, confirmLabel: 'Hapus' });
+  if (!ok) return;
   try {
     await api.delete(`/api/v1/goals/${goal.id}/key-results/${kr.id}`);
     await load();
@@ -188,21 +222,68 @@ onMounted(load);
   <div>
     <div class="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       <div>
-        <p class="text-xs font-extrabold uppercase text-teal-700 dark:text-teal-500">OKR</p>
-        <h1 class="text-2xl font-extrabold">Goals & OKR</h1>
-        <p class="mt-1 text-sm font-medium text-slate-500 dark:text-zinc-500">Set goals and track key results</p>
+        <p class="text-xs font-extrabold uppercase text-teal-700 dark:text-teal-500">{{ activeTab === 'milestones' ? 'Tracker' : 'OKR' }}</p>
+        <h1 class="text-3xl font-extrabold tracking-tight">{{ activeTab === 'milestones' ? 'Milestones' : 'Goals & OKR' }}</h1>
+        <p class="mt-1 text-sm font-medium text-slate-500 dark:text-zinc-500">{{ activeTab === 'milestones' ? 'Measurable targets and progress markers' : 'Set goals and track key results' }}</p>
       </div>
       <div class="flex items-center gap-2">
-        <select v-model="filterStatus" class="field w-auto">
-          <option value="">All statuses</option>
-          <option value="active">Active</option>
-          <option value="draft">Draft</option>
-          <option value="completed">Completed</option>
-          <option value="abandoned">Abandoned</option>
-        </select>
-        <button class="btn btn-primary" @click="openGoalForm()">+ New Goal</button>
+        <div class="inline-flex rounded-xl border border-slate-200 bg-white p-0.5 dark:border-zinc-700 dark:bg-zinc-900">
+          <button class="rounded-lg px-3 py-1.5 text-sm font-bold transition" :class="activeTab === 'goals' ? 'bg-slate-900 text-white dark:bg-zinc-100 dark:text-zinc-900' : 'text-slate-500 hover:text-slate-700 dark:text-zinc-400'" @click="switchTab('goals')">Goals</button>
+          <button class="rounded-lg px-3 py-1.5 text-sm font-bold transition" :class="activeTab === 'milestones' ? 'bg-slate-900 text-white dark:bg-zinc-100 dark:text-zinc-900' : 'text-slate-500 hover:text-slate-700 dark:text-zinc-400'" @click="switchTab('milestones')">Milestones</button>
+        </div>
+        <template v-if="activeTab === 'goals'">
+          <select v-model="filterStatus" class="field w-auto">
+            <option value="">All statuses</option>
+            <option value="active">Active</option>
+            <option value="draft">Draft</option>
+            <option value="completed">Completed</option>
+            <option value="abandoned">Abandoned</option>
+          </select>
+          <button class="btn btn-primary" @click="openGoalForm()">+ New Goal</button>
+        </template>
+        <RouterLink v-else class="btn btn-primary" to="/milestones/create">+ New Milestone</RouterLink>
       </div>
     </div>
+
+    <!-- Milestones tab -->
+    <template v-if="activeTab === 'milestones'">
+      <div v-if="milestonesLoading" class="grid gap-3">
+        <div v-for="i in 3" :key="i" class="skeleton h-16 rounded-2xl" />
+      </div>
+      <div v-else-if="!milestones.length" class="card p-12 text-center">
+        <div class="mx-auto mb-4 grid h-12 w-12 place-items-center rounded-xl bg-teal-50 dark:bg-teal-900/20">
+          <svg class="h-6 w-6 text-teal-700 dark:text-teal-400" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+        </div>
+        <h2 class="text-base font-extrabold">Belum ada milestone</h2>
+        <RouterLink class="btn btn-primary mt-4 inline-flex" to="/milestones/create">+ Buat Milestone Pertama</RouterLink>
+      </div>
+      <div v-else class="grid gap-3">
+        <RouterLink v-for="m in milestones" :key="m.id" :to="`/milestones/${m.id}`" class="card block p-4 hover:border-teal-200 hover:shadow-sm">
+          <div class="flex items-start justify-between gap-3">
+            <div class="min-w-0 flex-1">
+              <h2 class="truncate font-extrabold text-slate-900 dark:text-zinc-100">{{ m.title }}</h2>
+              <div class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm text-slate-500 dark:text-zinc-500">
+                <span v-if="m.end_date">Due {{ m.end_date }}</span>
+                <span v-if="m.category" class="text-slate-400">· {{ m.category }}</span>
+              </div>
+            </div>
+            <span class="pill shrink-0" :class="milestoneStatusClass(m.status)">{{ m.status?.replace('_', ' ') }}</span>
+          </div>
+          <div v-if="m.current_value != null && m.target_value" class="mt-3">
+            <div class="mb-1 flex justify-between text-xs font-semibold text-slate-500">
+              <span>{{ m.current_value }} / {{ m.target_value }}{{ m.unit ? ' ' + m.unit : '' }}</span>
+              <span>{{ Math.round((m.current_value / m.target_value) * 100) }}%</span>
+            </div>
+            <div class="h-1.5 overflow-hidden rounded-full bg-slate-100 dark:bg-zinc-800">
+              <div class="h-full rounded-full bg-teal-600 transition-all" :style="{ width: `${Math.min(100, Math.round((m.current_value / m.target_value) * 100))}%` }" />
+            </div>
+          </div>
+        </RouterLink>
+      </div>
+    </template>
+
+    <!-- Goals tab content -->
+    <template v-if="activeTab === 'goals'">
 
     <!-- Loading -->
     <div v-if="loading" class="grid gap-3">
@@ -211,9 +292,11 @@ onMounted(load);
 
     <!-- Empty state -->
     <div v-else-if="!filteredGoals.length" class="card p-12 text-center">
-      <p class="text-2xl mb-2">🎯</p>
-      <p class="font-extrabold text-slate-500 dark:text-zinc-400">No goals yet</p>
-      <p class="mt-1 text-sm text-slate-400 dark:text-zinc-500">Create your first goal to start tracking progress</p>
+      <div class="mx-auto mb-4 grid h-12 w-12 place-items-center rounded-xl bg-teal-50 dark:bg-teal-900/20">
+        <svg class="h-6 w-6 text-teal-700 dark:text-teal-400" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+      </div>
+      <h2 class="text-base font-extrabold text-slate-900 dark:text-zinc-100">Belum ada goal</h2>
+      <p class="mx-auto mt-2 max-w-xs text-sm text-slate-400 dark:text-zinc-500">Buat goal pertama untuk mulai tracking progress kamu.</p>
       <button class="btn btn-primary mt-4" @click="openGoalForm()">+ New Goal</button>
     </div>
 
@@ -238,8 +321,12 @@ onMounted(load);
             </div>
           </div>
           <div class="flex items-center gap-1">
-            <button class="p-1.5 text-slate-400 hover:text-teal-600 dark:hover:text-teal-400 transition-colors" title="Edit" @click.stop="openGoalForm(goal)">✏</button>
-            <button class="p-1.5 text-slate-400 hover:text-red-500 transition-colors" title="Delete" @click.stop="deleteGoal(goal)">✕</button>
+            <button class="btn-icon-edit" title="Edit" @click.stop="openGoalForm(goal)">
+              <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5Z"/></svg>
+            </button>
+            <button class="btn-icon-delete" title="Delete" @click.stop="deleteGoal(goal)">
+              <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0 1 16.138 21H7.862a2 2 0 0 1-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v3M4 7h16"/></svg>
+            </button>
             <span class="text-xs text-slate-400 ml-1">{{ expandedGoalId === goal.id ? '▲' : '▼' }}</span>
           </div>
         </div>
@@ -266,8 +353,12 @@ onMounted(load);
               </div>
             </div>
             <div class="flex items-center gap-1">
-              <button class="p-1 text-slate-400 hover:text-teal-600 dark:hover:text-teal-400 text-xs transition-colors" @click="openKrForm(goal, kr)">✏</button>
-              <button class="p-1 text-slate-400 hover:text-red-500 text-xs transition-colors" @click="deleteKr(goal, kr)">✕</button>
+              <button class="btn-icon-edit" @click="openKrForm(goal, kr)">
+                <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5Z"/></svg>
+              </button>
+              <button class="btn-icon-delete" @click="deleteKr(goal, kr)">
+                <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0 1 16.138 21H7.862a2 2 0 0 1-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v3M4 7h16"/></svg>
+              </button>
             </div>
           </div>
 
@@ -275,6 +366,8 @@ onMounted(load);
         </div>
       </div>
     </div>
+
+    </template><!-- end goals tab -->
 
     <!-- Goal form modal -->
     <div v-if="showGoalForm" class="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4" @click.self="closeGoalForm">

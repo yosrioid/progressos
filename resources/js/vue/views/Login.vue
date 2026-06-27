@@ -68,9 +68,8 @@ function loginWithGoogle() {
           <button class="btn btn-primary w-full">Masuk</button>
         </form>
 
-        <div class="flex justify-between gap-3 text-sm font-semibold text-teal-700">
+        <div class="text-sm font-semibold text-teal-700 dark:text-teal-400">
           <RouterLink to="/forgot-password">Lupa password?</RouterLink>
-          <RouterLink to="/register">Buat akun</RouterLink>
         </div>
       </div>
     </section>

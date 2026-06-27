@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import Link from '@tiptap/extension-link';
+import TaskItem from '@tiptap/extension-task-item';
+import TaskList from '@tiptap/extension-task-list';
 import StarterKit from '@tiptap/starter-kit';
 import { EditorContent, useEditor } from '@tiptap/vue-3';
 import { watch } from 'vue';
@@ -12,6 +14,8 @@ const editor = useEditor({
   extensions: [
     StarterKit,
     Link.configure({ openOnClick: false }),
+    TaskList,
+    TaskItem.configure({ nested: true }),
   ],
   editorProps: {
     attributes: { class: 'prose prose-sm max-w-none focus:outline-none min-h-[8rem] px-4 py-3' },
@@ -38,6 +42,7 @@ watch(() => props.modelValue, (val) => {
       <span class="mx-0.5 w-px self-stretch bg-slate-200 dark:bg-zinc-600" />
       <button type="button" class="rounded px-2 py-0.5 text-xs font-bold text-slate-600 hover:bg-slate-200 dark:text-zinc-300 dark:hover:bg-zinc-700" :class="editor.isActive('bulletList') ? 'bg-slate-200 text-slate-900 dark:bg-zinc-700 dark:text-zinc-100' : ''" title="Bullet list" @click="editor.chain().focus().toggleBulletList().run()">• List</button>
       <button type="button" class="rounded px-2 py-0.5 text-xs font-bold text-slate-600 hover:bg-slate-200 dark:text-zinc-300 dark:hover:bg-zinc-700" :class="editor.isActive('orderedList') ? 'bg-slate-200 text-slate-900 dark:bg-zinc-700 dark:text-zinc-100' : ''" title="Ordered list" @click="editor.chain().focus().toggleOrderedList().run()">1. List</button>
+      <button type="button" class="rounded px-2 py-0.5 text-xs font-bold text-slate-600 hover:bg-slate-200 dark:text-zinc-300 dark:hover:bg-zinc-700" :class="editor.isActive('taskList') ? 'bg-slate-200 text-slate-900 dark:bg-zinc-700 dark:text-zinc-100' : ''" title="Checklist" @click="editor.chain().focus().toggleTaskList().run()">☑ Todo</button>
       <span class="mx-0.5 w-px self-stretch bg-slate-200 dark:bg-zinc-600" />
       <button type="button" class="rounded px-2 py-0.5 text-xs font-bold text-slate-600 hover:bg-slate-200 dark:text-zinc-300 dark:hover:bg-zinc-700" :class="editor.isActive('code') ? 'bg-slate-200 text-slate-900 dark:bg-zinc-700 dark:text-zinc-100' : ''" title="Inline code" @click="editor.chain().focus().toggleCode().run()">Code</button>
       <button type="button" class="rounded px-2 py-0.5 text-xs font-bold text-slate-600 hover:bg-slate-200 dark:text-zinc-300 dark:hover:bg-zinc-700" :class="editor.isActive('blockquote') ? 'bg-slate-200 text-slate-900 dark:bg-zinc-700 dark:text-zinc-100' : ''" title="Blockquote" @click="editor.chain().focus().toggleBlockquote().run()">"</button>

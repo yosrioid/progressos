@@ -20,6 +20,7 @@ class ConfigurationController extends Controller
 
         return ApiResponse::ok([
             'configuration' => [
+                'app_version' => config('app.version'),
                 'available_modules' => Configuration::SYNC_MODULES,
                 'frequencies' => Configuration::SYNC_FREQUENCIES,
                 'groups' => $this->groups($request),

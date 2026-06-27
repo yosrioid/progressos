@@ -69,7 +69,7 @@ onMounted(async () => {
       </div>
     </div>
 
-    <div class="grid gap-5 xl:grid-cols-3">
+    <div class="grid gap-6 xl:grid-cols-3">
       <!-- Tasks -->
       <section class="card p-5 xl:col-span-2">
         <div class="mb-4 flex items-center justify-between">

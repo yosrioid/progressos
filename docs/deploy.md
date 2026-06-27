@@ -433,6 +433,8 @@ git pull origin main
 composer install --no-dev --optimize-autoloader
 npm ci && npm run build
 php artisan migrate --force
+APP_VER=$(git describe --tags --always 2>/dev/null || echo "dev")
+sed -i "s/^APP_VERSION=.*/APP_VERSION=${APP_VER}/" .env || echo "APP_VERSION=${APP_VER}" >> .env
 php artisan config:cache
 php artisan route:cache
 php artisan view:cache

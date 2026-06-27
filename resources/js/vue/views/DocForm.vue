@@ -101,7 +101,11 @@ onMounted(() => { loadCategories(); if (isEdit) loadDoc(); });
 </script>
 
 <template>
-  <div v-if="loadingDoc" class="py-12 text-center text-sm text-slate-400">Loading…</div>
+  <div v-if="loadingDoc" class="mx-auto max-w-3xl space-y-4">
+    <div class="skeleton h-10 w-1/2 rounded-2xl" />
+    <div class="skeleton h-40 rounded-2xl" />
+    <div class="skeleton h-32 rounded-2xl" />
+  </div>
   <form v-else class="mx-auto max-w-3xl space-y-5" @submit.prevent="submit">
     <div class="flex items-center justify-between gap-3">
       <div>
@@ -113,7 +117,7 @@ onMounted(() => { loadCategories(); if (isEdit) loadDoc(); });
 
     <!-- Title + Category -->
     <div class="card p-5">
-      <div class="flex flex-col gap-5">
+      <div class="flex flex-col gap-6">
         <label class="block">
           <span class="label mb-1">Title <span class="text-red-500">*</span></span>
           <input v-model="form.title" class="field" required placeholder="Doc title" />
@@ -148,7 +152,7 @@ onMounted(() => { loadCategories(); if (isEdit) loadDoc(); });
             <input v-model="ref.url" class="field flex-1" type="url" placeholder="https://…" />
           </div>
           <button type="button" class="btn btn-muted px-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20" @click="removeUrl(i)">
-            <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12" /></svg>
+            <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12" /></svg>
           </button>
         </div>
       </div>
@@ -166,7 +170,7 @@ onMounted(() => { loadCategories(); if (isEdit) loadDoc(); });
             <p class="text-xs text-slate-400 dark:text-zinc-600">{{ formatSize(f.size) }}</p>
           </div>
           <button type="button" class="shrink-0 rounded p-1 text-slate-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20 dark:hover:text-red-400" @click="deleteFile(f)">
-            <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" /></svg>
+            <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" /></svg>
           </button>
         </div>
       </div>
@@ -179,13 +183,13 @@ onMounted(() => { loadCategories(); if (isEdit) loadDoc(); });
             <p class="text-xs text-teal-600 dark:text-teal-500">{{ formatSize(f.size) }} · pending upload</p>
           </div>
           <button type="button" class="shrink-0 rounded p-1 text-teal-400 hover:text-red-600" @click="removePending(i)">
-            <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12" /></svg>
+            <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12" /></svg>
           </button>
         </div>
       </div>
 
       <label class="flex cursor-pointer items-center gap-2 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 hover:border-teal-400 hover:bg-teal-50 dark:border-zinc-600 dark:bg-zinc-800 dark:hover:border-teal-600 dark:hover:bg-teal-900/20">
-        <svg class="h-5 w-5 text-slate-400 dark:text-zinc-500" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12" /></svg>
+        <svg class="h-5 w-5 text-slate-400 dark:text-zinc-500" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12" /></svg>
         <span class="text-sm font-semibold text-slate-500 dark:text-zinc-400">Click to attach files</span>
         <input type="file" multiple class="hidden" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.odt,.ods,.odp,.rtf,.txt,.csv,.md,.json,.jpg,.jpeg,.png,.gif,.webp,.zip,.rar" @change="pickFiles" />
       </label>

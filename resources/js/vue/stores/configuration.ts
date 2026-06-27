@@ -42,6 +42,7 @@ export const timezones = [
 export const useConfigurationStore = defineStore('configuration', {
   state: () => ({
     groups: structuredClone(defaultGroups) as any,
+    appVersion: 'dev' as string,
     loaded: false,
   }),
   getters: {
@@ -65,6 +66,7 @@ export const useConfigurationStore = defineStore('configuration', {
     async load() {
       const data = await api.get('/api/v1/configuration').then(unwrap);
       this.groups = { ...structuredClone(defaultGroups), ...(data.configuration?.groups || {}) };
+      this.appVersion = data.configuration?.app_version || 'dev';
       this.loaded = true;
     },
     applyGroups(groups: any) {

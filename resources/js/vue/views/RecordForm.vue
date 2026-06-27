@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
-import { RouterLink, useRoute, useRouter } from 'vue-router';
+import { computed, onMounted, ref, watch } from 'vue';
+import { RouterLink, onBeforeRouteLeave, useRoute, useRouter } from 'vue-router';
 import { api, unwrap } from '../api';
 import DatePicker from '../components/DatePicker.vue';
 import { toast } from '../feedback';
@@ -78,6 +78,7 @@ async function submit() {
       ? await api.patch(`${config.value.endpoint}/${props.id}`, payload).then(unwrap)
       : await api.post(config.value.endpoint, payload).then(unwrap);
     const saved = response[config.value.payloadKey];
+    isDirty.value = false;
     toast({
       tone: 'success',
       title: isEdit.value ? `${config.value.singular} updated` : `${config.value.singular} created`,
@@ -91,6 +92,15 @@ async function submit() {
     saving.value = false;
   }
 }
+
+const isDirty = ref(false);
+watch(form, () => { if (!loading.value) isDirty.value = true; }, { deep: true });
+
+onBeforeRouteLeave(() => {
+  if (isDirty.value && !saving.value) {
+    return window.confirm('Ada perubahan yang belum disimpan. Yakin mau pergi?');
+  }
+});
 
 onMounted(async () => {
   await load();
@@ -117,7 +127,7 @@ onMounted(async () => {
     <div class="skeleton h-28 rounded-2xl"></div>
     <div class="skeleton h-72 rounded-2xl"></div>
   </div>
-  <form v-else class="grid gap-5 pb-24" @submit.prevent="submit">
+  <form v-else class="grid gap-6 pb-24" @submit.prevent="submit">
     <p v-if="error" class="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700">{{ error }}</p>
     <section v-for="section in formSections" :key="section.title" class="card overflow-hidden p-0">
       <div class="border-b border-slate-100 bg-slate-50/70 px-5 py-4">
@@ -126,7 +136,7 @@ onMounted(async () => {
       </div>
       <div class="grid gap-4 p-5 md:grid-cols-2">
         <label v-for="field in section.fields" :key="field.key" class="block" :class="field.span === 'full' || field.type === 'textarea' || field.type === 'tags' ? 'md:col-span-2' : ''">
-          <span class="label mb-1">{{ field.label }}</span>
+          <span class="label mb-1">{{ field.label }}<span v-if="field.required" class="ml-0.5 text-red-500">*</span></span>
           <textarea v-if="field.type === 'textarea' || field.type === 'tags'" v-model="form[field.key]" class="field min-h-32" :placeholder="field.type === 'tags' ? 'comma, separated, tags' : 'Type notes, or select text and paste a URL'" @paste="handleTextareaPaste($event, field.key)" />
           <select v-else-if="field.type === 'select'" v-model="form[field.key]" class="field">
             <option v-for="option in field.options" :key="option" :value="option">{{ option.replaceAll('_', ' ') }}</option>
@@ -153,7 +163,7 @@ onMounted(async () => {
             </select>
           </div>
           <input v-else v-model="form[field.key]" class="field" :type="inputType(field)" :required="field.required" />
-          <span v-if="errors[field.key]?.[0]" class="mt-1 block text-sm font-semibold text-red-700">{{ errors[field.key][0] }}</span>
+          <span v-if="errors[field.key]?.[0]" class="mt-1 block text-xs font-semibold text-red-600 dark:text-red-400">{{ errors[field.key][0] }}</span>
         </label>
       </div>
     </section>

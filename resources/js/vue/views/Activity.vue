@@ -2,6 +2,9 @@
 import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { api, unwrap } from '../api';
+import Analytics from './Analytics.vue';
+
+const activeTab = ref<'feed' | 'analytics'>('feed');
 
 const router = useRouter();
 const items = ref<any[]>([]);
@@ -184,11 +187,23 @@ onMounted(load);
   <div>
     <div class="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
       <div>
-        <p class="text-xs font-extrabold uppercase text-teal-700 dark:text-teal-500">Timeline</p>
-        <h1 class="text-2xl font-extrabold">Activity</h1>
-        <p class="mt-1 text-sm font-medium text-slate-500 dark:text-zinc-500">All changes and records, newest first.</p>
+        <p class="text-xs font-extrabold uppercase text-teal-700 dark:text-teal-500">{{ activeTab === 'analytics' ? 'Insights' : 'Timeline' }}</p>
+        <h1 class="text-3xl font-extrabold tracking-tight">{{ activeTab === 'analytics' ? 'Analytics' : 'Activity' }}</h1>
+        <p class="mt-1 text-sm font-medium text-slate-500 dark:text-zinc-500">{{ activeTab === 'analytics' ? 'All productivity metrics in one view.' : 'All changes and records, newest first.' }}</p>
+      </div>
+      <div class="inline-flex rounded-xl border border-slate-200 bg-white p-0.5 dark:border-zinc-700 dark:bg-zinc-900">
+        <button class="rounded-lg px-4 py-1.5 text-sm font-bold transition" :class="activeTab === 'feed' ? 'bg-slate-900 text-white dark:bg-zinc-100 dark:text-zinc-900' : 'text-slate-500 hover:text-slate-700 dark:text-zinc-400 dark:hover:text-zinc-200'" @click="activeTab = 'feed'">Feed</button>
+        <button class="rounded-lg px-4 py-1.5 text-sm font-bold transition" :class="activeTab === 'analytics' ? 'bg-slate-900 text-white dark:bg-zinc-100 dark:text-zinc-900' : 'text-slate-500 hover:text-slate-700 dark:text-zinc-400 dark:hover:text-zinc-200'" @click="activeTab = 'analytics'">Analytics</button>
       </div>
     </div>
+
+    <!-- Analytics tab (v-show keeps component mounted to avoid re-fetch on tab switch) -->
+    <div v-show="activeTab === 'analytics'">
+      <Analytics :hide-header="true" />
+    </div>
+
+    <!-- Feed tab -->
+    <template v-if="activeTab === 'feed'">
 
     <!-- Filters -->
     <div class="card mb-5 p-4">
@@ -229,7 +244,7 @@ onMounted(load);
 
     <div v-else-if="!items.length" class="card p-10 text-center">
       <div class="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-2xl bg-slate-100 dark:bg-zinc-800">
-        <svg class="h-6 w-6 text-slate-400" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewBox="0 0 24 24"><path d="M12 8v4l3 3M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/></svg>
+        <svg class="h-6 w-6 text-slate-400" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" viewBox="0 0 24 24"><path d="M12 8v4l3 3M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/></svg>
       </div>
       <p class="font-extrabold text-slate-700 dark:text-zinc-300">No activity yet</p>
       <p class="mt-1 text-sm text-slate-400 dark:text-zinc-600">Start logging work, tasks, or learning.</p>
@@ -295,5 +310,7 @@ onMounted(load);
         <p v-else class="text-xs text-slate-400 dark:text-zinc-600">All activity loaded.</p>
       </div>
     </div>
+
+    </template>
   </div>
 </template>

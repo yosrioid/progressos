@@ -266,12 +266,16 @@ onMounted(async () => {
       <button v-if="type === 'learning'" type="button" class="btn btn-muted" @click="showStats ? showStats = false : loadLearningStats()">
         {{ showStats ? 'Hide Stats' : 'Show Stats' }}
       </button>
+      <div v-if="type === 'tasks'" class="inline-flex rounded-xl border border-slate-200 bg-white p-0.5 dark:border-zinc-700 dark:bg-zinc-900">
+        <span class="rounded-lg px-3 py-1.5 text-sm font-bold bg-slate-900 text-white dark:bg-zinc-100 dark:text-zinc-900">List</span>
+        <RouterLink to="/tasks/board" class="rounded-lg px-3 py-1.5 text-sm font-bold text-slate-500 hover:text-slate-700 dark:text-zinc-400 dark:hover:text-zinc-200">Board</RouterLink>
+      </div>
       <RouterLink class="btn btn-primary" :to="`/${type}/create`">New {{ config.singular }}</RouterLink>
     </div>
   </div>
 
   <!-- Learning Stats Panel -->
-  <div v-if="type === 'learning' && showStats && learningStats" class="mb-5 grid gap-5">
+  <div v-if="type === 'learning' && showStats && learningStats" class="mb-5 grid gap-6">
     <div class="card p-5">
       <div class="mb-4 flex items-center justify-between">
         <h2 class="font-extrabold">Learning Stats</h2>
@@ -332,7 +336,7 @@ onMounted(async () => {
       </div>
     </div>
     <div class="p-4">
-    <div class="grid gap-3 md:grid-cols-6">
+    <div class="grid gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
       <input v-model="filters.search" class="field md:col-span-2" placeholder="Search records" />
       <select v-if="type === 'tasks' || type === 'work-logs' || type === 'milestones'" v-model="filters.status" class="field"><option value="">Any status</option><option v-for="option in statusOptions" :key="option" :value="option">{{ option.replaceAll('_', ' ') }}</option></select>
       <select v-if="categoryOptions.length" v-model="filters.category" class="field"><option value="">Any category</option><option v-for="option in categoryOptions" :key="option" :value="option">{{ option }}</option></select>
@@ -340,7 +344,7 @@ onMounted(async () => {
       <DatePicker v-model="filters.from" label="From date" placeholder="From date" />
       <DatePicker v-model="filters.to" label="To date" placeholder="To date" />
       <select v-model="filters.sort" class="field"><option v-for="option in sortOptions" :key="option.value" :value="option.value">Sort: {{ option.label }}</option></select>
-      <select v-model="filters.direction" class="field"><option value="desc">Newest first</option><option value="asc">Oldest first</option></select>
+      <select v-model="filters.direction" class="field"><option value="desc">↓ Descending</option><option value="asc">↑ Ascending</option></select>
     </div>
     <div class="mt-3 flex flex-wrap justify-between gap-2">
       <div class="flex flex-wrap gap-2">
@@ -384,7 +388,7 @@ onMounted(async () => {
   <div v-else-if="rows.length === 0" class="card p-10 text-center">
     <template v-if="activeFilters.length">
       <div class="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-2xl bg-slate-100 dark:bg-zinc-800">
-        <svg class="h-6 w-6 text-slate-400" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewBox="0 0 24 24"><path d="m21 21-4.35-4.35M10.8 18a7.2 7.2 0 1 1 0-14.4 7.2 7.2 0 0 1 0 14.4Z"/></svg>
+        <svg class="h-6 w-6 text-slate-400" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" viewBox="0 0 24 24"><path d="m21 21-4.35-4.35M10.8 18a7.2 7.2 0 1 1 0-14.4 7.2 7.2 0 0 1 0 14.4Z"/></svg>
       </div>
       <h2 class="text-xl font-extrabold text-slate-900 dark:text-zinc-100">No results</h2>
       <p class="mx-auto mt-2 max-w-md text-sm font-medium text-slate-500 dark:text-zinc-500">No records match the active filters. Try changing or resetting them.</p>
@@ -392,7 +396,7 @@ onMounted(async () => {
     </template>
     <template v-else>
       <div class="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-2xl bg-teal-50 dark:bg-teal-900/20">
-        <svg class="h-7 w-7 text-teal-700 dark:text-teal-400" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+        <svg class="h-7 w-7 text-teal-700 dark:text-teal-400" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
       </div>
       <h2 class="text-xl font-extrabold text-slate-900 dark:text-zinc-100">{{ emptyState[0] }}</h2>
       <p class="mx-auto mt-2 max-w-md text-sm font-medium text-slate-500 dark:text-zinc-500">{{ emptyState[1] }}</p>
@@ -400,14 +404,14 @@ onMounted(async () => {
     </template>
   </div>
   <div v-else class="grid gap-3">
-    <RouterLink v-for="row in rows" :key="row.id" :to="`/${type}/${row.id}`" class="card block transition hover:-translate-y-0.5 hover:border-teal-200 hover:shadow-md">
+    <RouterLink v-for="row in rows" :key="row.id" :to="`/${type}/${row.id}`" class="card block hover:border-teal-200 hover:shadow-sm">
       <article :class="compact ? 'p-3' : 'p-4'">
         <div class="flex items-start gap-3">
           <!-- Priority dot for tasks -->
           <span v-if="type === 'tasks' && row.priority" class="mt-1.5 h-2.5 w-2.5 flex-shrink-0 rounded-full" :class="priorityDotColors[row.priority]" :title="row.priority" />
           <div class="min-w-0 flex-1">
             <div class="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
-              <h2 class="truncate font-extrabold text-slate-900 dark:text-zinc-100">{{ row.title || row.topic }}</h2>
+              <h2 class="truncate font-extrabold text-slate-900 dark:text-zinc-100" :title="row.title || row.topic">{{ row.title || row.topic }}</h2>
               <span v-if="type === 'tasks' && row.recurrence_rule" title="Recurring task" class="inline-flex items-center gap-0.5 rounded-full bg-sky-100 px-1.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-sky-700 dark:bg-sky-900/30 dark:text-sky-400">
                 <svg class="h-2.5 w-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
                 {{ row.recurrence_rule }}

@@ -161,7 +161,7 @@ async function croppedAvatarBlob(): Promise<Blob> {
   </div>
   <p v-if="message" class="mb-4 rounded-xl border border-teal-200 bg-teal-50 p-3 text-sm font-medium text-teal-800">{{ message }}</p>
   <p v-if="error" class="mb-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700">{{ error }}</p>
-  <div class="grid gap-5 xl:grid-cols-[22rem_1fr]">
+  <div class="grid gap-6 xl:grid-cols-[22rem_1fr]">
     <aside class="card h-fit overflow-hidden p-0">
       <div class="bg-gradient-to-r from-teal-50 to-sky-50 p-5 dark:from-teal-900/20 dark:to-sky-900/20">
         <div class="flex items-center gap-4">
@@ -177,7 +177,7 @@ async function croppedAvatarBlob(): Promise<Blob> {
         <div class="flex justify-between"><span>Timezone</span><span class="text-slate-900">{{ profile.timezone }}</span></div>
       </div>
     </aside>
-    <div class="grid gap-5">
+    <div class="grid gap-6">
     <form class="card overflow-hidden p-0" @submit.prevent="saveProfile">
       <div class="border-b border-slate-100 bg-slate-50/70 px-5 py-4">
         <h2 class="font-extrabold">Profile</h2>
@@ -200,7 +200,7 @@ async function croppedAvatarBlob(): Promise<Blob> {
         <h2 class="font-extrabold">Avatar</h2>
         <p class="text-sm font-medium text-slate-500">Upload a photo, crop it visually, then save it as your profile avatar.</p>
       </div>
-      <div class="grid gap-5 p-5 lg:grid-cols-[10rem_1fr]">
+      <div class="grid gap-6 p-5 lg:grid-cols-[10rem_1fr]">
         <div class="relative h-32 w-32 overflow-hidden rounded-3xl border border-slate-200 bg-slate-100">
           <img v-if="avatarPreview" :src="avatarPreview" class="h-full w-full object-cover" alt="Selected avatar preview" />
           <img v-else-if="auth.user?.avatar_url && !avatarLoadFailed" :src="auth.user.avatar_url" class="h-full w-full object-cover" alt="Current avatar" @error="avatarLoadFailed = true" />
@@ -240,7 +240,7 @@ async function croppedAvatarBlob(): Promise<Blob> {
         </div>
         <button type="button" class="btn btn-muted" @click="closeCrop">Cancel</button>
       </div>
-      <div class="grid gap-5 p-5 lg:grid-cols-[1fr_13rem]">
+      <div class="grid gap-6 p-5 lg:grid-cols-[1fr_13rem]">
         <div
           ref="cropArea"
           class="relative mx-auto h-80 w-full max-w-md overflow-hidden rounded-3xl border border-slate-200 bg-slate-100 shadow-inner"

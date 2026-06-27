@@ -110,10 +110,10 @@ onMounted(load);
 <template>
   <div>
     <!-- Header -->
-    <div class="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+    <div class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
       <div>
         <p class="text-xs font-extrabold uppercase text-teal-700 dark:text-teal-500">Review</p>
-        <h1 class="text-2xl font-extrabold">Weekly Review</h1>
+        <h1 class="text-3xl font-extrabold tracking-tight">Weekly Review</h1>
         <p v-if="report" class="mt-1 text-sm font-semibold text-slate-500 dark:text-zinc-500">{{ formatDate(report.start) }} – {{ formatDate(report.end) }}</p>
       </div>
       <div class="flex items-center gap-2">
@@ -123,7 +123,14 @@ onMounted(load);
       </div>
     </div>
 
-    <div v-if="!report" class="card p-8 text-center text-sm text-slate-500 dark:text-zinc-500">Loading...</div>
+    <div v-if="!report" class="space-y-3">
+      <div class="skeleton h-8 rounded-2xl sm:grid sm:grid-cols-4 hidden" />
+      <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div v-for="i in 4" :key="i" class="skeleton h-20 rounded-2xl" />
+      </div>
+      <div class="skeleton h-48 rounded-2xl" />
+      <div class="skeleton h-36 rounded-2xl" />
+    </div>
     <template v-else>
       <!-- Stat cards -->
       <div class="mb-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -153,9 +160,9 @@ onMounted(load);
         </div>
       </div>
 
-      <div class="grid gap-5 lg:grid-cols-3">
+      <div class="grid gap-6 lg:grid-cols-3">
         <!-- Left column -->
-        <div class="lg:col-span-2 grid gap-5 content-start">
+        <div class="lg:col-span-2 grid gap-6 content-start">
           <!-- Tasks done this week -->
           <section class="card p-5">
             <h2 class="mb-3 text-sm font-extrabold uppercase text-slate-500 dark:text-zinc-500">Tasks Completed</h2>
@@ -200,7 +207,7 @@ onMounted(load);
         </div>
 
         <!-- Right column: reflection + snapshots -->
-        <div class="grid gap-5 content-start">
+        <div class="grid gap-6 content-start">
           <!-- Reflection -->
           <section class="card p-5">
             <h2 class="mb-3 text-sm font-extrabold uppercase text-slate-500 dark:text-zinc-500">This Week's Reflection</h2>

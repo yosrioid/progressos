@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
 import { api, unwrap } from '../api';
-import { toast } from '../feedback';
+import { confirmAction, toast } from '../feedback';
 
 interface Habit {
   id: number;
@@ -126,7 +126,8 @@ async function submitForm() {
 }
 
 async function confirmDelete(habit: Habit) {
-  if (!confirm(`Delete habit "${habit.name}"? All logs will also be removed.`)) return;
+  const ok = await confirmAction({ title: 'Hapus habit', message: `Hapus "${habit.name}"? Semua log juga akan dihapus.`, confirmLabel: 'Hapus' });
+  if (!ok) return;
   try {
     await api.delete(`/api/v1/habits/${habit.id}`);
     await load();
@@ -140,10 +141,10 @@ onMounted(load);
 
 <template>
   <div>
-    <div class="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <div class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       <div>
         <p class="text-xs font-extrabold uppercase text-teal-700 dark:text-teal-500">Consistency</p>
-        <h1 class="text-2xl font-extrabold">Habit Tracker</h1>
+        <h1 class="text-3xl font-extrabold tracking-tight">Habit Tracker</h1>
         <p class="mt-1 text-sm font-medium text-slate-500 dark:text-zinc-500">Build habits one day at a time</p>
       </div>
       <button class="btn btn-primary" @click="openForm()">+ New Habit</button>
@@ -156,9 +157,11 @@ onMounted(load);
 
     <!-- Empty state -->
     <div v-else-if="!habits.length" class="card p-12 text-center">
-      <p class="text-2xl mb-2">✓</p>
-      <p class="font-extrabold text-slate-500 dark:text-zinc-400">No habits yet</p>
-      <p class="mt-1 text-sm text-slate-400 dark:text-zinc-500">Create your first habit to start tracking</p>
+      <div class="mx-auto mb-4 grid h-12 w-12 place-items-center rounded-xl bg-teal-50 dark:bg-teal-900/20">
+        <svg class="h-6 w-6 text-teal-700 dark:text-teal-400" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" viewBox="0 0 24 24"><path d="M9 11l3 3L22 4M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+      </div>
+      <h2 class="text-base font-extrabold text-slate-900 dark:text-zinc-100">Belum ada habit</h2>
+      <p class="mx-auto mt-2 max-w-xs text-sm text-slate-400 dark:text-zinc-500">Buat habit pertama untuk mulai tracking kebiasaan harian kamu.</p>
       <button class="btn btn-primary mt-4" @click="openForm()">+ New Habit</button>
     </div>
 
@@ -209,9 +212,13 @@ onMounted(load);
             </div>
 
             <!-- Actions -->
-            <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-              <button class="p-1.5 text-slate-400 hover:text-teal-600 dark:hover:text-teal-400 transition-colors" title="Edit" @click="openForm(habit)">✏</button>
-              <button class="p-1.5 text-slate-400 hover:text-red-500 transition-colors" title="Delete" @click="confirmDelete(habit)">✕</button>
+            <div class="flex items-center gap-1">
+              <button class="btn-icon-edit" aria-label="Edit habit" @click="openForm(habit)">
+                <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5Z"/></svg>
+              </button>
+              <button class="btn-icon-delete" aria-label="Hapus habit" @click="confirmDelete(habit)">
+                <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0 1 16.138 21H7.862a2 2 0 0 1-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v3M4 7h16"/></svg>
+              </button>
             </div>
           </div>
 

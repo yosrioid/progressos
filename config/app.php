@@ -41,6 +41,14 @@ return [
 
     'debug' => (bool) env('APP_DEBUG', false),
 
+    'registration_enabled' => (bool) env('REGISTRATION_ENABLED', false),
+
+    'version' => env('APP_VERSION', 'dev'),
+
+    'admin_name' => env('ADMIN_NAME', 'Admin'),
+    'admin_email' => env('ADMIN_EMAIL', 'admin@progressos.local'),
+    'admin_password' => env('ADMIN_PASSWORD', 'changeme123'),
+
     /*
     |--------------------------------------------------------------------------
     | Application URL

@@ -6,6 +6,8 @@ import BarChart from '../components/BarChart.vue';
 import { toast } from '../feedback';
 import { formatDate, minutes } from '../format';
 
+const REFLECTION_KEY = 'weekly_review_reflection';
+
 const route = useRoute();
 const router = useRouter();
 const report = ref<any>(null);
@@ -13,10 +15,34 @@ const date = ref(String(route.query.date || ''));
 const snapshots = ref<any[]>([]);
 const savingSnapshot = ref(false);
 const showSnapshots = ref(false);
+const weekOffset = ref(0);
+const reflection = ref('');
+
+const isWeekly = computed(() => route.params.period === 'weekly');
+
+function reflectionKey(start: string) {
+  return `${REFLECTION_KEY}_${start}`;
+}
+
+function weekNavDate() {
+  if (!weekOffset.value) return '';
+  const d = new Date();
+  d.setDate(d.getDate() + weekOffset.value * 7);
+  return d.toISOString().slice(0, 10);
+}
+
+async function shiftWeek(delta: number) {
+  weekOffset.value += delta;
+  date.value = weekNavDate();
+  await load();
+}
 
 async function load() {
-  date.value = String(route.query.date || '');
+  date.value = isWeekly.value ? weekNavDate() : String(route.query.date || '');
   report.value = (await api.get(`/api/v1/reports/${route.params.period}`, { params: date.value ? { date: date.value } : {} }).then(unwrap)).report;
+  if (isWeekly.value && report.value?.start) {
+    reflection.value = localStorage.getItem(reflectionKey(report.value.start)) ?? '';
+  }
 }
 
 async function loadSnapshots() {
@@ -31,14 +57,24 @@ async function saveSnapshot() {
   savingSnapshot.value = true;
   const params: Record<string, string> = {};
   if (date.value) params.date = date.value;
+  const body = isWeekly.value ? { reflection: reflection.value } : {};
   try {
-    await api.post(`/api/v1/reports/${route.params.period}/snapshots`, {}, { params });
+    await api.post(`/api/v1/reports/${route.params.period}/snapshots`, body, { params });
+    if (isWeekly.value && report.value?.start) {
+      localStorage.setItem(reflectionKey(report.value.start), reflection.value);
+    }
     await loadSnapshots();
     showSnapshots.value = true;
     toast({ tone: 'success', title: 'Snapshot saved', message: `${report.value?.period} of ${formatDate(report.value?.start)} saved.` });
   } finally {
     savingSnapshot.value = false;
   }
+}
+
+function onReflectionInput(e: Event) {
+  const val = (e.target as HTMLTextAreaElement).value;
+  reflection.value = val;
+  if (report.value?.start) localStorage.setItem(reflectionKey(report.value.start), val);
 }
 
 function applyDate() {
@@ -73,17 +109,26 @@ onMounted(async () => { await load(); loadSnapshots(); });
 <template>
   <div v-if="!report" class="card p-8 text-center text-sm text-slate-500">Loading report...</div>
   <template v-else>
-    <div class="mb-5 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+    <div class="mb-6 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
       <div>
         <p class="text-xs font-extrabold uppercase text-teal-700 dark:text-teal-500">{{ report.period }}</p>
-        <h1 class="text-2xl font-extrabold capitalize">{{ report.period }} Report</h1>
+        <h1 class="text-3xl font-extrabold tracking-tight capitalize">{{ report.period }} Report</h1>
         <p class="mt-1 text-sm font-medium text-slate-500 dark:text-zinc-500">{{ formatDate(report.start) }} → {{ formatDate(report.end) }}</p>
       </div>
-      <div class="flex flex-wrap gap-2">
-        <RouterLink class="btn btn-muted" to="/reports/weekly">Weekly</RouterLink>
-        <RouterLink class="btn btn-muted" to="/reports/monthly">Monthly</RouterLink>
-        <input v-model="date" class="field w-auto" type="date" />
-        <button class="btn btn-primary" @click="applyDate">Apply</button>
+      <div class="flex flex-wrap items-center gap-2">
+        <div class="inline-flex rounded-xl border border-slate-200 bg-white p-0.5 dark:border-zinc-700 dark:bg-zinc-900">
+          <RouterLink to="/reports/weekly" class="rounded-lg px-3 py-1.5 text-sm font-bold transition" :class="isWeekly ? 'bg-slate-900 text-white dark:bg-zinc-100 dark:text-zinc-900' : 'text-slate-500 hover:text-slate-700 dark:text-zinc-400'">Weekly</RouterLink>
+          <RouterLink to="/reports/monthly" class="rounded-lg px-3 py-1.5 text-sm font-bold transition" :class="!isWeekly ? 'bg-slate-900 text-white dark:bg-zinc-100 dark:text-zinc-900' : 'text-slate-500 hover:text-slate-700 dark:text-zinc-400'">Monthly</RouterLink>
+        </div>
+        <template v-if="isWeekly">
+          <button class="btn btn-muted px-3" :disabled="weekOffset <= -12" @click="shiftWeek(-1)">← Prev</button>
+          <button class="btn btn-muted px-3" :disabled="weekOffset >= 0" @click="shiftWeek(1)">Next →</button>
+          <button v-if="weekOffset < 0" class="btn btn-muted px-3 text-teal-700 dark:text-teal-400" @click="weekOffset = 0; date = ''; load()">This week</button>
+        </template>
+        <template v-else>
+          <input v-model="date" class="field w-auto" type="date" />
+          <button class="btn btn-primary" @click="applyDate">Apply</button>
+        </template>
         <button class="btn btn-muted" :disabled="savingSnapshot" @click="saveSnapshot">{{ savingSnapshot ? 'Saving…' : 'Save Snapshot' }}</button>
         <a class="btn btn-muted" :href="exportHref()">Export CSV</a>
         <a class="btn btn-muted" :href="exportPdfHref()" target="_blank">Export PDF</a>
@@ -91,10 +136,32 @@ onMounted(async () => { await load(); loadSnapshots(); });
     </div>
 
     <!-- Stats -->
-    <div class="mb-5 grid gap-3 md:grid-cols-3">
-      <div class="card p-4"><p class="label">Completed work</p><p class="mt-2 text-2xl font-extrabold">{{ report.completed_work_logs.length }}</p></div>
-      <div class="card p-4"><p class="label">Open blockers</p><p class="mt-2 text-2xl font-extrabold text-rose-700 dark:text-rose-400">{{ report.open_blockers.length }}</p></div>
-      <div class="card p-4"><p class="label">Learning</p><p class="mt-2 text-2xl font-extrabold">{{ minutes(report.learning_totals.minutes) }}</p></div>
+    <div class="mb-5 grid gap-3" :class="isWeekly ? 'sm:grid-cols-2 lg:grid-cols-4' : 'md:grid-cols-3'">
+      <div v-if="isWeekly" class="card p-4">
+        <p class="label">Learning</p>
+        <p class="mt-2 text-2xl font-extrabold">{{ minutes(report.learning_totals.minutes) }}</p>
+        <p class="mt-1 text-xs font-semibold" :class="(report.trends?.learning_minutes_delta ?? 0) >= 0 ? 'text-teal-700 dark:text-teal-400' : 'text-red-600 dark:text-red-400'">
+          {{ (report.trends?.learning_minutes_delta ?? 0) >= 0 ? '+' : '' }}{{ report.trends?.learning_minutes_delta ?? 0 }} min vs last week
+        </p>
+      </div>
+      <div v-if="isWeekly" class="card p-4">
+        <p class="label">Tasks Done</p>
+        <p class="mt-2 text-2xl font-extrabold">{{ report.tasks_done?.length ?? 0 }}</p>
+        <p class="mt-1 text-xs font-semibold text-slate-400">completed this week</p>
+      </div>
+      <div class="card p-4">
+        <p class="label">Work Sessions</p>
+        <p class="mt-2 text-2xl font-extrabold">{{ report.completed_work_logs.length }}</p>
+        <p v-if="isWeekly" class="mt-1 text-xs font-semibold" :class="(report.trends?.completed_work_delta ?? 0) >= 0 ? 'text-teal-700 dark:text-teal-400' : 'text-red-600 dark:text-red-400'">
+          {{ (report.trends?.completed_work_delta ?? 0) >= 0 ? '+' : '' }}{{ report.trends?.completed_work_delta ?? 0 }} vs last week
+        </p>
+      </div>
+      <div class="card p-4">
+        <p class="label">Open Blockers</p>
+        <p class="mt-2 text-2xl font-extrabold" :class="report.open_blockers.length > 0 ? 'text-rose-700 dark:text-rose-400' : ''">{{ report.open_blockers.length }}</p>
+        <p class="mt-1 text-xs font-semibold text-slate-400">unresolved</p>
+      </div>
+      <div v-if="!isWeekly" class="card p-4"><p class="label">Learning</p><p class="mt-2 text-2xl font-extrabold">{{ minutes(report.learning_totals.minutes) }}</p></div>
     </div>
 
     <!-- Trend chart -->
@@ -109,7 +176,19 @@ onMounted(async () => { await load(); loadSnapshots(); });
     </div>
 
     <!-- Main sections -->
-    <div class="grid gap-5 xl:grid-cols-2">
+    <div class="grid gap-6 xl:grid-cols-2">
+      <!-- Tasks done (weekly only) -->
+      <section v-if="isWeekly" class="card p-5">
+        <h2 class="mb-4 font-extrabold">Tasks Completed</h2>
+        <ul v-if="report.tasks_done?.length" class="grid gap-2">
+          <li v-for="task in report.tasks_done" :key="task.id" class="flex items-start gap-2 rounded-lg border border-slate-100 px-3 py-2.5 text-sm dark:border-zinc-800">
+            <svg class="mt-0.5 h-4 w-4 shrink-0 text-teal-600" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>
+            <span class="font-semibold">{{ task.title }}</span>
+          </li>
+        </ul>
+        <p v-else class="text-sm text-slate-400">No tasks completed this period.</p>
+      </section>
+
       <section class="card p-5">
         <h2 class="mb-4 font-extrabold">Key achievements</h2>
         <ul class="grid gap-2">
@@ -148,6 +227,21 @@ onMounted(async () => { await load(); loadSnapshots(); });
         </div>
       </section>
     </div>
+
+    <!-- Weekly reflection -->
+    <section v-if="isWeekly" class="card mt-5 p-5">
+      <h2 class="mb-3 font-extrabold">Reflection</h2>
+      <textarea
+        class="field min-h-28 w-full resize-y text-sm"
+        placeholder="What went well? What needs improvement next week?"
+        :value="reflection"
+        @input="onReflectionInput"
+      />
+      <button class="btn btn-primary mt-3" :disabled="savingSnapshot" @click="saveSnapshot">
+        {{ savingSnapshot ? 'Saving...' : 'Save Snapshot' }}
+      </button>
+      <p class="mt-2 text-xs text-slate-400 dark:text-zinc-600">Saving a snapshot locks this week's data and reflection.</p>
+    </section>
 
     <!-- Snapshots -->
     <section v-if="snapshots.length || showSnapshots" class="card mt-5 p-5">

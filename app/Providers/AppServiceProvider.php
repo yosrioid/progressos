@@ -14,6 +14,7 @@ use App\Models\Reference;
 use App\Models\ReviewEntry;
 use App\Models\SavedView;
 use App\Models\Task;
+use App\Models\TodoList;
 use App\Models\WorkLog;
 use App\Policies\OwnedModelPolicy;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -38,7 +39,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        foreach ([DailyProgressEntry::class, WorkLog::class, LearningEntry::class, Milestone::class, Task::class, Project::class, Reference::class, ReviewEntry::class, SavedView::class, Doc::class, Habit::class, Goal::class, KeyResult::class] as $model) {
+        foreach ([DailyProgressEntry::class, WorkLog::class, LearningEntry::class, Milestone::class, Task::class, Project::class, Reference::class, ReviewEntry::class, SavedView::class, Doc::class, Habit::class, Goal::class, KeyResult::class, TodoList::class] as $model) {
             Gate::policy($model, OwnedModelPolicy::class);
         }
 

@@ -89,6 +89,11 @@ class User extends Authenticatable
         return $this->hasMany(Doc::class);
     }
 
+    public function todoLists(): HasMany
+    {
+        return $this->hasMany(TodoList::class);
+    }
+
     public function habits(): HasMany
     {
         return $this->hasMany(Habit::class);
@@ -102,6 +107,16 @@ class User extends Authenticatable
     public function goals(): HasMany
     {
         return $this->hasMany(Goal::class);
+    }
+
+    public function bills(): HasMany
+    {
+        return $this->hasMany(Bill::class);
+    }
+
+    public function moneyTransactions(): HasMany
+    {
+        return $this->hasMany(MoneyTransaction::class);
     }
 
     public function keyResults(): HasMany
