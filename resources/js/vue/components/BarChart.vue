@@ -13,6 +13,7 @@ const props = defineProps<{
 
 const canvas = ref<HTMLCanvasElement | null>(null);
 let chart: Chart<'bar'> | null = null;
+let observer: MutationObserver | null = null;
 
 function buildChart() {
   if (!canvas.value) return;
@@ -47,9 +48,18 @@ function buildChart() {
   });
 }
 
-onMounted(buildChart);
+onMounted(() => {
+  observer = new MutationObserver(buildChart);
+  observer.observe(document.documentElement, { attributeFilter: ['class'] });
+  buildChart();
+});
+
 watch(() => [props.labels, props.values], buildChart, { deep: true });
-onUnmounted(() => chart?.destroy());
+
+onUnmounted(() => {
+  chart?.destroy();
+  observer?.disconnect();
+});
 </script>
 
 <template>

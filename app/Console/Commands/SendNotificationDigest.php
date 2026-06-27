@@ -6,6 +6,7 @@ use App\Mail\NotificationDigest;
 use App\Models\InAppNotification;
 use App\Models\User;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 
 class SendNotificationDigest extends Command
@@ -35,9 +36,13 @@ class SendNotificationDigest extends Command
                 return;
             }
 
-            Mail::to($user->email)->queue(new NotificationDigest($user, $unread));
-            $sent++;
-            $this->line("Queued digest for {$user->email} ({$unread->count()} notifications)");
+            try {
+                Mail::to($user->email)->queue(new NotificationDigest($user, $unread));
+                $sent++;
+                $this->line("Queued digest for {$user->email} ({$unread->count()} notifications)");
+            } catch (\Throwable $e) {
+                Log::error('Failed to queue notification digest', ['user_id' => $user->id, 'error' => $e->getMessage()]);
+            }
         });
 
         $this->info("Digest queued for {$sent} user(s).");

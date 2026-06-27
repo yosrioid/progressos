@@ -140,6 +140,7 @@ function buildParams(extra: Record<string, any> = {}) {
 
 async function loadSummary() {
   const p: Record<string, string> = {};
+  if (filterType.value) p.type = filterType.value;
   if (filterFrom.value) p.from = filterFrom.value;
   if (filterTo.value) p.to = filterTo.value;
   const data = await api.get('/api/v1/activity/summary', { params: p }).then(unwrap);
@@ -150,10 +151,7 @@ async function load() {
   loading.value = true;
   page.value = 1;
   try {
-    const [actData] = await Promise.all([
-      api.get('/api/v1/activity', { params: buildParams() }).then(unwrap),
-      loadSummary(),
-    ]);
+    const actData = await api.get('/api/v1/activity', { params: buildParams() }).then(unwrap);
     items.value = actData.activity?.data || [];
     meta.value = actData.activity;
   } catch {
@@ -161,6 +159,7 @@ async function load() {
   } finally {
     loading.value = false;
   }
+  loadSummary().catch(() => {});
 }
 
 async function loadMore() {

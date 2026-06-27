@@ -165,9 +165,11 @@ async function applySavedView(view: any) {
   await applyFilters();
 }
 
-const presetTemplates: Record<string, { label: string; filters: Partial<typeof filters.value> }[]> = {
+type PresetFilters = Partial<typeof filters.value> | (() => Partial<typeof filters.value>);
+const presetTemplates: Record<string, { label: string; filters: PresetFilters }[]> = {
   tasks: [
-    { label: 'Urgent & High', filters: { priority: 'urgent', status: '' } },
+    { label: 'Urgent', filters: { priority: 'urgent' } },
+    { label: 'High', filters: { priority: 'high' } },
     { label: 'Blocked', filters: { status: 'blocked' } },
     { label: 'Todo', filters: { status: 'todo' } },
     { label: 'In progress', filters: { status: 'in_progress' } },
@@ -179,7 +181,7 @@ const presetTemplates: Record<string, { label: string; filters: Partial<typeof f
     { label: 'Blocked', filters: { status: 'blocked' } },
   ],
   'daily-progress': [
-    { label: 'This week', filters: { from: new Date(Date.now() - 6 * 86400000).toISOString().slice(0, 10), to: new Date().toISOString().slice(0, 10) } },
+    { label: 'This week', filters: () => ({ from: new Date(Date.now() - 6 * 86400000).toISOString().slice(0, 10), to: new Date().toISOString().slice(0, 10) }) },
   ],
   learning: [
     { label: 'Programming', filters: { category: 'programming' } },
@@ -196,8 +198,9 @@ const presetTemplates: Record<string, { label: string; filters: Partial<typeof f
 
 const modulePresets = computed(() => presetTemplates[props.type] ?? []);
 
-function applyPreset(preset: { label: string; filters: Partial<typeof filters.value> }) {
-  filters.value = { ...filters.value, ...preset.filters, page: 1 };
+function applyPreset(preset: { label: string; filters: PresetFilters }) {
+  const f = typeof preset.filters === 'function' ? preset.filters() : preset.filters;
+  filters.value = { ...filters.value, ...f, page: 1 };
   applyFilters();
 }
 

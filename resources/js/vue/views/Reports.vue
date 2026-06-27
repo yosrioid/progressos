@@ -61,9 +61,9 @@ const projectValues = computed(() => Object.values(report.value?.most_active_pro
 
 const trendLabels = computed(() => ['Work logs', 'Learning', 'Logged time']);
 const trendValues = computed(() => report.value ? [
-  report.value.trends.completed_work_delta,
-  report.value.trends.learning_minutes_delta,
-  report.value.trends.logged_minutes_delta,
+  report.value.trends?.completed_work_delta ?? 0,
+  report.value.trends?.learning_minutes_delta ?? 0,
+  report.value.trends?.logged_minutes_delta ?? 0,
 ] : []);
 
 watch(() => route.fullPath, load);
