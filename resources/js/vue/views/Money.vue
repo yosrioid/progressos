@@ -90,6 +90,12 @@ async function loadMonth(m: string) {
 
 watch(selectedMonth, (m) => { if (m) loadMonth(m); });
 
+const totalAllTime = computed(() => ({
+  income: months.value.reduce((s, m) => s + m.income, 0),
+  expense: months.value.reduce((s, m) => s + m.expense, 0),
+  net: months.value.reduce((s, m) => s + m.net, 0),
+}));
+
 const filteredTransactions = computed(() => {
   if (!monthData.value) return [];
   return monthData.value.transactions.filter((t) => {
@@ -210,6 +216,24 @@ onMounted(loadMonths);
     </template>
 
     <template v-else>
+      <!-- All-time summary -->
+      <div class="mb-4 grid grid-cols-3 gap-3">
+        <div class="rounded-2xl border border-teal-100 bg-teal-50/80 px-4 py-3 dark:border-teal-800/30 dark:bg-teal-900/10">
+          <p class="label mb-1">Total pemasukan</p>
+          <p class="text-lg font-extrabold text-teal-800 dark:text-teal-300">{{ formatRp(totalAllTime.income) }}</p>
+        </div>
+        <div class="rounded-2xl border border-red-100 bg-red-50/80 px-4 py-3 dark:border-red-800/30 dark:bg-red-900/10">
+          <p class="label mb-1">Total pengeluaran</p>
+          <p class="text-lg font-extrabold text-red-700 dark:text-red-400">{{ formatRp(totalAllTime.expense) }}</p>
+        </div>
+        <div class="rounded-2xl border px-4 py-3" :class="totalAllTime.net >= 0 ? 'border-teal-200 bg-teal-50 dark:border-teal-700/40 dark:bg-teal-900/15' : 'border-red-200 bg-red-50 dark:border-red-700/40 dark:bg-red-900/10'">
+          <p class="label mb-1">Sisa keseluruhan</p>
+          <p class="text-lg font-extrabold" :class="totalAllTime.net >= 0 ? 'text-teal-800 dark:text-teal-300' : 'text-red-700 dark:text-red-400'">
+            {{ totalAllTime.net >= 0 ? '+' : '' }}{{ formatRp(totalAllTime.net) }}
+          </p>
+        </div>
+      </div>
+
       <!-- Month tabs -->
       <div class="mb-4 overflow-x-auto">
         <div class="flex min-w-max gap-2 pb-1">
