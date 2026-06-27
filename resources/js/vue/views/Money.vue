@@ -45,8 +45,9 @@ function monthLabel(m: string) {
 function shortMonth(m: string) {
   return new Date(m + '-02').toLocaleDateString('id-ID', { month: 'short', year: '2-digit' });
 }
-function dateLabel(iso: string) {
-  return new Date(iso).toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric', month: 'short' });
+function dateLabel(dateStr: string) {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric', month: 'short' });
 }
 function typeLabel(t: string): string {
   return { income: 'Pemasukan', expense: 'Pengeluaran', transfer_in: 'Transfer Masuk', transfer_out: 'Transfer Keluar' }[t] ?? t;
@@ -343,7 +344,7 @@ onMounted(loadMonths);
               <div v-for="group in groupedTransactions" :key="group.date">
                 <!-- Date header -->
                 <div class="flex items-center gap-3">
-                  <p class="text-xs font-extrabold text-slate-500 capitalize dark:text-zinc-400">{{ dateLabel(group.txns[0].transacted_at) }}</p>
+                  <p class="text-xs font-extrabold text-slate-500 capitalize dark:text-zinc-400">{{ dateLabel(group.date) }}</p>
                   <div class="flex-1 border-t border-slate-100 dark:border-zinc-800" />
                   <span class="text-[11px] font-semibold text-slate-400 dark:text-zinc-600">
                     <span v-if="group.txns.filter(t => t.type === 'expense').length">
