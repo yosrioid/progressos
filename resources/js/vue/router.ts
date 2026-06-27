@@ -20,6 +20,7 @@ import DocForm from './views/DocForm.vue';
 import Docs from './views/Docs.vue';
 import Lists from './views/Lists.vue';
 import ListDetail from './views/ListDetail.vue';
+import Bills from './views/Bills.vue';
 import Activity from './views/Activity.vue';
 import Analytics from './views/Analytics.vue';
 import Goals from './views/Goals.vue';
@@ -76,6 +77,7 @@ export const router = createRouter({
     { path: '/docs/create', component: DocForm },
     { path: '/lists', component: Lists },
     { path: '/lists/:id', component: ListDetail },
+    { path: '/bills', component: Bills },
     { path: '/docs/:id', component: DocDetail },
     { path: '/docs/:id/edit', component: DocForm },
     { path: '/games', component: Games },

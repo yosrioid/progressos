@@ -40,6 +40,7 @@ const navGroups = [
       { label: 'Analytics', href: '/analytics', icon: 'chart' },
       { label: 'Docs', href: '/docs', icon: 'docs' },
       { label: 'Lists', href: '/lists', icon: 'check' },
+      { label: 'Tagihan', href: '/bills', icon: 'billing' },
     ],
   },
   {
@@ -115,6 +116,7 @@ const icons: Record<string, string[]> = {
   games: ['M5 3h4v4H5V3zm5.5 0h4v4h-4V3zM16 3h4v4h-4V3zM5 8.5h4v4H5v-4zm5.5 0h4v4h-4v-4zm5.5 0h4v4h-4v-4zM5 14h4v4H5v-4zm5.5 0h4v4h-4v-4zm5.5 0h4v4h-4v-4z'],
   chevron: ['m6 9 6 6 6-6'],
   docs: ['M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z', 'M14 2v6h6M16 13H8M16 17H8M10 9H8'],
+  billing: ['M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2M9 12h6M9 16h4'],
 };
 const initials = computed(() => (auth.user?.name || 'U').split(' ').map((part) => part[0]).join('').slice(0, 2).toUpperCase());
 const activeTheme = computed(() => configuration.appearance.theme || auth.user?.theme || 'system');

@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\ActivityController;
 use App\Http\Controllers\Api\AnalyticsController;
+use App\Http\Controllers\Api\BillController;
 use App\Http\Controllers\Api\TodoListController;
 use App\Http\Controllers\Api\CaptureController;
 use App\Http\Controllers\Api\ConfigurationController;
@@ -57,6 +58,8 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
         Route::apiResource('docs', DocController::class)->only(['index', 'show']);
         Route::get('lists', [TodoListController::class, 'index']);
         Route::get('lists/{todoList}', [TodoListController::class, 'show']);
+        Route::get('bills', [BillController::class, 'index']);
+        Route::get('bills/month/{month}', [BillController::class, 'month']);
         Route::get('doc-files/{docFile}', [DocFileController::class, 'show']);
     });
 
@@ -89,6 +92,12 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
         Route::apiResource('references', ReferenceController::class)->only(['store', 'destroy']);
         Route::apiResource('docs', DocController::class)->only(['store', 'update', 'destroy']);
         Route::post('docs/{doc}/share', [DocController::class, 'share']);
+        Route::post('bills', [BillController::class, 'store']);
+        Route::patch('bills/{bill}', [BillController::class, 'update']);
+        Route::delete('bills/{bill}', [BillController::class, 'destroy']);
+        Route::post('bills/{bill}/pay', [BillController::class, 'pay']);
+        Route::delete('bills/{bill}/pay/{month}', [BillController::class, 'unpay']);
+        Route::post('bills/set-budget', [BillController::class, 'setBudget']);
         Route::post('lists', [TodoListController::class, 'store']);
         Route::patch('lists/{todoList}', [TodoListController::class, 'update']);
         Route::delete('lists/{todoList}', [TodoListController::class, 'destroy']);
