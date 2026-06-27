@@ -120,12 +120,12 @@ npm run test:e2e
 php artisan route:list --path=api/v1
 ```
 
-Last known passing state (2026-06-03):
+Last known passing state (2026-06-27):
 
 - `php artisan test`: 38 passed, 357 assertions
-- `npm run build`: passed (118 modules, 285 KB JS)
+- `npm run build`: passed (200 modules, Chart.js + vendor-tiptap chunk terpisah)
 - `npm run test:e2e`: 7 passed, 3 skipped
-- `php artisan route:list --path=api/v1`: 55 routes (termasuk 5 game routes)
+- `php artisan route:list --path=api/v1`: 56 routes (termasuk activity/summary)
 
 If Node is not on PATH under Laravel Herd:
 
@@ -135,11 +135,8 @@ export PATH="/Users/oirsoy/Library/Application Support/Herd/config/nvm/versions/
 
 ## Known Gaps
 
-- Record lists have filtering/sorting/pagination and saved views, but module-specific default presets can still improve.
-- Reports are improved but still use lightweight inline charting instead of a dedicated chart library.
 - API controllers are now split by domain; future backend work should keep new product areas in their own controllers.
-- References can be saved and removed, but richer reference type-specific presentation can still improve.
-- Notification preferences (daily/weekly review toggles) are stored but delivery channel not yet implemented.
+- Email digest requires a running queue worker and configured SMTP in `.env` to actually deliver.
 
 ## Implemented (terbaru, per 2026-06-03)
 
@@ -166,15 +163,21 @@ export PATH="/Users/oirsoy/Library/Application Support/Herd/config/nvm/versions/
   - `Profile.vue` diupdate untuk menggunakan configuration store.
   - Tests: `ConfigurationControllerTest`, `BackupExportServiceTest`, `GoogleSheetsBackupServiceTest` diupdate.
 
+## Implemented (terbaru, per 2026-06-27)
+
+- **Email notification digest** (`feature/gaps-completion`):
+  - `NotificationDigest` mailable + Blade template HTML email.
+  - `SendNotificationDigest` Artisan command, scheduled 08:05 daily setelah `notifications:generate`.
+- **Milestone source_filter UI**: field `source_filter` ditambahkan ke form milestone di `records.ts` — bisa set keyword untuk filter auto-tracking (misal: filter work log by project name).
+- **Report charting**: install Chart.js, buat `BarChart.vue` reusable, ganti CSS bars di Reports.vue dengan bar chart nyata untuk Time by Category, Most Active Projects, dan Period-over-Period Delta.
+- **Quick filter preset templates**: chips per modul di panel filter Records.vue (Tasks: Urgent/Blocked/Todo/In progress; Work Logs: Bugs/Features/Meetings/Blocked; Learning: Programming/Books/English/Career; Milestones: Active/Completed/Paused).
+- **Activity timeline improvements**: ActivityController mendukung server-side `type`, `from`, `to` filter + endpoint `GET /activity/summary`; Activity.vue punya filter panel, date range input, preset Today/This week/This month, dan summary stats bar count per modul.
+- **Reference auto-detect type**: paste URL di form reference → type otomatis terisi (GitHub PR → pr, GitHub Issues → ticket, Jira → ticket, Notion → doc, YouTube → article, Udemy/Coursera → course).
+
 ## Recommended Next Work
 
-1. Add per-module default filter presets.
-2. Add saved report snapshots and comparison history.
-3. Improve reports UI further:
-   - previous-period comparison
-   - better chart presentation
-4. Improve linked references with richer type-specific presentation.
-5. Implement metric-linked milestones with scheduled recalculation.
+- Tidak ada gap kritis. Proyek siap digunakan sehari-hari.
+- Opsional jangka panjang: deeper per-record activity history tab, richer milestone source linking by tag (saat ini hanya by text keyword).
 
 ## PR Description Template
 

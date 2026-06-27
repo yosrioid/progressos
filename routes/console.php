@@ -37,4 +37,5 @@ Artisan::command('milestones:recalculate', function (MilestoneRecalculationServi
 
 Schedule::command('backups:run-due')->hourly();
 Schedule::command('notifications:generate')->dailyAt('08:00');
+Schedule::command('notifications:send-digest')->dailyAt('08:05');
 Schedule::command('milestones:recalculate')->dailyAt('06:00');

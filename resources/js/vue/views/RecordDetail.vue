@@ -52,6 +52,30 @@ function safeUrl(url: string): string | null {
   }
 }
 
+function detectRefType(url: string): string {
+  try {
+    const { hostname, pathname } = new URL(url);
+    const host = hostname.replace('www.', '');
+    if (host === 'github.com') {
+      if (/\/pull\/\d+/.test(pathname)) return 'pr';
+      if (/\/issues\/\d+/.test(pathname)) return 'ticket';
+    }
+    if (/jira\.|atlassian\.net/.test(host) && /\/browse\//.test(pathname)) return 'ticket';
+    if (/notion\.so/.test(host)) return 'doc';
+    if (/youtube\.com|youtu\.be/.test(host)) return 'article';
+    if (/udemy\.com|coursera\.org|egghead\.io|frontendmasters\.com/.test(host)) return 'course';
+    if (/confluence/.test(host)) return 'doc';
+  } catch { /* ignore */ }
+  return 'link';
+}
+
+function onReferenceUrlInput() {
+  if (referenceForm.value.type === 'link' || referenceForm.value.type === '') {
+    const detected = detectRefType(referenceForm.value.url);
+    if (detected !== 'link') referenceForm.value.type = detected;
+  }
+}
+
 const refsByType = computed(() => {
   const refs = record.value?.references || [];
   const groups: Record<string, any[]> = {};
@@ -438,7 +462,7 @@ onMounted(load);
       </div>
       <form class="grid gap-3 md:grid-cols-5" @submit.prevent="addReference">
         <input v-model="referenceForm.label" class="field" placeholder="Label" required />
-        <input v-model="referenceForm.url" class="field md:col-span-2" placeholder="https://..." required />
+        <input v-model="referenceForm.url" class="field md:col-span-2" placeholder="https://..." required @input="onReferenceUrlInput" />
         <select v-model="referenceForm.type" class="field"><option v-for="option in ['link', 'doc', 'ticket', 'pr', 'article', 'course', 'other']" :key="option" :value="option">{{ option }}</option></select>
         <button class="btn btn-primary">Add reference</button>
         <p v-if="referenceError" class="text-sm text-red-700 md:col-span-5">{{ referenceError }}</p>

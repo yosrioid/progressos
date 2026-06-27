@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { onMounted, ref, watch } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { RouterLink, useRoute, useRouter } from 'vue-router';
 import { api, unwrap } from '../api';
+import BarChart from '../components/BarChart.vue';
 import { toast } from '../feedback';
 import { formatDate, minutes } from '../format';
 
@@ -52,6 +53,19 @@ function exportPdfHref() {
   return `/api/v1/reports/${route.params.period}/export-pdf${date.value ? `?date=${encodeURIComponent(date.value)}` : ''}`;
 }
 
+const categoryLabels = computed(() => Object.keys(report.value?.time_by_category ?? {}));
+const categoryValues = computed(() => Object.values(report.value?.time_by_category ?? {}).map(Number));
+
+const projectLabels = computed(() => Object.keys(report.value?.most_active_projects ?? {}));
+const projectValues = computed(() => Object.values(report.value?.most_active_projects ?? {}).map(Number));
+
+const trendLabels = computed(() => ['Work logs', 'Learning', 'Logged time']);
+const trendValues = computed(() => report.value ? [
+  report.value.trends?.completed_work_delta ?? 0,
+  report.value.trends?.learning_minutes_delta ?? 0,
+  report.value.trends?.logged_minutes_delta ?? 0,
+] : []);
+
 watch(() => route.fullPath, load);
 onMounted(async () => { await load(); loadSnapshots(); });
 </script>
@@ -83,20 +97,15 @@ onMounted(async () => { await load(); loadSnapshots(); });
       <div class="card p-4"><p class="label">Learning</p><p class="mt-2 text-2xl font-extrabold">{{ minutes(report.learning_totals.minutes) }}</p></div>
     </div>
 
-    <!-- Trend cards -->
-    <div class="mb-5 grid gap-3 md:grid-cols-3">
-      <div class="card p-4">
-        <p class="label">Work trend</p>
-        <p class="mt-2 text-xl font-extrabold" :class="report.trends.completed_work_delta >= 0 ? 'text-teal-700 dark:text-teal-400' : 'text-rose-700 dark:text-rose-400'">{{ report.trends.completed_work_delta >= 0 ? '+' : '' }}{{ report.trends.completed_work_delta }}</p>
-      </div>
-      <div class="card p-4">
-        <p class="label">Learning trend</p>
-        <p class="mt-2 text-xl font-extrabold" :class="report.trends.learning_minutes_delta >= 0 ? 'text-teal-700 dark:text-teal-400' : 'text-rose-700 dark:text-rose-400'">{{ report.trends.learning_minutes_delta >= 0 ? '+' : '' }}{{ minutes(report.trends.learning_minutes_delta) }}</p>
-      </div>
-      <div class="card p-4">
-        <p class="label">Logged time trend</p>
-        <p class="mt-2 text-xl font-extrabold" :class="report.trends.logged_minutes_delta >= 0 ? 'text-teal-700 dark:text-teal-400' : 'text-rose-700 dark:text-rose-400'">{{ report.trends.logged_minutes_delta >= 0 ? '+' : '' }}{{ minutes(report.trends.logged_minutes_delta) }}</p>
-      </div>
+    <!-- Trend chart -->
+    <div class="card mb-5 p-5">
+      <h2 class="mb-4 font-extrabold">Period-over-period delta</h2>
+      <p class="mb-3 text-xs text-slate-400">Change vs previous {{ report.period }}</p>
+      <BarChart
+        :labels="trendLabels"
+        :values="trendValues"
+        :format-value="(v) => (v >= 0 ? '+' : '') + v"
+      />
     </div>
 
     <!-- Main sections -->
@@ -108,22 +117,29 @@ onMounted(async () => { await load(); loadSnapshots(); });
           <li v-if="report.key_achievements.length === 0" class="text-sm text-slate-400">No achievements captured for this period.</li>
         </ul>
       </section>
+
       <section class="card p-5">
         <h2 class="mb-4 font-extrabold">Time by category</h2>
-        <div class="grid gap-3">
-          <div v-for="(value, key) in report.time_by_category" :key="key">
-            <div class="mb-1 flex justify-between text-sm"><b>{{ key }}</b><span class="text-slate-500">{{ minutes(value) }}</span></div>
-            <div class="h-1.5 rounded-full bg-slate-100 dark:bg-zinc-800"><div class="h-full rounded-full bg-teal-700" :style="{ width: `${Math.min(100, Number(value) / 6)}%` }" /></div>
-          </div>
-        </div>
+        <BarChart
+          v-if="categoryLabels.length"
+          :labels="categoryLabels"
+          :values="categoryValues"
+          :format-value="minutes"
+        />
+        <p v-else class="text-sm text-slate-400">No time logged this period.</p>
       </section>
+
       <section class="card p-5">
         <h2 class="mb-4 font-extrabold">Most active projects</h2>
-        <div class="grid gap-2">
-          <div v-for="(count, project) in report.most_active_projects" :key="project" class="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm dark:border-zinc-700 dark:bg-zinc-800/40"><b>{{ project }}</b><p class="mt-0.5 text-slate-500 dark:text-zinc-400">{{ count }} logs</p></div>
-          <p v-if="Object.keys(report.most_active_projects).length === 0" class="text-sm text-slate-400">No project activity.</p>
-        </div>
+        <BarChart
+          v-if="projectLabels.length"
+          :labels="projectLabels"
+          :values="projectValues"
+          :format-value="(v) => v + ' logs'"
+        />
+        <p v-else class="text-sm text-slate-400">No project activity.</p>
       </section>
+
       <section class="card p-5">
         <h2 class="mb-4 font-extrabold">Open blockers</h2>
         <div class="grid gap-2">

@@ -139,9 +139,12 @@ Security checklist:
 - Vue CRUD screens: list, create, detail, edit, delete, filters, sorting, and pagination flows for daily progress, work logs, tasks, learning entries, and milestones.
 - Global search: dedicated grouped Vue search page across projects, daily progress, work logs, tasks, learning, and milestones.
 - Project workspace: project-scoped add actions for work logs, tasks, and milestones.
-- Saved views and references: filter presets plus persisted reference links on record details.
+- Saved views and references: filter presets, per-module quick-filter preset templates, persisted reference links on record details with auto-type detection from URL.
 - Work logging flow: quick capture can create a done work log directly into an existing or newly resolved project.
-- Reports: weekly/monthly on-screen reports with real derived data, period picker, trend comparison, charts, and CSV export.
+- Reports: weekly/monthly on-screen reports with Chart.js bar charts, period picker, period-over-period delta chart, trend comparison, CSV and PDF export, and saved snapshots.
+- Activity timeline: full audit log with server-side type and date range filters, Today/This week/This month presets, and type-count summary stats.
+- Notifications: in-app notification bell with daily digest email via queue (task overdue, due soon, habit reminders, milestone completion, habit streaks).
+- Milestone auto-tracking: source_type links to work log count/minutes, learning minutes, progress streak, or task count; source_filter keyword narrows which records count; daily recalculation via scheduler.
 - Configuration: encrypted Google Sheets service account settings, dynamic daily/weekly/monthly backup sync rows per module, manual run-now Google Sheets sync with local CSV backup artifact, scheduled due-sync command, and backup run history.
 
 ## Verification
@@ -153,9 +156,9 @@ npm run test:e2e
 curl -I http://127.0.0.1:8000/login
 ```
 
-Current verification passed:
+Current verification passed (2026-06-27):
 
-- Pest: `27 passed`, `204 assertions`
+- Pest: `38 passed`, `357 assertions`
 - Pint: passed
 - Larastan/PHPStan: passed
 - Vite production build: passed
@@ -165,19 +168,8 @@ Current verification passed:
 
 ## Known Limitations
 
-- PDF export is intentionally omitted in the MVP; CSV export is implemented cleanly without adding a heavy PDF rendering dependency.
 - Backup sync uses Google service account credentials to append rows to Google Sheets and also writes a local CSV backup artifact. The target spreadsheet must be shared with the configured service account email.
-- The Vue rewrite now includes Vue-native CRUD screens, filters, global search, project-scoped creation shortcuts, profile settings, avatar upload, forgot/reset password screens, saved views, references, dark mode, keyboard shortcuts, and report controls.
-- Milestone current-value auto-updates are manual in the MVP. The next step is linking milestones to specific metrics or tags so progress can be recalculated from logs.
 - Tests run on SQLite in memory. The actual application configuration and verified local run use MySQL.
 - Playwright coverage verifies desktop quick-add, API-backed records, grouped global search, record filters, mobile navigation, mobile quick capture, Vue form flows, and date formatting.
 - Production deployment still needs environment-specific infrastructure: HTTPS termination, supervised queue workers, database backups, Redis persistence, and a real SMTP provider.
-
-## Next Improvements
-
-- Add metric-linked milestones with scheduled recalculation.
-- Add saved report snapshots and comparison history.
-- Add richer chart components when a charting dependency is justified.
-- Add saved report snapshots and comparison history.
-- Add deeper module-specific timeline/activity layouts.
-- Add optional PDF export via a small, well-contained service if reporting demand warrants it.
+- Email notification digest requires a working SMTP provider configured in `.env` (`MAIL_MAILER`, `MAIL_HOST`, etc.) and a running queue worker (`php artisan queue:work`).
