@@ -87,6 +87,7 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
         Route::delete('notifications', [NotificationController::class, 'clearAll']);
         Route::apiResource('projects', ProjectController::class)->only(['store', 'update']);
         Route::apiResource('daily-progress', DailyProgressController::class)->only(['store', 'update', 'destroy'])->parameters(['daily-progress' => 'dailyProgress']);
+        Route::post('work-logs/bulk', [WorkLogController::class, 'bulkStore']);
         Route::apiResource('work-logs', WorkLogController::class)->only(['store', 'update', 'destroy'])->parameters(['work-logs' => 'workLog']);
         Route::apiResource('tasks', TaskController::class)->only(['store', 'update', 'destroy']);
         Route::patch('tasks/{task}/status', [TaskController::class, 'updateStatus']);

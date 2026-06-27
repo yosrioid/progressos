@@ -19,9 +19,11 @@ const rows = ref<any[]>([]);
 const meta = ref<any>(null);
 const loading = ref(true);
 const savedViews = ref<any[]>([]);
+const projectNames = ref<string[]>([]);
 const viewName = ref('');
 const savingView = ref(false);
 const compact = ref(false);
+const bulkSaving = ref(false);
 const filters = ref({ search: '', status: '', category: '', priority: '', project_name: '', project_id: '', from: '', to: '', sort: 'date', direction: 'desc', page: 1 });
 const endpoint = computed(() => `/api/v1/${props.type}`);
 const config = computed(() => configs[props.type]);
@@ -56,6 +58,19 @@ const activeFilters = computed(() => Object.entries(filters.value)
   .filter(([key, value]) => !['page', 'sort', 'direction'].includes(key) && value !== '' && value !== null)
   .map(([key, value]) => ({ key, label: key.replaceAll('_', ' '), value: String(value).replaceAll('_', ' ') })));
 
+const today = () => new Date().toISOString().slice(0, 10);
+const blankBulkLog = () => ({
+  date: today(),
+  project_name: '',
+  title: '',
+  category: 'feature',
+  status: 'done',
+  priority: 'medium',
+  actual_duration: '',
+});
+const bulkLogs = ref([blankBulkLog(), blankBulkLog(), blankBulkLog()]);
+const bulkReadyCount = computed(() => bulkLogs.value.filter((log) => log.project_name.trim() || log.title.trim() || log.actual_duration !== '').length);
+
 async function load() {
   loading.value = true;
   const params = Object.fromEntries(Object.entries(filters.value).filter(([, value]) => value !== '' && value !== null));
@@ -69,6 +84,16 @@ async function load() {
 async function loadSavedViews() {
   const data = await api.get('/api/v1/saved-views', { params: { module: props.type } }).then(unwrap);
   savedViews.value = data.saved_views || [];
+}
+
+async function loadProjectNames() {
+  if (props.type !== 'work-logs' || projectNames.value.length) return;
+  try {
+    const res = await api.get('/api/v1/projects?per_page=200&sort=name&direction=asc').then(unwrap);
+    projectNames.value = (res.data ?? []).map((project: any) => project.name).filter(Boolean);
+  } catch {
+    projectNames.value = [];
+  }
 }
 
 async function toggleDefaultView(view: any) {
@@ -204,6 +229,50 @@ function applyPreset(preset: { label: string; filters: PresetFilters }) {
   applyFilters();
 }
 
+function addBulkRow() {
+  bulkLogs.value.push(blankBulkLog());
+}
+
+function removeBulkRow(index: number) {
+  if (bulkLogs.value.length === 1) {
+    bulkLogs.value = [blankBulkLog()];
+    return;
+  }
+  bulkLogs.value.splice(index, 1);
+}
+
+async function submitBulkLogs() {
+  const logs = bulkLogs.value
+    .filter((log) => log.project_name.trim() || log.title.trim() || log.actual_duration !== '')
+    .map((log) => ({
+      date: log.date,
+      project_name: log.project_name.trim(),
+      title: log.title.trim(),
+      category: log.category,
+      status: log.status,
+      priority: log.priority,
+      actual_duration: log.actual_duration === '' ? null : Number(log.actual_duration),
+    }));
+  if (!logs.length || bulkSaving.value) return;
+
+  bulkSaving.value = true;
+  try {
+    const response = await api.post('/api/v1/work-logs/bulk', { logs }).then(unwrap);
+    toast({ tone: 'success', title: 'Work logs created', message: `${response.created_count ?? logs.length} items added.` });
+    bulkLogs.value = [blankBulkLog(), blankBulkLog(), blankBulkLog()];
+    await loadProjectNames();
+    await load();
+  } catch (error: any) {
+    toast({
+      tone: 'error',
+      title: 'Bulk add failed',
+      message: error.response?.data?.message ?? 'Check each row and try again.',
+    });
+  } finally {
+    bulkSaving.value = false;
+  }
+}
+
 const statusCycle: Record<string, string> = { todo: 'in_progress', in_progress: 'done', done: 'todo', blocked: 'todo' };
 const priorityDotColors: Record<string, string> = { urgent: 'bg-red-500', high: 'bg-orange-400', medium: 'bg-sky-400', low: 'bg-slate-300 dark:bg-zinc-600' };
 const priorityTextColors: Record<string, string> = { urgent: 'text-red-600 dark:text-red-400', high: 'text-orange-500 dark:text-orange-400', medium: 'text-sky-500', low: 'text-slate-400' };
@@ -229,9 +298,10 @@ function hasActiveUrlFilters() {
   return filterKeys.some((k) => route.query[k]);
 }
 
-watch(() => [props.type, route.fullPath], () => { syncFromRoute(); load(); loadSavedViews(); });
+watch(() => [props.type, route.fullPath], () => { syncFromRoute(); loadProjectNames(); load(); loadSavedViews(); });
 onMounted(async () => {
   syncFromRoute();
+  await loadProjectNames();
   await loadSavedViews();
   const defaultView = savedViews.value.find((v) => v.is_default);
   if (defaultView && !hasActiveUrlFilters()) {
@@ -273,6 +343,68 @@ onMounted(async () => {
       <RouterLink class="btn btn-primary" :to="`/${type}/create`">New {{ config.singular }}</RouterLink>
     </div>
   </div>
+
+  <section v-if="type === 'work-logs'" class="card mb-4 overflow-hidden p-0">
+    <div class="flex flex-col gap-3 border-b border-slate-100 bg-slate-50/70 px-4 py-4 lg:flex-row lg:items-center lg:justify-between">
+      <div>
+        <h2 class="font-extrabold">Bulk add work logs</h2>
+        <p class="text-sm font-medium text-slate-500">Add multiple project entries for the same day without leaving this page.</p>
+      </div>
+      <div class="flex gap-2">
+        <button type="button" class="btn btn-muted" @click="addBulkRow">Add row</button>
+        <button type="button" class="btn btn-primary" :disabled="bulkSaving || !bulkReadyCount" @click="submitBulkLogs">
+          {{ bulkSaving ? 'Saving...' : `Save ${bulkReadyCount || ''}` }}
+        </button>
+      </div>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="w-full min-w-[960px] text-sm">
+        <thead class="border-b border-slate-100 bg-white text-left text-xs font-extrabold uppercase tracking-wide text-slate-400">
+          <tr>
+            <th class="px-3 py-2">Date</th>
+            <th class="px-3 py-2">Project</th>
+            <th class="px-3 py-2">Title</th>
+            <th class="px-3 py-2">Category</th>
+            <th class="px-3 py-2">Minutes</th>
+            <th class="px-3 py-2">Status</th>
+            <th class="px-3 py-2">Priority</th>
+            <th class="px-3 py-2 text-right">Action</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          <tr v-for="(log, index) in bulkLogs" :key="index" class="bg-white">
+            <td class="px-3 py-2"><DatePicker v-model="log.date" label="Date" required /></td>
+            <td class="px-3 py-2">
+              <input v-model="log.project_name" list="bulk-projects" class="field min-w-40" placeholder="Project" autocomplete="off" />
+            </td>
+            <td class="px-3 py-2"><input v-model="log.title" class="field min-w-64" placeholder="What did you do?" /></td>
+            <td class="px-3 py-2">
+              <select v-model="log.category" class="field min-w-36">
+                <option v-for="option in categoryOptions" :key="option" :value="option">{{ option }}</option>
+              </select>
+            </td>
+            <td class="px-3 py-2"><input v-model="log.actual_duration" class="field w-28" min="0" type="number" placeholder="0" /></td>
+            <td class="px-3 py-2">
+              <select v-model="log.status" class="field min-w-32">
+                <option v-for="option in statusOptions" :key="option" :value="option">{{ option.replaceAll('_', ' ') }}</option>
+              </select>
+            </td>
+            <td class="px-3 py-2">
+              <select v-model="log.priority" class="field min-w-28">
+                <option v-for="option in ['low', 'medium', 'high', 'urgent']" :key="option" :value="option">{{ option }}</option>
+              </select>
+            </td>
+            <td class="px-3 py-2 text-right">
+              <button type="button" class="rounded-lg px-2 py-1 text-sm font-bold text-slate-400 hover:bg-red-50 hover:text-red-600" @click="removeBulkRow(index)">x</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <datalist id="bulk-projects">
+        <option v-for="name in projectNames" :key="name" :value="name" />
+      </datalist>
+    </div>
+  </section>
 
   <!-- Learning Stats Panel -->
   <div v-if="type === 'learning' && showStats && learningStats" class="mb-5 grid gap-6">

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\BulkWorkLogRequest;
 use App\Http\Requests\WorkLogRequest;
 use App\Http\Resources\WorkLogResource;
 use App\Models\WorkLog;
@@ -12,6 +13,7 @@ use App\Services\TagSyncer;
 use App\Support\ApiQuery;
 use App\Support\ApiResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class WorkLogController extends Controller
 {
@@ -47,14 +49,25 @@ class WorkLogController extends Controller
     public function store(WorkLogRequest $request, ProjectResolver $projects, TagSyncer $tags, MilestoneProgressSync $sync)
     {
         $data = $request->validated();
-        $tagNames = $data['tags'] ?? [];
-        unset($data['tags']);
-        $data['project_id'] = $projects->resolve($request->user(), $data['project_name'])?->id;
-        $log = $request->user()->workLogs()->create($data);
-        $tags->workLog($log, $request->user(), $tagNames);
+        $log = $this->createLog($request, $data, $projects, $tags);
         $sync->syncFor($request->user());
 
         return ApiResponse::item('log', new WorkLogResource($log->load('tags')), 201, 'Work log created.');
+    }
+
+    public function bulkStore(BulkWorkLogRequest $request, ProjectResolver $projects, TagSyncer $tags, MilestoneProgressSync $sync)
+    {
+        $logs = DB::transaction(function () use ($request, $projects, $tags) {
+            return collect($request->validated('logs'))
+                ->map(fn (array $data) => $this->createLog($request, $data, $projects, $tags)->load('tags'))
+                ->values();
+        });
+
+        $sync->syncFor($request->user());
+
+        return ApiResponse::collection('logs', WorkLogResource::collection($logs), 201, 'Work logs created.', [
+            'created_count' => $logs->count(),
+        ]);
     }
 
     public function update(WorkLogRequest $request, WorkLog $workLog, ProjectResolver $projects, TagSyncer $tags, MilestoneProgressSync $sync)
@@ -78,5 +91,16 @@ class WorkLogController extends Controller
         $sync->syncFor($request->user());
 
         return response()->noContent();
+    }
+
+    private function createLog(Request $request, array $data, ProjectResolver $projects, TagSyncer $tags): WorkLog
+    {
+        $tagNames = $data['tags'] ?? [];
+        unset($data['tags']);
+        $data['project_id'] = $projects->resolve($request->user(), $data['project_name'])?->id;
+        $log = $request->user()->workLogs()->create($data);
+        $tags->workLog($log, $request->user(), $tagNames);
+
+        return $log;
     }
 }
