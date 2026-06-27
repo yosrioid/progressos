@@ -17,13 +17,15 @@ class MoneyController extends Controller
     {
         $user = $request->user();
 
+        $monthExpr = $this->monthExpression();
+
         $months = MoneyTransaction::ownedBy($user)
-            ->selectRaw("strftime('%Y-%m', transacted_at) AS month,
+            ->selectRaw("{$monthExpr} AS month,
                 SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END) AS income,
                 SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END) AS expense,
                 COUNT(*) AS total_count")
-            ->groupByRaw("strftime('%Y-%m', transacted_at)")
-            ->orderByRaw("strftime('%Y-%m', transacted_at) DESC")
+            ->groupByRaw($monthExpr)
+            ->orderByRaw("{$monthExpr} DESC")
             ->get()
             ->map(function ($m) {
                 $row = $m->getAttributes();
@@ -46,8 +48,10 @@ class MoneyController extends Controller
 
         $user = $request->user();
 
+        $monthExpr = $this->monthExpression();
+
         $transactions = MoneyTransaction::ownedBy($user)
-            ->whereRaw("strftime('%Y-%m', transacted_at) = ?", [$month])
+            ->whereRaw("{$monthExpr} = ?", [$month])
             ->orderBy('transacted_at', 'desc')
             ->get()
             ->map(fn ($t) => [
@@ -203,5 +207,14 @@ class MoneyController extends Controller
             'duplicates' => $duplicates,
             'skipped' => $skipped,
         ]);
+    }
+
+    private function monthExpression(): string
+    {
+        return match (DB::connection()->getDriverName()) {
+            'sqlite' => "strftime('%Y-%m', transacted_at)",
+            'pgsql' => "to_char(transacted_at, 'YYYY-MM')",
+            default => "DATE_FORMAT(transacted_at, '%Y-%m')",
+        };
     }
 }
