@@ -1,53 +1,56 @@
-# ProgressOS — Deployment Guide (Ubuntu 22.04, 1 vCPU / 2 GB)
+# VPS Deployment Guide
 
-Stack: **Nginx · PHP 8.3-FPM · MySQL 8.0 · Redis · Supervisor · Certbot**
+Server ini dirancang untuk menjalankan **lebih dari satu project** sekaligus, apapun stacknya.
+Strukturnya dibagi dua: **setup server (sekali)** dan **setup per-project (diulang tiap project baru)**.
+
+Domain utama: `oirsoy.my.id` — tiap project pakai subdomain sendiri.
 
 ---
 
-## 1. Akses server pertama kali
+## Bagian A — Setup Server (Sekali)
+
+### A1. Akses & user
 
 ```bash
 ssh root@IP_SERVER
-```
 
-Buat user non-root:
-
-```bash
+# Buat user deploy untuk semua project
 adduser deploy
 usermod -aG sudo deploy
-```
 
-Copy SSH key ke user baru (dari mesin lokal):
-
-```bash
+# Copy SSH key dari mesin lokal
+# Jalankan dari mesin lokal:
 ssh-copy-id deploy@IP_SERVER
-```
 
-Aktifkan firewall:
-
-```bash
-ufw allow OpenSSH
-ufw allow 80
-ufw allow 443
-ufw enable
-```
-
-Mulai semua langkah berikut sebagai user `deploy`:
-
-```bash
+# Semua langkah berikutnya sebagai user deploy
 ssh deploy@IP_SERVER
 ```
 
----
+### A2. Firewall
 
-## 2. Install dependensi sistem
+```bash
+sudo ufw allow OpenSSH
+sudo ufw allow 80
+sudo ufw allow 443
+sudo ufw enable
+sudo ufw status
+```
+
+### A3. Package dasar
 
 ```bash
 sudo apt update && sudo apt upgrade -y
-sudo apt install -y curl git unzip software-properties-common
+sudo apt install -y curl git unzip software-properties-common acl
 ```
 
-### PHP 8.3
+### A4. Nginx
+
+```bash
+sudo apt install -y nginx
+sudo systemctl enable nginx
+```
+
+### A5. PHP 8.3
 
 ```bash
 sudo add-apt-repository ppa:ondrej/php -y
@@ -59,80 +62,23 @@ sudo apt install -y \
   php8.3-gd php8.3-bcmath php8.3-intl
 ```
 
-### Nginx
+Matikan pool `www` default (tidak dipakai, diganti per-project):
 
 ```bash
-sudo apt install -y nginx
+sudo sed -i 's/^/;/' /etc/php/8.3/fpm/pool.d/www.conf
+sudo systemctl restart php8.3-fpm
 ```
 
-### MySQL 8.0
+### A6. MySQL 8.0
 
 ```bash
 sudo apt install -y mysql-server
 sudo mysql_secure_installation
 ```
 
-Buat database dan user:
+Tidak ada user atau database global di sini — dibuat per-project di Bagian B.
 
-```bash
-sudo mysql -u root
-```
-
-```sql
-CREATE DATABASE progressos CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-CREATE USER 'progressos'@'localhost' IDENTIFIED BY 'GANTI_PASSWORD_KUAT';
-GRANT ALL PRIVILEGES ON progressos.* TO 'progressos'@'localhost';
-FLUSH PRIVILEGES;
-EXIT;
-```
-
-### Redis
-
-```bash
-sudo apt install -y redis-server
-sudo systemctl enable redis-server
-```
-
-### Composer
-
-```bash
-curl -sLS https://getcomposer.org/installer | sudo php -- --install-dir=/usr/bin --filename=composer
-```
-
-### Node.js 22 (untuk build aset — bisa dihapus setelah build)
-
-```bash
-curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
-sudo apt install -y nodejs
-```
-
----
-
-## 3. Tuning PHP-FPM untuk 2 GB RAM
-
-Edit pool config:
-
-```bash
-sudo nano /etc/php/8.3/fpm/pool.d/www.conf
-```
-
-Ubah bagian berikut:
-
-```ini
-pm = static
-pm.max_children = 3
-pm.max_requests = 500
-```
-
-Restart PHP-FPM:
-
-```bash
-sudo systemctl restart php8.3-fpm
-```
-
----
-
-## 4. Tuning MySQL untuk 2 GB RAM
+Tuning untuk 2 GB RAM:
 
 ```bash
 sudo nano /etc/mysql/mysql.conf.d/mysqld.cnf
@@ -141,49 +87,116 @@ sudo nano /etc/mysql/mysql.conf.d/mysqld.cnf
 Tambahkan di bawah `[mysqld]`:
 
 ```ini
-innodb_buffer_pool_size     = 128M
-innodb_log_file_size        = 32M
-max_connections             = 50
-query_cache_size            = 0
-query_cache_type            = 0
+innodb_buffer_pool_size = 128M
+innodb_log_file_size    = 32M
+max_connections         = 100
+query_cache_type        = 0
 ```
-
-Restart MySQL:
 
 ```bash
 sudo systemctl restart mysql
 ```
 
----
-
-## 5. Deploy aplikasi
+### A7. Redis (shared, satu instance)
 
 ```bash
-sudo mkdir -p /var/www/progressos
-sudo chown deploy:deploy /var/www/progressos
-cd /var/www/progressos
+sudo apt install -y redis-server
+sudo systemctl enable redis-server
+```
+
+Tiap project pakai Redis DB index berbeda (`Redis::connection()->select(N)`) — dikonfigurasi via `REDIS_DB` di `.env` masing-masing project.
+
+### A8. Composer
+
+```bash
+curl -sLS https://getcomposer.org/installer | sudo php -- --install-dir=/usr/bin --filename=composer
+```
+
+### A9. Node.js 22
+
+```bash
+curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
+sudo apt install -y nodejs
+```
+
+Node dipakai untuk build aset frontend. Setelah build, prosesnya tidak jalan terus-menerus.
+
+### A10. Supervisor (queue worker manager)
+
+```bash
+sudo apt install -y supervisor
+sudo systemctl enable supervisor
+```
+
+### A11. Certbot (SSL)
+
+```bash
+sudo apt install -y certbot python3-certbot-nginx
+```
+
+### A12. Struktur direktori server
+
+```
+/var/www/
+├── progressos/       ← project 1
+├── project-dua/      ← project 2 nanti
+└── project-tiga/     ← project 3 nanti
+
+/etc/nginx/sites-available/
+├── progressos
+├── project-dua
+└── project-tiga
+
+/etc/php/8.3/fpm/pool.d/
+├── progressos.conf
+├── project-dua.conf
+└── project-tiga.conf
+
+/etc/supervisor/conf.d/
+├── progressos-worker.conf
+├── project-dua-worker.conf
+└── project-tiga-worker.conf
+```
+
+---
+
+## Bagian B — Setup Per-Project
+
+Ganti `progressos` dan `progressos.oirsoy.my.id` dengan nama project dan subdomain yang sesuai.
+
+### B1. Direktori project
+
+```bash
+PROJECT=progressos
+DOMAIN=progressos.oirsoy.my.id
+
+sudo mkdir -p /var/www/$PROJECT
+sudo chown deploy:www-data /var/www/$PROJECT
+sudo chmod 750 /var/www/$PROJECT
+```
+
+### B2. Clone dan install
+
+```bash
+cd /var/www/$PROJECT
 git clone https://github.com/yosrioid/progressos.git .
-```
-
-Install dependensi PHP (no dev, optimized):
-
-```bash
 composer install --no-dev --optimize-autoloader
+npm ci && npm run build
 ```
 
-Build frontend:
+### B3. Database MySQL
 
 ```bash
-npm ci
-npm run build
-node_modules/.bin/node --version  # verifikasi build berhasil
+# Ganti PASSWORD_KUAT dengan password unik per-project
+sudo mysql -u root <<SQL
+CREATE DATABASE progressos CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER 'progressos'@'localhost' IDENTIFIED BY 'PASSWORD_KUAT';
+GRANT ALL PRIVILEGES ON progressos.* TO 'progressos'@'localhost';
+FLUSH PRIVILEGES;
+SQL
 ```
 
-Node.js tidak diperlukan lagi setelah build — boleh dihapus jika ingin menghemat RAM.
-
----
-
-## 6. Konfigurasi .env
+### B4. File .env
 
 ```bash
 cp .env.example .env
@@ -191,13 +204,11 @@ php artisan key:generate
 nano .env
 ```
 
-Isi nilai-nilai berikut:
-
 ```env
 APP_NAME=ProgressOS
 APP_ENV=production
 APP_DEBUG=false
-APP_URL=https://DOMAIN_KAMU
+APP_URL=https://progressos.oirsoy.my.id
 
 LOG_CHANNEL=daily
 LOG_LEVEL=warning
@@ -207,7 +218,7 @@ DB_HOST=127.0.0.1
 DB_PORT=3306
 DB_DATABASE=progressos
 DB_USERNAME=progressos
-DB_PASSWORD=GANTI_PASSWORD_KUAT
+DB_PASSWORD=PASSWORD_KUAT
 
 CACHE_STORE=redis
 SESSION_DRIVER=redis
@@ -217,28 +228,26 @@ QUEUE_CONNECTION=redis
 
 REDIS_HOST=127.0.0.1
 REDIS_PORT=6379
+REDIS_DB=0          # ← ganti angka ini per-project (0, 1, 2, dst.)
+REDIS_CACHE_DB=1    # ← REDIS_DB + 1
 
 MAIL_MAILER=smtp
 MAIL_HOST=smtp.PROVIDER.com
 MAIL_PORT=587
-MAIL_USERNAME=EMAIL_KAMU
+MAIL_USERNAME=EMAIL
 MAIL_PASSWORD=PASSWORD_EMAIL
 MAIL_ENCRYPTION=tls
-MAIL_FROM_ADDRESS=EMAIL_KAMU
+MAIL_FROM_ADDRESS=EMAIL
 MAIL_FROM_NAME="ProgressOS"
 
 FILESYSTEM_DISK=local
 ```
 
-Permission file:
-
 ```bash
 chmod 600 .env
 ```
 
----
-
-## 7. Migrasi dan storage
+### B5. Migrate dan cache
 
 ```bash
 php artisan migrate --force
@@ -248,16 +257,41 @@ php artisan route:cache
 php artisan view:cache
 ```
 
-Permission direktori storage:
+Permission storage:
 
 ```bash
-sudo chown -R deploy:www-data storage bootstrap/cache
-sudo chmod -R 775 storage bootstrap/cache
+sudo chown -R deploy:www-data /var/www/$PROJECT/storage /var/www/$PROJECT/bootstrap/cache
+sudo chmod -R 775 /var/www/$PROJECT/storage /var/www/$PROJECT/bootstrap/cache
 ```
 
----
+### B6. PHP-FPM pool per-project
 
-## 8. Konfigurasi Nginx
+```bash
+sudo nano /etc/php/8.3/fpm/pool.d/progressos.conf
+```
+
+```ini
+[progressos]
+user = deploy
+group = www-data
+listen = /run/php/php8.3-fpm-progressos.sock
+listen.owner = www-data
+listen.group = www-data
+listen.mode = 0660
+
+pm = static
+pm.max_children = 3
+pm.max_requests = 500
+
+; Isolasi environment per-project
+env[APP_ENV] = production
+```
+
+```bash
+sudo systemctl reload php8.3-fpm
+```
+
+### B7. Nginx virtual host
 
 ```bash
 sudo nano /etc/nginx/sites-available/progressos
@@ -266,7 +300,7 @@ sudo nano /etc/nginx/sites-available/progressos
 ```nginx
 server {
     listen 80;
-    server_name DOMAIN_KAMU;
+    server_name progressos.oirsoy.my.id;
     root /var/www/progressos/public;
     index index.php;
 
@@ -274,13 +308,14 @@ server {
 
     add_header X-Frame-Options "SAMEORIGIN";
     add_header X-Content-Type-Options "nosniff";
+    add_header X-XSS-Protection "1; mode=block";
 
     location / {
         try_files $uri $uri/ /index.php?$query_string;
     }
 
     location ~ \.php$ {
-        fastcgi_pass unix:/run/php/php8.3-fpm.sock;
+        fastcgi_pass unix:/run/php/php8.3-fpm-progressos.sock;
         fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
         include fastcgi_params;
         fastcgi_hide_header X-Powered-By;
@@ -297,31 +332,28 @@ server {
 }
 ```
 
-Aktifkan dan test:
-
 ```bash
 sudo ln -s /etc/nginx/sites-available/progressos /etc/nginx/sites-enabled/
-sudo nginx -t
-sudo systemctl reload nginx
+sudo nginx -t && sudo systemctl reload nginx
 ```
 
----
-
-## 9. SSL dengan Certbot
+### B8. SSL
 
 ```bash
-sudo apt install -y certbot python3-certbot-nginx
-sudo certbot --nginx -d DOMAIN_KAMU
+sudo certbot --nginx -d progressos.oirsoy.my.id
 ```
 
-Certbot akan otomatis update config Nginx ke HTTPS dan setup auto-renew.
+Certbot otomatis update Nginx ke HTTPS dan setup auto-renew.
 
----
-
-## 10. Queue worker dengan Supervisor
+Untuk project berikutnya nanti cukup:
 
 ```bash
-sudo apt install -y supervisor
+sudo certbot --nginx -d namabaru.oirsoy.my.id
+```
+
+### B9. Queue worker (Supervisor)
+
+```bash
 sudo nano /etc/supervisor/conf.d/progressos-worker.conf
 ```
 
@@ -340,8 +372,6 @@ stdout_logfile=/var/www/progressos/storage/logs/worker.log
 stopwaitsecs=3600
 ```
 
-Aktifkan:
-
 ```bash
 sudo supervisorctl reread
 sudo supervisorctl update
@@ -349,50 +379,53 @@ sudo supervisorctl start progressos-worker:*
 sudo supervisorctl status
 ```
 
----
+### B10. Scheduler (cron)
 
-## 11. Scheduler (cron)
+Satu cron entry sudah cukup untuk semua project Laravel di server — Laravel hanya menjalankan job yang due:
 
 ```bash
 crontab -e
 ```
 
-Tambahkan:
-
 ```cron
 * * * * * cd /var/www/progressos && php artisan schedule:run >> /dev/null 2>&1
 ```
 
----
+Untuk project Laravel lain nanti, tambahkan baris baru:
 
-## 12. Verifikasi akhir
-
-```bash
-# App merespons
-curl -I https://DOMAIN_KAMU
-
-# PHP-FPM jalan
-sudo systemctl status php8.3-fpm
-
-# MySQL jalan
-sudo systemctl status mysql
-
-# Redis jalan
-redis-cli ping
-
-# Queue worker jalan
-sudo supervisorctl status
-
-# Cron terdaftar
-crontab -l
-
-# Storage writable
-ls -la /var/www/progressos/storage/logs/
+```cron
+* * * * * cd /var/www/project-dua && php artisan schedule:run >> /dev/null 2>&1
 ```
 
 ---
 
-## 13. Deploy update di masa depan
+## Bagian C — Verifikasi
+
+```bash
+# App merespons
+curl -I https://progressos.oirsoy.my.id
+
+# PHP-FPM pool berjalan
+sudo systemctl status php8.3-fpm
+
+# Queue worker berjalan
+sudo supervisorctl status
+
+# Redis bisa diakses
+redis-cli ping
+
+# Storage writable
+ls -la /var/www/progressos/storage/logs/
+
+# SSL valid
+curl -I https://progressos.oirsoy.my.id | grep -i strict
+```
+
+---
+
+## Bagian D — Deploy Update
+
+Jalankan setiap kali ada update kode:
 
 ```bash
 cd /var/www/progressos
@@ -408,10 +441,43 @@ sudo supervisorctl restart progressos-worker:*
 
 ---
 
-## Catatan
+## Bagian E — Menambah Project Baru
 
-- Ganti semua `DOMAIN_KAMU` dengan domain asli sebelum menjalankan.
-- Ganti semua password placeholder dengan nilai kuat yang unik.
-- File `.env` tidak masuk git — isi ulang setiap deploy ke server baru.
-- Swagger UI (`/api-docs`) hanya aktif di `APP_ENV=local`. Di production otomatis tidak terbuka.
-- Upload avatar disimpan di `storage/app/public` — backup direktori ini secara berkala.
+Cukup ulangi Bagian B dengan nama dan subdomain berbeda:
+
+| Yang berubah | Contoh project baru |
+|---|---|
+| Direktori | `/var/www/project-baru` |
+| Database | `project_baru` / user `project_baru` |
+| `.env` `REDIS_DB` | angka belum dipakai (cek yang sudah: `redis-cli client list`) |
+| PHP-FPM pool | `/etc/php/8.3/fpm/pool.d/project-baru.conf` (socket beda) |
+| Nginx site | `/etc/nginx/sites-available/project-baru` |
+| Supervisor | `/etc/supervisor/conf.d/project-baru-worker.conf` |
+| SSL | `certbot --nginx -d project-baru.oirsoy.my.id` |
+
+Untuk project **non-Laravel** (Node.js, Go, dll): Nginx cukup reverse proxy ke port lokal — tidak perlu PHP-FPM pool atau Supervisor Laravel worker.
+
+```nginx
+# Contoh untuk Node.js app di port 3000
+location / {
+    proxy_pass http://127.0.0.1:3000;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+}
+```
+
+---
+
+## Ringkasan resource per-project (estimasi, 2 GB total)
+
+| Resource | ProgressOS | Sisa untuk project lain |
+|---|---|---|
+| PHP-FPM workers | 3 × ~80 MB = 240 MB | — |
+| MySQL | 128 MB buffer + overhead | shared |
+| Redis | ~50 MB | shared |
+| Queue worker | ~80 MB | ~80 MB/project |
+| Nginx | ~30 MB | shared |
+| OS | ~250 MB | — |
+| **Total terpakai** | **~780 MB** | **~1.2 GB tersisa** |
+
+Dengan sisa 1.2 GB, masih bisa tambah 1–2 project ringan (static site, Node.js app kecil, atau Laravel kedua dengan 2 PHP-FPM worker).
