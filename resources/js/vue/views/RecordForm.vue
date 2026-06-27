@@ -60,6 +60,7 @@ async function load() {
     } else {
       form.value = normalizeForForm(config.value);
       if (route.query.project_name && 'project_name' in form.value) form.value.project_name = String(route.query.project_name);
+      if (route.query.project_name && 'project_names' in form.value) form.value.project_names = [String(route.query.project_name)];
       if (route.query.project_id && 'project_id' in form.value) form.value.project_id = Number(route.query.project_id);
       if (route.query.category && 'category' in form.value) form.value.category = String(route.query.category);
     }
@@ -79,12 +80,13 @@ async function submit() {
       : await api.post(config.value.endpoint, payload).then(unwrap);
     const saved = response[config.value.payloadKey];
     isDirty.value = false;
+    const createdCount = Number(response.created_count || 1);
     toast({
       tone: 'success',
-      title: isEdit.value ? `${config.value.singular} updated` : `${config.value.singular} created`,
+      title: isEdit.value ? `${config.value.singular} updated` : createdCount > 1 ? `${createdCount} ${config.value.singular}s created` : `${config.value.singular} created`,
       message: saved[config.value.titleKey] || 'Changes saved.',
     });
-    await router.push(`/${props.type}/${saved.id}`);
+    await router.push(createdCount > 1 ? `/${props.type}` : `/${props.type}/${saved.id}`);
   } catch (e: any) {
     error.value = e.response?.data?.message || 'Could not save this record.';
     errors.value = e.response?.data?.errors || {};
@@ -104,7 +106,7 @@ onBeforeRouteLeave(() => {
 
 onMounted(async () => {
   await load();
-  const needsProjectList = config.value.fields.some((f) => f.type === 'project-autocomplete' || f.type === 'project-select');
+  const needsProjectList = config.value.fields.some((f) => f.type === 'project-autocomplete' || f.type === 'project-multiselect' || f.type === 'project-select');
   if (needsProjectList) loadProjectNames();
   if (props.type === 'work-logs') {
     const data = await api.get('/api/v1/tasks', { params: { status: 'todo,in_progress', per_page: 100, sort: 'created_at', direction: 'desc' } }).then(unwrap);
@@ -151,6 +153,16 @@ onMounted(async () => {
             <datalist :id="`projects-list-${field.key}`">
               <option v-for="name in projectNames" :key="name" :value="name" />
             </datalist>
+          </div>
+          <div v-else-if="field.type === 'project-multiselect'">
+            <input v-if="isEdit" v-model="form.project_name" list="projects-list-project_name" class="field" required autocomplete="off" placeholder="Select or type project name" />
+            <select v-else v-model="form[field.key]" class="field min-h-32" multiple :required="field.required">
+              <option v-for="name in projectNames" :key="name" :value="name">{{ name }}</option>
+            </select>
+            <datalist id="projects-list-project_name">
+              <option v-for="name in projectNames" :key="name" :value="name" />
+            </datalist>
+            <p v-if="!isEdit" class="mt-1 text-xs font-semibold text-slate-400">Tahan Cmd/Ctrl untuk pilih beberapa project. Project baru tetap bisa dibuat dari halaman Projects.</p>
           </div>
           <select v-else-if="field.type === 'project-select'" v-model.number="form[field.key]" class="field" :required="field.required">
             <option :value="null">— No project —</option>

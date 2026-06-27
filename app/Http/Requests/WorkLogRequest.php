@@ -12,7 +12,9 @@ class WorkLogRequest extends FormRequest
     {
         return [
             'date' => ['required', 'date'],
-            'project_name' => ['required', 'string', 'max:120'],
+            'project_name' => ['required_without:project_names', 'nullable', 'string', 'max:120'],
+            'project_names' => ['nullable', 'array', 'min:1', 'max:20'],
+            'project_names.*' => ['string', 'max:120'],
             'ticket_code' => ['nullable', 'string', 'max:80'],
             'title' => ['required', 'string', 'max:180'],
             'category' => ['required', Rule::in(WorkLog::CATEGORIES)],

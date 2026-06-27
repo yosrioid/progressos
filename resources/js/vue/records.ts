@@ -1,7 +1,7 @@
 export type Field = {
   key: string;
   label: string;
-  type?: 'text' | 'date' | 'number' | 'textarea' | 'select' | 'tags' | 'checkbox' | 'task-link' | 'project-autocomplete' | 'project-select';
+  type?: 'text' | 'date' | 'number' | 'textarea' | 'select' | 'tags' | 'checkbox' | 'task-link' | 'project-autocomplete' | 'project-multiselect' | 'project-select';
   options?: string[];
   required?: boolean;
   span?: 'full';
@@ -49,10 +49,10 @@ export const configs: Record<string, RecordConfig> = {
     payloadKey: 'log',
     listKey: 'logs',
     endpoint: '/api/v1/work-logs',
-    defaults: { date: today(), project_name: '', task_id: '', ticket_code: '', title: '', category: 'feature', status: 'done', priority: 'medium', estimated_duration: '', actual_duration: '', description: '', resolution_or_outcome: '', tags: '' },
+    defaults: { date: today(), project_name: '', project_names: [], task_id: '', ticket_code: '', title: '', category: 'feature', status: 'done', priority: 'medium', estimated_duration: '', actual_duration: '', description: '', resolution_or_outcome: '', tags: '' },
     fields: [
       { key: 'date', label: 'Date', type: 'date', required: true },
-      { key: 'project_name', label: 'Project', type: 'project-autocomplete', required: true },
+      { key: 'project_names', label: 'Projects', type: 'project-multiselect', required: true },
       { key: 'task_id', label: 'Linked Task (optional)', type: 'task-link' },
       { key: 'ticket_code', label: 'Ticket' },
       { key: 'title', label: 'Title', required: true, span: 'full' },
@@ -144,6 +144,7 @@ export function serialize(config: RecordConfig, form: Record<string, any>) {
   const payload: Record<string, any> = { ...form };
   if ('completed_items' in payload) payload.completed_items = String(payload.completed_items || '').split('\n').map((item) => item.trim()).filter(Boolean);
   if ('tags' in payload) payload.tags = String(payload.tags || '').split(',').map((item) => item.trim()).filter(Boolean);
+  if (Array.isArray(payload.project_names) && payload.project_names.length === 0) delete payload.project_names;
   for (const key of ['project_id', 'task_id', 'actual_duration', 'estimated_duration', 'duration_minutes', 'rating']) {
     if (payload[key] === '' || payload[key] === 0) payload[key] = null;
     else if (payload[key] !== undefined && payload[key] !== null) payload[key] = Number(payload[key]);

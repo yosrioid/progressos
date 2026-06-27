@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\BulkWorkLogRequest;
 use App\Http\Requests\WorkLogRequest;
 use App\Http\Resources\WorkLogResource;
 use App\Models\WorkLog;
@@ -13,7 +12,6 @@ use App\Services\TagSyncer;
 use App\Support\ApiQuery;
 use App\Support\ApiResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 
 class WorkLogController extends Controller
 {
@@ -49,23 +47,30 @@ class WorkLogController extends Controller
     public function store(WorkLogRequest $request, ProjectResolver $projects, TagSyncer $tags, MilestoneProgressSync $sync)
     {
         $data = $request->validated();
-        $log = $this->createLog($request, $data, $projects, $tags);
-        $sync->syncFor($request->user());
+        $projectNames = collect($data['project_names'] ?? [])
+            ->map(fn ($name) => trim((string) $name))
+            ->filter()
+            ->unique()
+            ->values();
 
-        return ApiResponse::item('log', new WorkLogResource($log->load('tags')), 201, 'Work log created.');
-    }
+        if ($projectNames->isEmpty()) {
+            $projectNames = collect([$data['project_name']]);
+        }
 
-    public function bulkStore(BulkWorkLogRequest $request, ProjectResolver $projects, TagSyncer $tags, MilestoneProgressSync $sync)
-    {
-        $logs = DB::transaction(function () use ($request, $projects, $tags) {
-            return collect($request->validated('logs'))
-                ->map(fn (array $data) => $this->createLog($request, $data, $projects, $tags)->load('tags'))
-                ->values();
+        unset($data['project_names']);
+
+        $logs = $projectNames->map(function (string $projectName) use ($request, $data, $projects, $tags) {
+            $row = $data;
+            $row['project_name'] = $projectName;
+
+            return $this->createLog($request, $row, $projects, $tags)->load('tags');
         });
 
         $sync->syncFor($request->user());
+        $message = $logs->count() > 1 ? "{$logs->count()} work logs created." : 'Work log created.';
 
-        return ApiResponse::collection('logs', WorkLogResource::collection($logs), 201, 'Work logs created.', [
+        return ApiResponse::item('log', new WorkLogResource($logs->first()), 201, $message, [
+            'logs' => WorkLogResource::collection($logs),
             'created_count' => $logs->count(),
         ]);
     }
