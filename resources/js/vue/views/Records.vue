@@ -165,6 +165,42 @@ async function applySavedView(view: any) {
   await applyFilters();
 }
 
+const presetTemplates: Record<string, { label: string; filters: Partial<typeof filters.value> }[]> = {
+  tasks: [
+    { label: 'Urgent & High', filters: { priority: 'urgent', status: '' } },
+    { label: 'Blocked', filters: { status: 'blocked' } },
+    { label: 'Todo', filters: { status: 'todo' } },
+    { label: 'In progress', filters: { status: 'in_progress' } },
+  ],
+  'work-logs': [
+    { label: 'Bugs', filters: { category: 'bug' } },
+    { label: 'Features', filters: { category: 'feature' } },
+    { label: 'Meetings', filters: { category: 'meeting' } },
+    { label: 'Blocked', filters: { status: 'blocked' } },
+  ],
+  'daily-progress': [
+    { label: 'This week', filters: { from: new Date(Date.now() - 6 * 86400000).toISOString().slice(0, 10), to: new Date().toISOString().slice(0, 10) } },
+  ],
+  learning: [
+    { label: 'Programming', filters: { category: 'programming' } },
+    { label: 'Books', filters: { category: 'books' } },
+    { label: 'English', filters: { category: 'english' } },
+    { label: 'Career', filters: { category: 'career' } },
+  ],
+  milestones: [
+    { label: 'Active', filters: { status: 'active' } },
+    { label: 'Completed', filters: { status: 'completed' } },
+    { label: 'Paused', filters: { status: 'paused' } },
+  ],
+};
+
+const modulePresets = computed(() => presetTemplates[props.type] ?? []);
+
+function applyPreset(preset: { label: string; filters: Partial<typeof filters.value> }) {
+  filters.value = { ...filters.value, ...preset.filters, page: 1 };
+  applyFilters();
+}
+
 const statusCycle: Record<string, string> = { todo: 'in_progress', in_progress: 'done', done: 'todo', blocked: 'todo' };
 const priorityDotColors: Record<string, string> = { urgent: 'bg-red-500', high: 'bg-orange-400', medium: 'bg-sky-400', low: 'bg-slate-300 dark:bg-zinc-600' };
 const priorityTextColors: Record<string, string> = { urgent: 'text-red-600 dark:text-red-400', high: 'text-orange-500 dark:text-orange-400', medium: 'text-sky-500', low: 'text-slate-400' };
@@ -313,6 +349,17 @@ onMounted(async () => {
       <div class="flex gap-2"><button type="button" class="btn btn-muted" @click="clearFilters">Reset</button><button class="btn btn-primary">Apply</button></div>
     </div>
     <div class="mt-4 border-t border-slate-100 pt-4">
+      <!-- Quick preset templates -->
+      <div v-if="modulePresets.length" class="mb-3 flex flex-wrap items-center gap-2">
+        <span class="text-xs font-extrabold uppercase tracking-wide text-slate-400">Quick:</span>
+        <button
+          v-for="preset in modulePresets"
+          :key="preset.label"
+          type="button"
+          class="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-600 hover:border-teal-300 hover:bg-teal-50 hover:text-teal-700 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-400 dark:hover:border-teal-700 dark:hover:text-teal-400"
+          @click="applyPreset(preset)"
+        >{{ preset.label }}</button>
+      </div>
       <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div class="flex flex-wrap gap-2">
           <span v-for="view in savedViews" :key="view.id" class="inline-flex overflow-hidden rounded-lg border border-slate-200 bg-white text-sm font-semibold">
