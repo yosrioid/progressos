@@ -2,6 +2,9 @@
 import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { api, unwrap } from '../api';
+import Analytics from './Analytics.vue';
+
+const activeTab = ref<'feed' | 'analytics'>('feed');
 
 const router = useRouter();
 const items = ref<any[]>([]);
@@ -182,13 +185,23 @@ onMounted(load);
 
 <template>
   <div>
-    <div class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+    <div class="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
       <div>
-        <p class="text-xs font-extrabold uppercase text-teal-700 dark:text-teal-500">Timeline</p>
-        <h1 class="text-3xl font-extrabold tracking-tight">Activity</h1>
-        <p class="mt-1 text-sm font-medium text-slate-500 dark:text-zinc-500">All changes and records, newest first.</p>
+        <p class="text-xs font-extrabold uppercase text-teal-700 dark:text-teal-500">{{ activeTab === 'analytics' ? 'Insights' : 'Timeline' }}</p>
+        <h1 class="text-3xl font-extrabold tracking-tight">{{ activeTab === 'analytics' ? 'Analytics' : 'Activity' }}</h1>
+        <p class="mt-1 text-sm font-medium text-slate-500 dark:text-zinc-500">{{ activeTab === 'analytics' ? 'All productivity metrics in one view.' : 'All changes and records, newest first.' }}</p>
+      </div>
+      <div class="inline-flex rounded-xl border border-slate-200 bg-white p-0.5 dark:border-zinc-700 dark:bg-zinc-900">
+        <button class="rounded-lg px-4 py-1.5 text-sm font-bold transition" :class="activeTab === 'feed' ? 'bg-slate-900 text-white dark:bg-zinc-100 dark:text-zinc-900' : 'text-slate-500 hover:text-slate-700 dark:text-zinc-400 dark:hover:text-zinc-200'" @click="activeTab = 'feed'">Feed</button>
+        <button class="rounded-lg px-4 py-1.5 text-sm font-bold transition" :class="activeTab === 'analytics' ? 'bg-slate-900 text-white dark:bg-zinc-100 dark:text-zinc-900' : 'text-slate-500 hover:text-slate-700 dark:text-zinc-400 dark:hover:text-zinc-200'" @click="activeTab = 'analytics'">Analytics</button>
       </div>
     </div>
+
+    <!-- Analytics tab -->
+    <Analytics v-if="activeTab === 'analytics'" :hide-header="true" />
+
+    <!-- Feed tab -->
+    <template v-else>
 
     <!-- Filters -->
     <div class="card mb-5 p-4">
@@ -295,5 +308,7 @@ onMounted(load);
         <p v-else class="text-xs text-slate-400 dark:text-zinc-600">All activity loaded.</p>
       </div>
     </div>
+
+    </template>
   </div>
 </template>

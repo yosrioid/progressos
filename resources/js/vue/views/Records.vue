@@ -266,6 +266,10 @@ onMounted(async () => {
       <button v-if="type === 'learning'" type="button" class="btn btn-muted" @click="showStats ? showStats = false : loadLearningStats()">
         {{ showStats ? 'Hide Stats' : 'Show Stats' }}
       </button>
+      <div v-if="type === 'tasks'" class="inline-flex rounded-xl border border-slate-200 bg-white p-0.5 dark:border-zinc-700 dark:bg-zinc-900">
+        <span class="rounded-lg px-3 py-1.5 text-sm font-bold bg-slate-900 text-white dark:bg-zinc-100 dark:text-zinc-900">List</span>
+        <RouterLink to="/tasks/board" class="rounded-lg px-3 py-1.5 text-sm font-bold text-slate-500 hover:text-slate-700 dark:text-zinc-400 dark:hover:text-zinc-200">Board</RouterLink>
+      </div>
       <RouterLink class="btn btn-primary" :to="`/${type}/create`">New {{ config.singular }}</RouterLink>
     </div>
   </div>

@@ -8,9 +8,11 @@ import { dismissToast, feedback, resolveConfirm, toast } from './feedback';
 import { pasteLinkOverSelection } from './linkPaste';
 import { useAuthStore } from './stores/auth';
 import { useConfigurationStore } from './stores/configuration';
+import { usePrivacyStore } from './stores/privacy';
 
 const auth = useAuthStore();
 const configuration = useConfigurationStore();
+const privacy = usePrivacyStore();
 const router = useRouter();
 const route = useRoute();
 const quick = ref(false);
@@ -37,7 +39,6 @@ const navGroups = [
       { label: 'Dashboard', href: '/dashboard', icon: 'dashboard' },
       { label: 'Projects', href: '/projects', icon: 'folder' },
       { label: 'Activity', href: '/activity', icon: 'chart' },
-      { label: 'Analytics', href: '/analytics', icon: 'chart' },
       { label: 'Docs', href: '/docs', icon: 'docs' },
       { label: 'Lists', href: '/lists', icon: 'check' },
       { label: 'Tagihan', href: '/bills', icon: 'billing' },
@@ -50,14 +51,12 @@ const navGroups = [
       { label: 'Daily Progress', href: '/daily-progress', icon: 'calendar' },
       { label: 'Work Logs', href: '/work-logs', icon: 'briefcase' },
       { label: 'Tasks', href: '/tasks', icon: 'check' },
-      { label: 'Task Board', href: '/tasks/board', icon: 'check' },
     ],
   },
   {
     label: 'Learning & Goals',
     items: [
       { label: 'Learning', href: '/learning', icon: 'book' },
-      { label: 'Milestones', href: '/milestones', icon: 'target' },
       { label: 'Goals & OKR', href: '/goals', icon: 'target' },
       { label: 'Habits', href: '/habits', icon: 'check' },
     ],
@@ -65,7 +64,6 @@ const navGroups = [
   {
     label: 'Review',
     items: [
-      { label: 'Weekly Review', href: '/weekly-review', icon: 'chart' },
       { label: 'Reports', href: '/reports/weekly', icon: 'chart' },
     ],
   },
@@ -475,6 +473,19 @@ onUnmounted(() => {
               </div>
             </div>
           </div>
+          <!-- Privacy hide toggle -->
+          <button
+            class="grid h-11 w-11 shrink-0 place-items-center rounded-xl border transition"
+            :class="privacy.hideSensitive ? 'border-amber-300 bg-amber-50 text-amber-600 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-400' : 'border-slate-200 bg-white text-slate-500 hover:border-teal-200 hover:text-teal-700 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:border-teal-700 dark:hover:text-teal-400'"
+            :title="privacy.hideSensitive ? 'Data keuangan disembunyikan — klik untuk tampilkan' : 'Sembunyikan data sensitif'"
+            aria-label="Toggle privacy mode"
+            @click="privacy.toggleHide()"
+          >
+            <!-- Eye open -->
+            <svg v-if="!privacy.hideSensitive" class="h-4 w-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" viewBox="0 0 24 24"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+            <!-- Eye off (hidden) -->
+            <svg v-else class="h-4 w-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" viewBox="0 0 24 24"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24M1 1l22 22"/></svg>
+          </button>
           <!-- Theme toggle -->
           <button
             class="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-slate-200 bg-white text-slate-500 transition hover:border-teal-200 hover:text-teal-700 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:border-teal-700 dark:hover:text-teal-400"

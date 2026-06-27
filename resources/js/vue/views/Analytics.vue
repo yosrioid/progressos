@@ -3,6 +3,8 @@ import { computed, onMounted, ref } from 'vue';
 import { api, unwrap } from '../api';
 import { minutes } from '../format';
 
+const props = withDefaults(defineProps<{ hideHeader?: boolean }>(), { hideHeader: false });
+
 const data = ref<any>(null);
 const loading = ref(true);
 
@@ -60,7 +62,7 @@ const totalTasks = computed(() => {
 
 <template>
   <div>
-    <div class="mb-5">
+    <div v-if="!props.hideHeader" class="mb-5">
       <p class="text-xs font-extrabold uppercase text-teal-700 dark:text-teal-500">Insights</p>
       <h1 class="text-2xl font-extrabold">Analytics</h1>
       <p class="mt-1 text-sm font-medium text-slate-500 dark:text-zinc-500">All productivity metrics in one view.</p>

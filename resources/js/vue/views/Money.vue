@@ -2,6 +2,10 @@
 import { computed, onMounted, ref, watch } from 'vue';
 import { api, unwrap } from '../api';
 import { toast } from '../feedback';
+import PinGate from '../components/PinGate.vue';
+import { usePrivacyStore } from '../stores/privacy';
+
+const privacy = usePrivacyStore();
 
 interface MonthSummary {
   month: string; income: number; expense: number; net: number; total_count: number;
@@ -38,6 +42,10 @@ const dragOver = ref(false);
 function formatRp(val: number | null | undefined): string {
   if (val == null) return '—';
   return 'Rp ' + Math.round(val).toLocaleString('id-ID');
+}
+function showRp(val: number | null | undefined): string {
+  if (privacy.hideSensitive) return '•••••';
+  return formatRp(val);
 }
 function monthLabel(m: string) {
   return new Date(m + '-02').toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
@@ -159,6 +167,7 @@ onMounted(loadMonths);
 </script>
 
 <template>
+  <PinGate>
   <div>
     <!-- Header -->
     <div class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
@@ -220,16 +229,16 @@ onMounted(loadMonths);
       <div class="mb-4 grid grid-cols-3 gap-3">
         <div class="rounded-2xl border border-teal-100 bg-teal-50/80 px-4 py-3 dark:border-teal-800/30 dark:bg-teal-900/10">
           <p class="label mb-1">Total pemasukan</p>
-          <p class="text-lg font-extrabold text-teal-800 dark:text-teal-300">{{ formatRp(totalAllTime.income) }}</p>
+          <p class="text-lg font-extrabold text-teal-800 dark:text-teal-300">{{ showRp(totalAllTime.income) }}</p>
         </div>
         <div class="rounded-2xl border border-red-100 bg-red-50/80 px-4 py-3 dark:border-red-800/30 dark:bg-red-900/10">
           <p class="label mb-1">Total pengeluaran</p>
-          <p class="text-lg font-extrabold text-red-700 dark:text-red-400">{{ formatRp(totalAllTime.expense) }}</p>
+          <p class="text-lg font-extrabold text-red-700 dark:text-red-400">{{ showRp(totalAllTime.expense) }}</p>
         </div>
         <div class="rounded-2xl border px-4 py-3" :class="totalAllTime.net >= 0 ? 'border-teal-200 bg-teal-50 dark:border-teal-700/40 dark:bg-teal-900/15' : 'border-red-200 bg-red-50 dark:border-red-700/40 dark:bg-red-900/10'">
           <p class="label mb-1">Sisa keseluruhan</p>
           <p class="text-lg font-extrabold" :class="totalAllTime.net >= 0 ? 'text-teal-800 dark:text-teal-300' : 'text-red-700 dark:text-red-400'">
-            {{ totalAllTime.net >= 0 ? '+' : '' }}{{ formatRp(totalAllTime.net) }}
+            {{ privacy.hideSensitive ? '•••••' : (totalAllTime.net >= 0 ? '+' : '') + formatRp(totalAllTime.net) }}
           </p>
         </div>
       </div>
@@ -249,7 +258,7 @@ onMounted(loadMonths);
             <span class="text-xs font-extrabold capitalize" :class="selectedMonth === m.month ? 'text-teal-700 dark:text-teal-300' : 'text-slate-500 dark:text-zinc-400'">{{ shortMonth(m.month) }}</span>
             <span class="mt-0.5 text-[10px] font-semibold text-slate-400 dark:text-zinc-500">{{ m.total_count }} trx</span>
             <span class="mt-1 text-[11px] font-extrabold" :class="m.net >= 0 ? 'text-teal-600 dark:text-teal-400' : 'text-red-500 dark:text-red-400'">
-              {{ m.net >= 0 ? '+' : '' }}{{ Math.round(m.net / 1000) }}k
+              {{ privacy.hideSensitive ? '•••' : (m.net >= 0 ? '+' : '') + Math.round(m.net / 1000) + 'k' }}
             </span>
           </button>
         </div>
@@ -267,18 +276,18 @@ onMounted(loadMonths);
         <div class="mb-4 grid grid-cols-2 gap-3 md:grid-cols-4">
           <div class="rounded-2xl border border-teal-100 bg-teal-50/80 p-4 dark:border-teal-800/30 dark:bg-teal-900/10">
             <p class="label mb-1">Pemasukan</p>
-            <p class="text-xl font-extrabold text-teal-800 dark:text-teal-300">{{ formatRp(monthData.summary.income) }}</p>
+            <p class="text-xl font-extrabold text-teal-800 dark:text-teal-300">{{ showRp(monthData.summary.income) }}</p>
             <p class="mt-0.5 text-[11px] font-semibold text-teal-600 dark:text-teal-500">{{ monthData.summary.income_count }} transaksi</p>
           </div>
           <div class="rounded-2xl border border-red-100 bg-red-50/80 p-4 dark:border-red-800/30 dark:bg-red-900/10">
             <p class="label mb-1">Pengeluaran</p>
-            <p class="text-xl font-extrabold text-red-700 dark:text-red-400">{{ formatRp(monthData.summary.expense) }}</p>
+            <p class="text-xl font-extrabold text-red-700 dark:text-red-400">{{ showRp(monthData.summary.expense) }}</p>
             <p class="mt-0.5 text-[11px] font-semibold text-red-500 dark:text-red-500">{{ monthData.summary.expense_count }} transaksi</p>
           </div>
           <div class="rounded-2xl border p-4" :class="monthData.summary.net >= 0 ? 'border-teal-200 bg-teal-50 dark:border-teal-700/40 dark:bg-teal-900/15' : 'border-red-200 bg-red-50 dark:border-red-700/40 dark:bg-red-900/10'">
             <p class="label mb-1">Selisih (Net)</p>
             <p class="text-xl font-extrabold" :class="monthData.summary.net >= 0 ? 'text-teal-800 dark:text-teal-300' : 'text-red-700 dark:text-red-400'">
-              {{ monthData.summary.net >= 0 ? '+' : '' }}{{ formatRp(monthData.summary.net) }}
+              {{ privacy.hideSensitive ? '•••••' : (monthData.summary.net >= 0 ? '+' : '') + formatRp(monthData.summary.net) }}
             </p>
             <p class="mt-0.5 text-[11px] font-semibold text-slate-400 dark:text-zinc-500">pemasukan − pengeluaran</p>
           </div>
@@ -311,7 +320,7 @@ onMounted(loadMonths);
                 @click="filterCategory = ''; filterType = filterType === 'income' ? 'all' : 'income'"
               >
                 <span>💰 Pemasukan</span>
-                <span class="font-extrabold text-teal-600 dark:text-teal-400">{{ formatRp(monthData.summary.income) }}</span>
+                <span class="font-extrabold text-teal-600 dark:text-teal-400">{{ showRp(monthData.summary.income) }}</span>
               </button>
               <!-- Expense categories -->
               <div class="mt-1 space-y-0.5">
@@ -323,7 +332,7 @@ onMounted(loadMonths);
                   >
                     <div class="h-1.5 rounded-full bg-red-400 dark:bg-red-500" :style="{ width: `${Math.max(4, (cat.total / maxCatAmount) * 28)}px` }" />
                     <span class="min-w-0 flex-1 truncate text-left">{{ cat.category }}</span>
-                    <span class="shrink-0 text-xs font-extrabold text-red-600 dark:text-red-400">{{ formatRp(cat.total) }}</span>
+                    <span class="shrink-0 text-xs font-extrabold text-red-600 dark:text-red-400">{{ showRp(cat.total) }}</span>
                   </button>
                   <!-- Subcategories when expanded -->
                   <div v-if="filterCategory === cat.category" class="ml-6 mt-0.5 space-y-0.5">
@@ -333,7 +342,7 @@ onMounted(loadMonths);
                       class="flex w-full items-center justify-between rounded-lg px-2 py-1.5 text-xs font-semibold text-slate-500 transition hover:bg-slate-50 dark:text-zinc-400 dark:hover:bg-zinc-800"
                     >
                       <span class="truncate">{{ sub.subcategory || 'Lainnya' }}</span>
-                      <span class="ml-2 font-extrabold text-red-500 dark:text-red-400">{{ formatRp(sub.total) }}</span>
+                      <span class="ml-2 font-extrabold text-red-500 dark:text-red-400">{{ showRp(sub.total) }}</span>
                     </button>
                   </div>
                 </div>
@@ -372,7 +381,7 @@ onMounted(loadMonths);
                   <div class="flex-1 border-t border-slate-100 dark:border-zinc-800" />
                   <span class="text-[11px] font-semibold text-slate-400 dark:text-zinc-600">
                     <span v-if="group.txns.filter(t => t.type === 'expense').length">
-                      −{{ formatRp(group.txns.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0)) }}
+                      {{ privacy.hideSensitive ? '•••' : '−' + formatRp(group.txns.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0)) }}
                     </span>
                   </span>
                 </div>
@@ -406,7 +415,7 @@ onMounted(loadMonths);
                     <!-- Amount + type -->
                     <div class="shrink-0 text-right">
                       <p class="text-sm font-extrabold" :class="typeColor(t.type)">
-                        {{ t.type === 'income' ? '+' : t.type === 'expense' ? '−' : '' }}{{ formatRp(t.amount) }}
+                        {{ privacy.hideSensitive ? '•••••' : (t.type === 'income' ? '+' : t.type === 'expense' ? '−' : '') + formatRp(t.amount) }}
                       </p>
                       <span class="rounded-full px-2 py-0.5 text-[10px] font-extrabold" :class="typePill(t.type)">{{ typeLabel(t.type) }}</span>
                     </div>
@@ -419,4 +428,5 @@ onMounted(loadMonths);
       </template>
     </template>
   </div>
+  </PinGate>
 </template>

@@ -3,6 +3,9 @@ import { onMounted, ref } from 'vue';
 import { RouterLink } from 'vue-router';
 import { api, unwrap } from '../api';
 import { formatDate, minutes } from '../format';
+import { usePrivacyStore } from '../stores/privacy';
+
+const privacy = usePrivacyStore();
 
 function milestonePaceLabel(m: any): { label: string; tone: string } | null {
   const now = new Date();
@@ -255,7 +258,7 @@ async function copyStandup() {
               <span class="text-xs font-extrabold text-red-700 dark:text-red-400">{{ data.bills_summary.overdue_count }} melewati jatuh tempo</span>
             </div>
             <p v-if="data.bills_summary.unpaid_amount > 0" class="text-xs font-semibold text-slate-400 dark:text-zinc-500">
-              Sisa belum bayar: <span class="font-extrabold text-slate-600 dark:text-zinc-300">Rp {{ Number(data.bills_summary.unpaid_amount).toLocaleString('id-ID') }}</span>
+              Sisa belum bayar: <span class="font-extrabold text-slate-600 dark:text-zinc-300">{{ privacy.hideSensitive ? '•••••' : 'Rp ' + Number(data.bills_summary.unpaid_amount).toLocaleString('id-ID') }}</span>
             </p>
             <p v-else class="text-xs font-extrabold text-teal-700 dark:text-teal-400">Semua tagihan bulan ini lunas!</p>
           </div>

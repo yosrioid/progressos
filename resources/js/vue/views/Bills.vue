@@ -2,6 +2,10 @@
 import { computed, nextTick, onMounted, ref } from 'vue';
 import { api, unwrap } from '../api';
 import { confirmAction, toast } from '../feedback';
+import PinGate from '../components/PinGate.vue';
+import { usePrivacyStore } from '../stores/privacy';
+
+const privacy = usePrivacyStore();
 
 interface BillPayment { id: number; actual_amount: string | null; notes: string | null; paid_at: string; }
 interface LastPayment { month: string; actual_amount: string | null; }
@@ -79,8 +83,16 @@ function formatRp(val: string | number | null | undefined): string {
   return isNaN(n) ? '—' : 'Rp ' + n.toLocaleString('id-ID');
 }
 function parseAmount(s: string): number | null {
-  const n = parseFloat(s.replace(/[^0-9.]/g, ''));
+  const n = parseInt(s.replace(/[^0-9]/g, ''), 10);
   return isNaN(n) ? null : n;
+}
+function formatRpInput(s: string): string {
+  const n = parseInt(s.replace(/[^0-9]/g, ''), 10);
+  return isNaN(n) ? '' : n.toLocaleString('id-ID');
+}
+function showRp(val: string | number | null | undefined): string {
+  if (privacy.hideSensitive) return '•••••';
+  return formatRp(val);
 }
 
 const activeBills = computed(() => bills.value.filter((b) => !b.skipped));
@@ -108,7 +120,7 @@ async function load() {
     const data = await api.get(`/api/v1/bills/month/${month.value}`).then(unwrap);
     bills.value = data.bills ?? [];
     budget.value = data.budget ?? null;
-    budgetInput.value = budget.value ? String(budget.value) : '';
+    budgetInput.value = budget.value ? budget.value.toLocaleString('id-ID') : '';
   } finally {
     loading.value = false;
   }
@@ -279,6 +291,7 @@ onMounted(load);
 </script>
 
 <template>
+  <PinGate>
   <div>
     <!-- Header -->
     <div class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
@@ -336,7 +349,7 @@ onMounted(load);
       </p>
       <div class="grid gap-3 sm:grid-cols-2">
         <div><label class="label mb-1">Nama tagihan *</label><input v-model="addForm.name" class="field" placeholder="Listrik rumah" required /></div>
-        <div><label class="label mb-1">Estimasi (Rp)</label><input v-model="addForm.estimated_amount" class="field" placeholder="150.000" inputmode="numeric" /></div>
+        <div><label class="label mb-1">Estimasi (Rp)</label><input v-model="addForm.estimated_amount" class="field" placeholder="150.000" inputmode="numeric" @blur="addForm.estimated_amount = formatRpInput(addForm.estimated_amount)" /></div>
         <div><label class="label mb-1">Tanggal jatuh tempo</label><input v-model="addForm.due_day" class="field" type="number" min="1" max="31" placeholder="Tgl 1–31" /></div>
         <div><label class="label mb-1">Kategori</label><input v-model="addForm.category" class="field" placeholder="Utilitas, Langganan, dll" /></div>
       </div>
@@ -373,7 +386,7 @@ onMounted(load);
                 <form v-if="editingId === bill.id" class="flex flex-col gap-2 bg-slate-50/60 p-4 dark:bg-zinc-900/50" @submit.prevent="saveEdit(bill)">
                   <div class="grid gap-2 sm:grid-cols-2">
                     <input ref="editNameRef" v-model="editForm.name" class="field" placeholder="Nama" required />
-                    <input v-model="editForm.estimated_amount" class="field" placeholder="Estimasi (Rp)" inputmode="numeric" />
+                    <input v-model="editForm.estimated_amount" class="field" placeholder="Estimasi (Rp)" inputmode="numeric" @blur="editForm.estimated_amount = formatRpInput(editForm.estimated_amount)" />
                     <input v-model="editForm.due_day" class="field" type="number" min="1" max="31" placeholder="Tgl jatuh tempo" />
                     <input v-model="editForm.category" class="field" placeholder="Kategori" />
                   </div>
@@ -423,12 +436,12 @@ onMounted(load);
                       </div>
                       <p v-if="!bill.skipped" class="mt-0.5 text-xs font-semibold text-slate-400 dark:text-zinc-500">
                         <template v-if="bill.paid && bill.payment">
-                          <span class="font-extrabold text-teal-600 dark:text-teal-400">{{ formatRp(bill.payment.actual_amount) }}</span>
-                          <span v-if="bill.payment.actual_amount && bill.estimated_amount && parseFloat(bill.payment.actual_amount) !== parseFloat(bill.estimated_amount)" class="ml-1 text-slate-300 dark:text-zinc-600">(est. {{ formatRp(bill.estimated_amount) }})</span>
+                          <span class="font-extrabold text-teal-600 dark:text-teal-400">{{ showRp(bill.payment.actual_amount) }}</span>
+                          <span v-if="bill.payment.actual_amount && bill.estimated_amount && parseFloat(bill.payment.actual_amount) !== parseFloat(bill.estimated_amount)" class="ml-1 text-slate-300 dark:text-zinc-600">(est. {{ showRp(bill.estimated_amount) }})</span>
                         </template>
                         <template v-else>
-                          {{ formatRp(bill.estimated_amount) }}
-                          <span v-if="bill.last_payment?.actual_amount" class="ml-2 text-slate-300 dark:text-zinc-700">· bln lalu {{ formatRp(bill.last_payment.actual_amount) }}</span>
+                          {{ showRp(bill.estimated_amount) }}
+                          <span v-if="bill.last_payment?.actual_amount" class="ml-2 text-slate-300 dark:text-zinc-700">· bln lalu {{ showRp(bill.last_payment.actual_amount) }}</span>
                         </template>
                       </p>
                     </div>
@@ -438,11 +451,11 @@ onMounted(load);
                       <button v-if="bill.is_recurring" class="rounded-lg p-1.5 transition-colors" :class="bill.skipped ? 'text-amber-500 hover:text-amber-600 dark:text-amber-400' : 'text-slate-300 hover:text-slate-500 dark:text-zinc-700 dark:hover:text-zinc-400'" :aria-label="bill.skipped ? 'Aktifkan kembali' : 'Lewati bulan ini'" :title="bill.skipped ? 'Aktifkan kembali' : 'Lewati bulan ini'" @click="toggleSkip(bill)">
                         <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24"><path d="M13 9l3 3-3 3M6 9l3 3-3 3" /></svg>
                       </button>
-                      <button v-if="!bill.skipped" class="rounded-lg p-1.5 text-slate-300 transition-colors hover:text-slate-600 dark:text-zinc-700 dark:hover:text-zinc-300" aria-label="Edit tagihan" @click="startEdit(bill)">
-                        <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5Z"/></svg>
+                      <button v-if="!bill.skipped" class="btn-icon-edit" aria-label="Edit tagihan" @click="startEdit(bill)">
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5Z"/></svg>
                       </button>
-                      <button class="rounded-lg p-1.5 text-slate-300 transition-colors hover:text-red-400 dark:text-zinc-700 dark:hover:text-red-400" aria-label="Hapus tagihan" @click="deleteBill(bill)">
-                        <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                      <button class="btn-icon-delete" aria-label="Hapus tagihan" @click="deleteBill(bill)">
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0 1 16.138 21H7.862a2 2 0 0 1-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v3M4 7h16"/></svg>
                       </button>
                     </div>
                   </div>
@@ -451,12 +464,12 @@ onMounted(load);
                   <div v-if="payingId === bill.id" class="border-t border-slate-100 bg-slate-50/60 px-4 py-3 dark:border-zinc-800 dark:bg-zinc-900/50">
                     <p class="mb-2 text-xs font-extrabold text-slate-500 dark:text-zinc-400">Konfirmasi pembayaran — {{ bill.name }}</p>
                     <p v-if="bill.last_payment?.actual_amount" class="mb-2 text-xs text-slate-400 dark:text-zinc-500">
-                      Bulan lalu: <span class="font-extrabold text-slate-600 dark:text-zinc-300">{{ formatRp(bill.last_payment.actual_amount) }}</span>
+                      Bulan lalu: <span class="font-extrabold text-slate-600 dark:text-zinc-300">{{ showRp(bill.last_payment.actual_amount) }}</span>
                     </p>
                     <div class="flex items-end gap-2">
                       <div class="flex-1">
                         <label class="label mb-1">Nominal aktual (Rp)</label>
-                        <input ref="payAmountRef" v-model="payAmount" class="field" inputmode="numeric" placeholder="0" @keydown.enter.prevent="confirmPay(bill)" @keydown.escape="payingId = null" />
+                        <input ref="payAmountRef" v-model="payAmount" class="field" inputmode="numeric" placeholder="0" @keydown.enter.prevent="confirmPay(bill)" @keydown.escape="payingId = null" @blur="payAmount = formatRpInput(payAmount)" />
                       </div>
                       <div class="flex-1">
                         <label class="label mb-1">Catatan (opsional)</label>
@@ -477,7 +490,7 @@ onMounted(load);
                     <template v-else-if="historyData">
                       <div class="mb-2 flex items-center justify-between">
                         <p class="text-xs font-extrabold text-slate-500 dark:text-zinc-400">History 12 bulan terakhir</p>
-                        <span v-if="historyData.average_actual" class="text-xs font-extrabold text-teal-600 dark:text-teal-400">Rata-rata: {{ formatRp(historyData.average_actual) }}</span>
+                        <span v-if="historyData.average_actual" class="text-xs font-extrabold text-teal-600 dark:text-teal-400">Rata-rata: {{ showRp(historyData.average_actual) }}</span>
                       </div>
                       <div v-if="!historyData.history.length" class="text-xs text-slate-400">Belum ada history pembayaran.</div>
                       <div v-else class="grid gap-1">
@@ -485,7 +498,7 @@ onMounted(load);
                           <span class="font-semibold capitalize text-slate-500 dark:text-zinc-400">{{ shortMonthLabel(h.month) }}</span>
                           <div class="flex items-center gap-3">
                             <span v-if="h.notes" class="max-w-[120px] truncate text-slate-400 dark:text-zinc-600">{{ h.notes }}</span>
-                            <span class="font-extrabold text-slate-700 dark:text-zinc-200">{{ formatRp(h.actual_amount) }}</span>
+                            <span class="font-extrabold text-slate-700 dark:text-zinc-200">{{ showRp(h.actual_amount) }}</span>
                           </div>
                         </div>
                       </div>
@@ -513,26 +526,26 @@ onMounted(load);
               <div class="h-full rounded-full bg-teal-500 transition-all duration-500" :style="{ width: activeBills.length ? (paidCount / activeBills.length * 100) + '%' : '0%' }" />
             </div>
             <div class="space-y-1.5">
-              <div class="flex justify-between text-sm"><span class="font-semibold text-slate-500 dark:text-zinc-400">Sudah dibayar</span><span class="font-extrabold text-teal-600 dark:text-teal-400">{{ formatRp(totalPaid) }}</span></div>
-              <div class="flex justify-between text-sm"><span class="font-semibold text-slate-500 dark:text-zinc-400">Belum dibayar</span><span class="font-extrabold" :class="totalUnpaid > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-slate-400'">{{ formatRp(totalUnpaid) }}</span></div>
-              <div class="flex justify-between border-t border-slate-100 pt-1.5 text-sm dark:border-zinc-800"><span class="font-semibold text-slate-500 dark:text-zinc-400">Total estimasi</span><span class="font-extrabold text-slate-700 dark:text-zinc-200">{{ formatRp(totalEstimated) }}</span></div>
+              <div class="flex justify-between text-sm"><span class="font-semibold text-slate-500 dark:text-zinc-400">Sudah dibayar</span><span class="font-extrabold text-teal-600 dark:text-teal-400">{{ showRp(totalPaid) }}</span></div>
+              <div class="flex justify-between text-sm"><span class="font-semibold text-slate-500 dark:text-zinc-400">Belum dibayar</span><span class="font-extrabold" :class="totalUnpaid > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-slate-400'">{{ showRp(totalUnpaid) }}</span></div>
+              <div class="flex justify-between border-t border-slate-100 pt-1.5 text-sm dark:border-zinc-800"><span class="font-semibold text-slate-500 dark:text-zinc-400">Total estimasi</span><span class="font-extrabold text-slate-700 dark:text-zinc-200">{{ showRp(totalEstimated) }}</span></div>
             </div>
           </div>
 
           <div class="card p-4">
             <div class="mb-3 flex items-center justify-between">
               <p class="text-xs font-extrabold uppercase text-slate-500 dark:text-zinc-400">Budget / Pemasukan</p>
-              <button class="text-xs font-extrabold text-teal-700 hover:underline dark:text-teal-400" @click="editingBudget = !editingBudget; budgetInput = budget ? String(budget) : ''">{{ editingBudget ? 'Batal' : 'Ubah' }}</button>
+              <button class="text-xs font-extrabold text-teal-700 hover:underline dark:text-teal-400" @click="editingBudget = !editingBudget; budgetInput = budget ? budget.toLocaleString('id-ID') : ''">{{ editingBudget ? 'Batal' : 'Ubah' }}</button>
             </div>
             <form v-if="editingBudget" class="flex gap-2" @submit.prevent="saveBudget">
-              <input v-model="budgetInput" class="field flex-1" placeholder="Rp 5.000.000" inputmode="numeric" autofocus />
+              <input v-model="budgetInput" class="field flex-1" placeholder="Rp 5.000.000" inputmode="numeric" autofocus @blur="budgetInput = formatRpInput(budgetInput)" />
               <button class="btn btn-primary px-3 text-xs" type="submit">Simpan</button>
             </form>
             <template v-else>
-              <p class="text-2xl font-extrabold text-slate-900 dark:text-zinc-100">{{ budget ? formatRp(budget) : '—' }}</p>
+              <p class="text-2xl font-extrabold text-slate-900 dark:text-zinc-100">{{ budget ? showRp(budget) : '—' }}</p>
               <div v-if="budget" class="mt-3 space-y-1.5">
-                <div class="flex justify-between text-sm"><span class="font-semibold text-slate-500 dark:text-zinc-400">Sisa setelah semua lunas</span><span class="font-extrabold" :class="(budget - totalEstimated) >= 0 ? 'text-teal-600 dark:text-teal-400' : 'text-red-600 dark:text-red-400'">{{ formatRp(budget - totalEstimated) }}</span></div>
-                <div class="flex justify-between text-sm"><span class="font-semibold text-slate-500 dark:text-zinc-400">Sisa sekarang</span><span class="font-extrabold" :class="(budget - totalPaid) >= 0 ? 'text-slate-700 dark:text-zinc-200' : 'text-red-600 dark:text-red-400'">{{ formatRp(budget - totalPaid) }}</span></div>
+                <div class="flex justify-between text-sm"><span class="font-semibold text-slate-500 dark:text-zinc-400">Sisa setelah semua lunas</span><span class="font-extrabold" :class="(budget - totalEstimated) >= 0 ? 'text-teal-600 dark:text-teal-400' : 'text-red-600 dark:text-red-400'">{{ showRp(budget - totalEstimated) }}</span></div>
+                <div class="flex justify-between text-sm"><span class="font-semibold text-slate-500 dark:text-zinc-400">Sisa sekarang</span><span class="font-extrabold" :class="(budget - totalPaid) >= 0 ? 'text-slate-700 dark:text-zinc-200' : 'text-red-600 dark:text-red-400'">{{ showRp(budget - totalPaid) }}</span></div>
               </div>
               <p v-else class="mt-1 text-sm text-slate-400 dark:text-zinc-500">Set pemasukan bulanan untuk lihat sisa budget.</p>
             </template>
@@ -553,17 +566,17 @@ onMounted(load);
             <div class="mb-4 grid gap-3 sm:grid-cols-3">
               <div class="rounded-xl bg-slate-50 p-3 dark:bg-zinc-800/60">
                 <p class="label mb-1">Total aktual dibayar</p>
-                <p class="text-xl font-extrabold text-teal-700 dark:text-teal-400">{{ formatRp(annualData.total_actual) }}</p>
+                <p class="text-xl font-extrabold text-teal-700 dark:text-teal-400">{{ showRp(annualData.total_actual) }}</p>
                 <p class="mt-0.5 text-xs font-semibold text-slate-400">{{ annualData.paid_months }} bulan tercatat</p>
               </div>
               <div class="rounded-xl bg-slate-50 p-3 dark:bg-zinc-800/60">
                 <p class="label mb-1">Estimasi setahun</p>
-                <p class="text-xl font-extrabold text-slate-700 dark:text-zinc-200">{{ formatRp(annualData.annual_estimate) }}</p>
+                <p class="text-xl font-extrabold text-slate-700 dark:text-zinc-200">{{ showRp(annualData.annual_estimate) }}</p>
                 <p class="mt-0.5 text-xs font-semibold text-slate-400">dari tagihan recurring × 12</p>
               </div>
               <div class="rounded-xl bg-slate-50 p-3 dark:bg-zinc-800/60">
                 <p class="label mb-1">Rata-rata per bulan</p>
-                <p class="text-xl font-extrabold text-slate-700 dark:text-zinc-200">{{ annualData.paid_months ? formatRp(Math.round(annualData.total_actual / annualData.paid_months)) : '—' }}</p>
+                <p class="text-xl font-extrabold text-slate-700 dark:text-zinc-200">{{ annualData.paid_months ? showRp(Math.round(annualData.total_actual / annualData.paid_months)) : '—' }}</p>
                 <p class="mt-0.5 text-xs font-semibold text-slate-400">actual yang tercatat</p>
               </div>
             </div>
@@ -576,7 +589,7 @@ onMounted(load);
                   :key="m"
                   class="flex flex-1 flex-col items-center gap-1"
                 >
-                  <span class="text-[10px] font-extrabold text-teal-700 dark:text-teal-400">{{ formatRp(amount).replace('Rp ', '') }}</span>
+                  <span class="text-[10px] font-extrabold text-teal-700 dark:text-teal-400">{{ privacy.hideSensitive ? '•••' : formatRp(amount).replace('Rp ', '') }}</span>
                   <div class="w-full rounded-t-md bg-teal-500 transition-all" :style="{ height: Math.max(4, (amount / annualMax) * 72) + 'px' }" />
                   <span class="text-[10px] font-semibold capitalize text-slate-400 dark:text-zinc-500">{{ shortMonthLabel(m) }}</span>
                 </div>
@@ -587,4 +600,5 @@ onMounted(load);
       </template>
     </template>
   </div>
+  </PinGate>
 </template>

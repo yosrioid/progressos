@@ -42,6 +42,8 @@ export const router = createRouter({
     { path: '/reset-password/:token', component: ResetPassword, meta: { guest: true } },
     { path: '/', redirect: '/dashboard' },
     { path: '/dashboard', component: Dashboard },
+    { path: '/analytics', redirect: '/activity' },
+    { path: '/weekly-review', redirect: '/reports/weekly' },
     { path: '/search', component: Search },
     { path: '/profile', component: Profile },
     { path: '/configuration', component: Configuration },
