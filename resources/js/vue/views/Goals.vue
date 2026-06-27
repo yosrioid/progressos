@@ -211,9 +211,11 @@ onMounted(load);
 
     <!-- Empty state -->
     <div v-else-if="!filteredGoals.length" class="card p-12 text-center">
-      <p class="text-2xl mb-2">🎯</p>
-      <p class="font-extrabold text-slate-500 dark:text-zinc-400">No goals yet</p>
-      <p class="mt-1 text-sm text-slate-400 dark:text-zinc-500">Create your first goal to start tracking progress</p>
+      <div class="mx-auto mb-4 grid h-12 w-12 place-items-center rounded-xl bg-teal-50 dark:bg-teal-900/20">
+        <svg class="h-6 w-6 text-teal-700 dark:text-teal-400" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+      </div>
+      <h2 class="text-base font-extrabold text-slate-900 dark:text-zinc-100">Belum ada goal</h2>
+      <p class="mx-auto mt-2 max-w-xs text-sm text-slate-400 dark:text-zinc-500">Buat goal pertama untuk mulai tracking progress kamu.</p>
       <button class="btn btn-primary mt-4" @click="openGoalForm()">+ New Goal</button>
     </div>
 

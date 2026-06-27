@@ -113,7 +113,11 @@ onMounted(() => { load(); loadCategories(); });
     </div>
   </div>
 
-  <div v-if="meta && meta.last_page > 1" class="mt-6 flex justify-center gap-2">
-    <button v-for="p in meta.last_page" :key="p" class="btn btn-muted px-3 py-1.5 text-sm" :class="p === page ? 'bg-teal-700 text-white' : ''" @click="page = p; load()">{{ p }}</button>
+  <div v-if="meta && meta.last_page > 1" class="mt-6 flex items-center justify-between gap-3">
+    <p class="text-sm text-slate-500 dark:text-zinc-500">Halaman {{ meta.current_page }} dari {{ meta.last_page }}</p>
+    <div class="flex gap-2">
+      <button class="btn btn-muted" :disabled="meta.current_page <= 1" @click="page = meta.current_page - 1; load()">← Prev</button>
+      <button class="btn btn-muted" :disabled="meta.current_page >= meta.last_page" @click="page = meta.current_page + 1; load()">Next →</button>
+    </div>
   </div>
 </template>

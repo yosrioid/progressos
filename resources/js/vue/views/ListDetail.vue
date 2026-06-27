@@ -146,7 +146,11 @@ onMounted(load);
 </script>
 
 <template>
-  <div v-if="loading" class="card p-8 text-center text-sm text-slate-400">Loading…</div>
+  <div v-if="loading" class="mx-auto max-w-xl space-y-3">
+    <div class="skeleton h-8 w-32 rounded-xl" />
+    <div class="skeleton h-10 rounded-2xl" />
+    <div v-for="i in 5" :key="i" class="skeleton h-12 rounded-xl" />
+  </div>
   <div v-else-if="list" class="mx-auto max-w-xl">
 
     <!-- Back + header -->

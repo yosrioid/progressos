@@ -147,12 +147,14 @@ onMounted(() => { loadRecent(); load(); });
         @click="useRecent(term)"
       >
         {{ term }}
-        <span class="invisible text-slate-300 group-hover:visible hover:text-red-500" @click.stop="removeRecent(term)">×</span>
+        <span class="text-slate-300 hover:text-red-400 transition-colors" aria-label="Hapus" @click.stop="removeRecent(term)">×</span>
       </button>
     </div>
   </form>
 
-  <div v-if="loading" class="card p-10 text-center text-sm text-slate-400">Searching...</div>
+  <div v-if="loading" class="space-y-2">
+    <div v-for="i in 5" :key="i" class="skeleton h-14 rounded-xl" />
+  </div>
 
   <template v-else-if="q && total > 0">
     <!-- Type filter tabs -->

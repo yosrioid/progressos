@@ -156,9 +156,11 @@ onMounted(load);
 
     <!-- Empty state -->
     <div v-else-if="!habits.length" class="card p-12 text-center">
-      <p class="text-2xl mb-2">✓</p>
-      <p class="font-extrabold text-slate-500 dark:text-zinc-400">No habits yet</p>
-      <p class="mt-1 text-sm text-slate-400 dark:text-zinc-500">Create your first habit to start tracking</p>
+      <div class="mx-auto mb-4 grid h-12 w-12 place-items-center rounded-xl bg-teal-50 dark:bg-teal-900/20">
+        <svg class="h-6 w-6 text-teal-700 dark:text-teal-400" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" viewBox="0 0 24 24"><path d="M9 11l3 3L22 4M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+      </div>
+      <h2 class="text-base font-extrabold text-slate-900 dark:text-zinc-100">Belum ada habit</h2>
+      <p class="mx-auto mt-2 max-w-xs text-sm text-slate-400 dark:text-zinc-500">Buat habit pertama untuk mulai tracking kebiasaan harian kamu.</p>
       <button class="btn btn-primary mt-4" @click="openForm()">+ New Habit</button>
     </div>
 
@@ -209,9 +211,13 @@ onMounted(load);
             </div>
 
             <!-- Actions -->
-            <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-              <button class="p-1.5 text-slate-400 hover:text-teal-600 dark:hover:text-teal-400 transition-colors" title="Edit" @click="openForm(habit)">✏</button>
-              <button class="p-1.5 text-slate-400 hover:text-red-500 transition-colors" title="Delete" @click="confirmDelete(habit)">✕</button>
+            <div class="flex items-center gap-1">
+              <button class="rounded-lg p-1.5 text-slate-300 hover:text-teal-600 dark:text-zinc-700 dark:hover:text-teal-400 transition-colors" aria-label="Edit habit" @click="openForm(habit)">
+                <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5Z"/></svg>
+              </button>
+              <button class="rounded-lg p-1.5 text-slate-300 hover:text-red-400 dark:text-zinc-700 dark:hover:text-red-400 transition-colors" aria-label="Hapus habit" @click="confirmDelete(habit)">
+                <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>
+              </button>
             </div>
           </div>
 

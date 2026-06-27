@@ -75,7 +75,9 @@ onMounted(load);
       <button class="btn btn-muted px-3 py-1.5 text-xs" type="button" @click="showForm = false; newTitle = ''">Cancel</button>
     </form>
 
-    <div v-if="loading" class="card p-8 text-center text-sm text-slate-400">Loading…</div>
+    <div v-if="loading" class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+      <div v-for="i in 6" :key="i" class="skeleton h-24 rounded-2xl" />
+    </div>
 
     <div v-else-if="lists.length === 0 && !showForm" class="card p-12 text-center">
       <svg class="mx-auto mb-3 h-10 w-10 text-slate-200 dark:text-zinc-700" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" /></svg>

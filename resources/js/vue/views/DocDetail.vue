@@ -75,7 +75,12 @@ onMounted(load);
 </script>
 
 <template>
-  <div v-if="loading" class="py-12 text-center text-sm text-slate-400">Loading…</div>
+  <div v-if="loading" class="mx-auto max-w-3xl space-y-4">
+    <div class="skeleton h-10 w-2/3 rounded-2xl" />
+    <div class="skeleton h-5 w-32 rounded-xl" />
+    <div class="skeleton h-48 rounded-2xl" />
+    <div class="skeleton h-32 rounded-2xl" />
+  </div>
   <div v-else-if="doc" class="mx-auto max-w-3xl space-y-5">
     <!-- Header -->
     <div class="flex items-start justify-between gap-3">

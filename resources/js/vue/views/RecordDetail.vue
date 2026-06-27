@@ -414,7 +414,9 @@ onMounted(load);
         </div>
         <span class="text-sm font-semibold text-slate-500">{{ historySummary(record.source_type, Number(record.current_value)) }}</span>
       </div>
-      <div v-if="loadingLearning" class="py-8 text-center text-sm text-slate-400">Loading…</div>
+      <div v-if="loadingLearning" class="space-y-2 py-2">
+        <div v-for="i in 4" :key="i" class="skeleton h-10 rounded-xl" />
+      </div>
       <div v-else-if="!learningEntries.length" class="py-8 text-center text-sm text-slate-400">No matching data.</div>
       <div v-else class="divide-y divide-slate-100 dark:divide-zinc-700">
         <div v-for="item in learningEntries" :key="item.id" class="flex items-center justify-between gap-3 py-2.5">
