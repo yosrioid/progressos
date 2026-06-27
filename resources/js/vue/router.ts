@@ -23,7 +23,6 @@ import ListDetail from './views/ListDetail.vue';
 import Bills from './views/Bills.vue';
 import Money from './views/Money.vue';
 import Activity from './views/Activity.vue';
-import Analytics from './views/Analytics.vue';
 import Goals from './views/Goals.vue';
 import Habits from './views/Habits.vue';
 import TaskBoard from './views/TaskBoard.vue';
@@ -31,7 +30,6 @@ import Game2048 from './views/Game2048.vue';
 import MemoryMatch from './views/MemoryMatch.vue';
 import Minesweeper from './views/Minesweeper.vue';
 import Sudoku from './views/Sudoku.vue';
-import WeeklyReview from './views/WeeklyReview.vue';
 
 export const router = createRouter({
   history: createWebHistory(),
@@ -70,11 +68,9 @@ export const router = createRouter({
     { path: '/milestones/:id', component: RecordDetail, props: (route) => ({ type: 'milestones', id: route.params.id }) },
     { path: '/milestones/:id/edit', component: RecordForm, props: (route) => ({ type: 'milestones', id: route.params.id }) },
     { path: '/activity', component: Activity },
-    { path: '/analytics', component: Analytics },
     { path: '/habits', component: Habits },
     { path: '/goals', component: Goals },
     { path: '/tasks/board', component: TaskBoard },
-    { path: '/weekly-review', component: WeeklyReview },
     { path: '/reports/:period', component: Reports },
     { path: '/docs', component: Docs },
     { path: '/docs/create', component: DocForm },

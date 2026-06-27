@@ -197,11 +197,13 @@ onMounted(load);
       </div>
     </div>
 
-    <!-- Analytics tab -->
-    <Analytics v-if="activeTab === 'analytics'" :hide-header="true" />
+    <!-- Analytics tab (v-show keeps component mounted to avoid re-fetch on tab switch) -->
+    <div v-show="activeTab === 'analytics'">
+      <Analytics :hide-header="true" />
+    </div>
 
     <!-- Feed tab -->
-    <template v-else>
+    <template v-if="activeTab === 'feed'">
 
     <!-- Filters -->
     <div class="card mb-5 p-4">

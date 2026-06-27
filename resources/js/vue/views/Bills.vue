@@ -200,7 +200,7 @@ async function saveBudget() {
   await api.post('/api/v1/bills/set-budget', { month: month.value, amount });
   budget.value = amount;
   editingBudget.value = false;
-  toast({ tone: 'success', title: 'Budget disimpan', message: formatRp(amount) });
+  toast({ tone: 'success', title: 'Budget disimpan', message: showRp(amount) });
 }
 
 async function addBill() {

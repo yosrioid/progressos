@@ -53,7 +53,7 @@ class TodoListController extends Controller
         $this->authorize('delete', $todoList);
         $todoList->delete();
 
-        return response()->noContent();
+        return ApiResponse::ok([], 'List deleted.');
     }
 
     public function storeItem(Request $request, TodoList $todoList)
@@ -99,6 +99,6 @@ class TodoListController extends Controller
         }
         $item->delete();
 
-        return response()->noContent();
+        return ApiResponse::ok([], 'Item deleted.');
     }
 }

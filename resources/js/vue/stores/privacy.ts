@@ -1,4 +1,4 @@
-import { computed, ref } from 'vue';
+import { computed, onScopeDispose, ref } from 'vue';
 import { defineStore } from 'pinia';
 
 const SENSITIVE_PATHS = ['/money', '/bills'];
@@ -13,12 +13,17 @@ export const usePrivacyStore = defineStore('privacy', () => {
       : null,
   );
 
+  // Reactive clock so isUnlocked re-evaluates every 30s without user interaction.
+  const now = ref(Date.now());
+  const _tick = setInterval(() => { now.value = Date.now(); }, 30_000);
+  onScopeDispose(() => clearInterval(_tick));
+
   const hasPin = computed(() => pinStored.value.length > 0);
 
   const isUnlocked = computed(() => {
     if (!hasPin.value) return true;
     if (unlockedAt.value === null) return false;
-    return Date.now() - unlockedAt.value < UNLOCK_MS;
+    return now.value - unlockedAt.value < UNLOCK_MS;
   });
 
   function isSensitivePath(path: string) {

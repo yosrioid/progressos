@@ -29,6 +29,10 @@ class XlsxParser
         }
 
         $doc = simplexml_load_string($xml);
+        if ($doc === false) {
+            return [];
+        }
+
         $strings = [];
         foreach ($doc->si as $si) {
             $text = '';
@@ -53,6 +57,10 @@ class XlsxParser
         }
 
         $doc = simplexml_load_string($xml);
+        if ($doc === false) {
+            return [];
+        }
+
         $rows = [];
 
         foreach ($doc->sheetData->row as $row) {
