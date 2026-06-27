@@ -6,7 +6,19 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 
-it('registers, authenticates, and logs out through the REST API', function () {
+it('blocks registration when disabled', function () {
+    $this->postJson('/api/register', [
+        'name' => 'Ada Progress',
+        'email' => 'ada@example.com',
+        'timezone' => 'UTC',
+        'password' => 'Password123',
+        'password_confirmation' => 'Password123',
+    ])->assertStatus(403);
+});
+
+it('allows registration when enabled and authenticates through the REST API', function () {
+    config(['app.registration_enabled' => true]);
+
     $this->postJson('/api/register', [
         'name' => 'Ada Progress',
         'email' => 'ada@example.com',

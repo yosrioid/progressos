@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\ActivityController;
 use App\Http\Controllers\Api\AnalyticsController;
+use App\Http\Controllers\Api\TodoListController;
 use App\Http\Controllers\Api\CaptureController;
 use App\Http\Controllers\Api\ConfigurationController;
 use App\Http\Controllers\Api\DailyProgressController;
@@ -54,6 +55,8 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
         Route::apiResource('saved-views', SavedViewController::class)->only(['index'])->parameters(['saved-views' => 'savedView']);
         Route::get('docs/categories', [DocController::class, 'categories']);
         Route::apiResource('docs', DocController::class)->only(['index', 'show']);
+        Route::get('lists', [TodoListController::class, 'index']);
+        Route::get('lists/{todoList}', [TodoListController::class, 'show']);
         Route::get('doc-files/{docFile}', [DocFileController::class, 'show']);
     });
 
@@ -85,6 +88,14 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
         Route::post('saved-views/{savedView}/set-default', [SavedViewController::class, 'setDefault']);
         Route::apiResource('references', ReferenceController::class)->only(['store', 'destroy']);
         Route::apiResource('docs', DocController::class)->only(['store', 'update', 'destroy']);
+        Route::post('docs/{doc}/share', [DocController::class, 'share']);
+        Route::post('lists', [TodoListController::class, 'store']);
+        Route::patch('lists/{todoList}', [TodoListController::class, 'update']);
+        Route::delete('lists/{todoList}', [TodoListController::class, 'destroy']);
+        Route::post('lists/{todoList}/items', [TodoListController::class, 'storeItem']);
+        Route::patch('lists/{todoList}/items/{item}', [TodoListController::class, 'updateItem']);
+        Route::delete('lists/{todoList}/items/{item}', [TodoListController::class, 'destroyItem']);
+        Route::delete('docs/{doc}/share', [DocController::class, 'unshare']);
         Route::post('docs/{doc}/files', [DocFileController::class, 'store']);
         Route::delete('docs/{doc}/files/{docFile}', [DocFileController::class, 'destroy']);
         Route::put('configuration/settings', [ConfigurationController::class, 'updateSettings']);

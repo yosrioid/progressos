@@ -11,6 +11,7 @@ use App\Support\ApiQuery;
 use App\Support\ApiResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class DocController extends Controller
 {
@@ -54,6 +55,24 @@ class DocController extends Controller
     {
         $this->authorize('update', $doc);
         $doc->update($request->validated());
+
+        return ApiResponse::item('doc', new DocResource($doc->fresh()->load('files')));
+    }
+
+    public function share(Request $request, Doc $doc)
+    {
+        $this->authorize('update', $doc);
+        if (! $doc->share_token) {
+            $doc->update(['share_token' => Str::random(48)]);
+        }
+
+        return ApiResponse::item('doc', new DocResource($doc->fresh()->load('files')));
+    }
+
+    public function unshare(Request $request, Doc $doc)
+    {
+        $this->authorize('update', $doc);
+        $doc->update(['share_token' => null]);
 
         return ApiResponse::item('doc', new DocResource($doc->fresh()->load('files')));
     }

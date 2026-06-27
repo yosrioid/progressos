@@ -1,8 +1,8 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import { useAuthStore } from './stores/auth';
 import Login from './views/Login.vue';
-import Register from './views/Register.vue';
 import Dashboard from './views/Dashboard.vue';
+import DocShare from './views/DocShare.vue';
 import ForgotPassword from './views/ForgotPassword.vue';
 import Configuration from './views/Configuration.vue';
 import Games from './views/Games.vue';
@@ -18,6 +18,8 @@ import Search from './views/Search.vue';
 import DocDetail from './views/DocDetail.vue';
 import DocForm from './views/DocForm.vue';
 import Docs from './views/Docs.vue';
+import Lists from './views/Lists.vue';
+import ListDetail from './views/ListDetail.vue';
 import Activity from './views/Activity.vue';
 import Analytics from './views/Analytics.vue';
 import Goals from './views/Goals.vue';
@@ -33,8 +35,8 @@ export const router = createRouter({
   history: createWebHistory(),
   routes: [
     { path: '/login', component: Login, meta: { guest: true } },
-    { path: '/register', component: Register, meta: { guest: true } },
     { path: '/forgot-password', component: ForgotPassword, meta: { guest: true } },
+    { path: '/share/doc/:token', component: DocShare, meta: { public: true } },
     { path: '/reset-password/:token', component: ResetPassword, meta: { guest: true } },
     { path: '/', redirect: '/dashboard' },
     { path: '/dashboard', component: Dashboard },
@@ -72,6 +74,8 @@ export const router = createRouter({
     { path: '/reports/:period', component: Reports },
     { path: '/docs', component: Docs },
     { path: '/docs/create', component: DocForm },
+    { path: '/lists', component: Lists },
+    { path: '/lists/:id', component: ListDetail },
     { path: '/docs/:id', component: DocDetail },
     { path: '/docs/:id/edit', component: DocForm },
     { path: '/games', component: Games },
@@ -86,5 +90,5 @@ router.beforeEach(async (to) => {
   const auth = useAuthStore();
   if (!auth.booted) await auth.boot();
   if (to.meta.guest && auth.user) return '/dashboard';
-  if (!to.meta.guest && !auth.user) return '/login';
+  if (!to.meta.guest && !to.meta.public && !auth.user) return '/login';
 });

@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Doc extends Model
 {
-    protected $fillable = ['user_id', 'title', 'category', 'description', 'reference_urls'];
+    protected $fillable = ['user_id', 'title', 'category', 'description', 'reference_urls', 'share_token'];
 
     protected function casts(): array
     {
