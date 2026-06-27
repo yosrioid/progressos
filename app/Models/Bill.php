@@ -9,13 +9,14 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Bill extends Model
 {
-    protected $fillable = ['user_id', 'name', 'estimated_amount', 'due_day', 'category', 'notes', 'is_active', 'position'];
+    protected $fillable = ['user_id', 'name', 'estimated_amount', 'due_day', 'category', 'notes', 'is_active', 'position', 'is_recurring', 'month'];
 
     protected function casts(): array
     {
         return [
             'estimated_amount' => 'decimal:2',
             'is_active' => 'boolean',
+            'is_recurring' => 'boolean',
             'due_day' => 'integer',
             'position' => 'integer',
         ];

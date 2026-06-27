@@ -17,7 +17,9 @@ interface BillItem {
   due_day: number | null;
   category: string | null;
   notes: string | null;
+  is_recurring: boolean;
   paid: boolean;
+  skipped: boolean;
   payment: BillPayment | null;
 }
 
@@ -35,7 +37,7 @@ const payAmountRef = ref<HTMLInputElement | null>(null);
 const paying = ref(false);
 
 const showAddForm = ref(false);
-const addForm = ref({ name: '', estimated_amount: '', due_day: '', category: '' });
+const addForm = ref({ name: '', estimated_amount: '', due_day: '', category: '', is_recurring: true });
 const adding = ref(false);
 
 const editingId = ref<number | null>(null);
@@ -58,7 +60,7 @@ function formatRp(val: string | number | null | undefined): string {
   if (val == null || val === '') return '—';
   const n = typeof val === 'string' ? parseFloat(val) : val;
   if (isNaN(n)) return '—';
-  return 'Rp ' + n.toLocaleString('id-ID');
+  return 'Rp ' + n.toLocaleString('id-ID');
 }
 
 function parseAmount(s: string): number | null {
@@ -67,19 +69,19 @@ function parseAmount(s: string): number | null {
   return isNaN(n) ? null : n;
 }
 
+const activeBills = computed(() => bills.value.filter((b) => !b.skipped));
+const skippedBills = computed(() => bills.value.filter((b) => b.skipped));
+
 const totalEstimated = computed(() =>
-  bills.value.reduce((s, b) => s + (b.estimated_amount ? parseFloat(b.estimated_amount) : 0), 0),
+  activeBills.value.reduce((s, b) => s + (b.estimated_amount ? parseFloat(b.estimated_amount) : 0), 0),
 );
-
 const totalPaid = computed(() =>
-  bills.value.filter((b) => b.paid).reduce((s, b) => s + (b.payment?.actual_amount ? parseFloat(b.payment.actual_amount) : 0), 0),
+  activeBills.value.filter((b) => b.paid).reduce((s, b) => s + (b.payment?.actual_amount ? parseFloat(b.payment.actual_amount) : 0), 0),
 );
-
 const totalUnpaid = computed(() =>
-  bills.value.filter((b) => !b.paid).reduce((s, b) => s + (b.estimated_amount ? parseFloat(b.estimated_amount) : 0), 0),
+  activeBills.value.filter((b) => !b.paid).reduce((s, b) => s + (b.estimated_amount ? parseFloat(b.estimated_amount) : 0), 0),
 );
-
-const paidCount = computed(() => bills.value.filter((b) => b.paid).length);
+const paidCount = computed(() => activeBills.value.filter((b) => b.paid).length);
 
 async function load() {
   loading.value = true;
@@ -118,10 +120,9 @@ async function confirmPay(bill: BillItem) {
   if (paying.value) return;
   paying.value = true;
   try {
-    const actualAmount = parseAmount(payAmount.value);
     const data = await api.post(`/api/v1/bills/${bill.id}/pay`, {
       month: month.value,
-      actual_amount: actualAmount,
+      actual_amount: parseAmount(payAmount.value),
       notes: payNotes.value || null,
     }).then(unwrap);
     bill.paid = true;
@@ -132,24 +133,50 @@ async function confirmPay(bill: BillItem) {
   }
 }
 
+async function toggleSkip(bill: BillItem) {
+  if (bill.skipped) {
+    await api.delete(`/api/v1/bills/${bill.id}/skip/${month.value}`);
+    bill.skipped = false;
+  } else {
+    const ok = await confirmAction({
+      title: 'Lewati bulan ini',
+      message: `"${bill.name}" tidak berlaku untuk ${monthLabel(month.value)}?`,
+      confirmLabel: 'Lewati',
+    });
+    if (!ok) return;
+    if (bill.paid) {
+      await api.delete(`/api/v1/bills/${bill.id}/pay/${month.value}`);
+      bill.paid = false;
+      bill.payment = null;
+    }
+    await api.post(`/api/v1/bills/${bill.id}/skip`, { month: month.value });
+    bill.skipped = true;
+    payingId.value = null;
+  }
+}
+
 async function saveBudget() {
   const amount = parseAmount(budgetInput.value);
   await api.post('/api/v1/bills/set-budget', { month: month.value, amount });
   budget.value = amount;
   editingBudget.value = false;
-  toast({ tone: 'success', title: 'Budget disimpan', message: formatRp(amount) + ' / bulan' });
+  toast({ tone: 'success', title: 'Budget disimpan', message: formatRp(amount) });
 }
 
 async function addBill() {
   if (!addForm.value.name.trim() || adding.value) return;
   adding.value = true;
   try {
-    const payload: any = { name: addForm.value.name.trim() };
+    const payload: any = {
+      name: addForm.value.name.trim(),
+      is_recurring: addForm.value.is_recurring,
+    };
+    if (!addForm.value.is_recurring) payload.month = month.value;
     if (addForm.value.estimated_amount) payload.estimated_amount = parseAmount(addForm.value.estimated_amount);
     if (addForm.value.due_day) payload.due_day = parseInt(addForm.value.due_day);
     if (addForm.value.category) payload.category = addForm.value.category.trim();
     await api.post('/api/v1/bills', payload).then(unwrap);
-    addForm.value = { name: '', estimated_amount: '', due_day: '', category: '' };
+    addForm.value = { name: '', estimated_amount: '', due_day: '', category: '', is_recurring: true };
     showAddForm.value = false;
     await load();
   } finally {
@@ -173,11 +200,12 @@ async function saveEdit(bill: BillItem) {
   if (editSaving.value) return;
   editSaving.value = true;
   try {
-    const payload: any = { name: editForm.value.name.trim() };
-    payload.estimated_amount = parseAmount(editForm.value.estimated_amount);
-    payload.due_day = editForm.value.due_day ? parseInt(editForm.value.due_day) : null;
-    payload.category = editForm.value.category.trim() || null;
-    await api.patch(`/api/v1/bills/${bill.id}`, payload);
+    await api.patch(`/api/v1/bills/${bill.id}`, {
+      name: editForm.value.name.trim(),
+      estimated_amount: parseAmount(editForm.value.estimated_amount),
+      due_day: editForm.value.due_day ? parseInt(editForm.value.due_day) : null,
+      category: editForm.value.category.trim() || null,
+    });
     editingId.value = null;
     await load();
   } finally {
@@ -186,7 +214,13 @@ async function saveEdit(bill: BillItem) {
 }
 
 async function deleteBill(bill: BillItem) {
-  const ok = await confirmAction({ title: 'Hapus tagihan', message: `Hapus "${bill.name}"? History pembayaran juga akan dihapus.`, confirmLabel: 'Hapus' });
+  const ok = await confirmAction({
+    title: 'Hapus tagihan',
+    message: bill.is_recurring
+      ? `Hapus "${bill.name}"? Tagihan ini tidak akan muncul lagi di bulan mana pun.`
+      : `Hapus "${bill.name}" dari bulan ini?`,
+    confirmLabel: 'Hapus',
+  });
   if (!ok) return;
   await api.delete(`/api/v1/bills/${bill.id}`);
   bills.value = bills.value.filter((b) => b.id !== bill.id);
@@ -203,25 +237,45 @@ onMounted(load);
       <div>
         <p class="text-xs font-extrabold uppercase text-teal-700 dark:text-teal-500">Keuangan</p>
         <h1 class="text-3xl font-extrabold tracking-tight">Tagihan Bulanan</h1>
-        <p class="mt-1 text-sm font-medium text-slate-500 dark:text-zinc-500">Centang tagihan yang sudah dibayar bulan ini.</p>
+        <p class="mt-1 text-sm font-medium text-slate-500 dark:text-zinc-500">Tagihan rutin otomatis muncul tiap bulan. Tambah tagihan khusus bulan ini jika perlu.</p>
       </div>
       <button class="btn btn-primary shrink-0" @click="showAddForm = !showAddForm">+ Tambah Tagihan</button>
     </div>
 
     <!-- Month navigator -->
     <div class="card mb-4 flex items-center justify-between gap-3 p-3">
-      <button class="rounded-lg p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-zinc-200 transition-colors" aria-label="Bulan sebelumnya" @click="shiftMonth(-1)">
+      <button class="rounded-lg p-1.5 text-slate-400 transition-colors hover:text-slate-700 dark:hover:text-zinc-200" aria-label="Bulan sebelumnya" @click="shiftMonth(-1)">
         <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6" /></svg>
       </button>
-      <span class="text-sm font-extrabold text-slate-700 dark:text-zinc-200 capitalize">{{ monthLabel(month) }}</span>
-      <button class="rounded-lg p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-zinc-200 transition-colors" aria-label="Bulan berikutnya" @click="shiftMonth(1)">
+      <span class="text-sm font-extrabold capitalize text-slate-700 dark:text-zinc-200">{{ monthLabel(month) }}</span>
+      <button class="rounded-lg p-1.5 text-slate-400 transition-colors hover:text-slate-700 dark:hover:text-zinc-200" aria-label="Bulan berikutnya" @click="shiftMonth(1)">
         <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6" /></svg>
       </button>
     </div>
 
-    <!-- Add bill inline form -->
-    <form v-if="showAddForm" class="card mb-4 space-y-3 p-4" @submit.prevent="addBill">
-      <p class="text-xs font-extrabold uppercase text-slate-500 dark:text-zinc-400">Tagihan baru</p>
+    <!-- Add bill form -->
+    <form v-if="showAddForm" class="card mb-4 space-y-4 p-4" @submit.prevent="addBill">
+      <div class="flex items-center justify-between">
+        <p class="text-xs font-extrabold uppercase text-slate-500 dark:text-zinc-400">Tagihan baru</p>
+        <!-- Recurring toggle -->
+        <div class="flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 p-0.5 text-xs font-extrabold dark:border-zinc-700 dark:bg-zinc-800">
+          <button
+            type="button"
+            class="rounded-md px-2.5 py-1 transition-colors"
+            :class="addForm.is_recurring ? 'bg-white text-teal-700 shadow-sm dark:bg-zinc-700 dark:text-teal-300' : 'text-slate-400 dark:text-zinc-500'"
+            @click="addForm.is_recurring = true"
+          >Setiap bulan</button>
+          <button
+            type="button"
+            class="rounded-md px-2.5 py-1 transition-colors"
+            :class="!addForm.is_recurring ? 'bg-white text-amber-700 shadow-sm dark:bg-zinc-700 dark:text-amber-300' : 'text-slate-400 dark:text-zinc-500'"
+            @click="addForm.is_recurring = false"
+          >Bulan ini saja</button>
+        </div>
+      </div>
+      <p v-if="!addForm.is_recurring" class="rounded-lg bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-700 dark:bg-amber-900/20 dark:text-amber-400">
+        Hanya muncul di {{ monthLabel(month) }}, tidak akan muncul di bulan lain.
+      </p>
       <div class="grid gap-3 sm:grid-cols-2">
         <div>
           <label class="label mb-1">Nama tagihan *</label>
@@ -258,8 +312,8 @@ onMounted(load);
           <svg class="h-6 w-6 text-teal-700 dark:text-teal-400" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2M9 12h6M9 16h4"/></svg>
         </div>
         <h2 class="text-base font-extrabold text-slate-900 dark:text-zinc-100">Belum ada tagihan</h2>
-        <p class="mx-auto mt-2 max-w-xs text-sm text-slate-400 dark:text-zinc-500">Tambahkan tagihan rutin seperti listrik, internet, kiriman uang, dll.</p>
-        <button class="btn btn-primary mt-4" @click="showAddForm = true">+ Tambah Tagihan</button>
+        <p class="mx-auto mt-2 max-w-xs text-sm text-slate-400 dark:text-zinc-500">Tambahkan tagihan rutin seperti listrik, internet, kiriman uang, dll. Akan muncul otomatis tiap bulan.</p>
+        <button class="btn btn-primary mt-4" @click="showAddForm = true">+ Tambah Tagihan Pertama</button>
       </div>
 
       <template v-else>
@@ -267,7 +321,7 @@ onMounted(load);
         <div class="card mb-4 divide-y divide-slate-100 overflow-hidden p-0 dark:divide-zinc-800">
           <div v-for="bill in bills" :key="bill.id">
             <!-- Edit mode -->
-            <form v-if="editingId === bill.id" class="flex flex-col gap-2 p-4" @submit.prevent="saveEdit(bill)">
+            <form v-if="editingId === bill.id" class="flex flex-col gap-2 bg-slate-50/60 p-4 dark:bg-zinc-900/50" @submit.prevent="saveEdit(bill)">
               <div class="grid gap-2 sm:grid-cols-2">
                 <input ref="editNameRef" v-model="editForm.name" class="field" placeholder="Nama" required />
                 <input v-model="editForm.estimated_amount" class="field" placeholder="Estimasi (Rp)" inputmode="numeric" />
@@ -281,11 +335,12 @@ onMounted(load);
             </form>
 
             <!-- Normal row -->
-            <div v-else class="group">
+            <div v-else :class="bill.skipped ? 'opacity-50' : ''">
               <div class="flex items-center gap-3 px-4 py-3.5">
-                <!-- Checkbox -->
+                <!-- Checkbox (disabled if skipped) -->
                 <button
                   class="shrink-0 rounded-lg p-0.5 transition-colors"
+                  :disabled="bill.skipped"
                   :aria-label="bill.paid ? 'Batalkan pembayaran' : 'Tandai sudah bayar'"
                   @click="startPay(bill)"
                 >
@@ -293,38 +348,70 @@ onMounted(load);
                     class="flex h-6 w-6 items-center justify-center rounded-md border-2 transition-all"
                     :class="bill.paid
                       ? 'border-teal-500 bg-teal-500'
-                      : 'border-slate-300 bg-white hover:border-teal-400 dark:border-zinc-600 dark:bg-zinc-800 dark:hover:border-teal-500'"
+                      : bill.skipped
+                        ? 'border-slate-200 bg-slate-100 dark:border-zinc-700 dark:bg-zinc-800'
+                        : 'border-slate-300 bg-white hover:border-teal-400 dark:border-zinc-600 dark:bg-zinc-800 dark:hover:border-teal-500'"
                   >
                     <svg v-if="bill.paid" class="h-3.5 w-3.5 text-white" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="3" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5" /></svg>
+                    <svg v-else-if="bill.skipped" class="h-3 w-3 text-slate-400" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12" /></svg>
                   </div>
                 </button>
 
                 <!-- Bill info -->
                 <div class="min-w-0 flex-1">
                   <div class="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                    <span class="text-sm font-extrabold" :class="bill.paid ? 'text-slate-400 line-through dark:text-zinc-500' : 'text-slate-900 dark:text-zinc-100'">
-                      {{ bill.name }}
-                    </span>
-                    <span v-if="bill.category" class="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-extrabold text-slate-500 dark:bg-zinc-800 dark:text-zinc-400">{{ bill.category }}</span>
-                    <span v-if="bill.due_day" class="text-[11px] font-semibold text-slate-400 dark:text-zinc-500">tgl {{ bill.due_day }}</span>
+                    <span
+                      class="text-sm font-extrabold"
+                      :class="[
+                        bill.paid ? 'text-slate-400 line-through dark:text-zinc-500' : 'text-slate-900 dark:text-zinc-100',
+                        bill.skipped ? 'text-slate-400 line-through dark:text-zinc-600' : '',
+                      ]"
+                    >{{ bill.name }}</span>
+                    <span v-if="bill.skipped" class="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-extrabold text-slate-400 dark:bg-zinc-800 dark:text-zinc-500">Dilewati</span>
+                    <span v-else-if="!bill.is_recurring" class="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-extrabold text-amber-600 dark:bg-amber-900/30 dark:text-amber-400">Bulan ini</span>
+                    <span v-if="bill.category && !bill.skipped" class="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-extrabold text-slate-500 dark:bg-zinc-800 dark:text-zinc-400">{{ bill.category }}</span>
+                    <span v-if="bill.due_day && !bill.skipped" class="text-[11px] font-semibold text-slate-400 dark:text-zinc-500">tgl {{ bill.due_day }}</span>
                   </div>
-                  <p class="mt-0.5 text-xs font-semibold text-slate-400 dark:text-zinc-500">
+                  <p v-if="!bill.skipped" class="mt-0.5 text-xs font-semibold text-slate-400 dark:text-zinc-500">
                     <template v-if="bill.paid && bill.payment">
                       <span class="font-extrabold text-teal-600 dark:text-teal-400">{{ formatRp(bill.payment.actual_amount) }}</span>
-                      <span v-if="bill.payment.actual_amount !== bill.estimated_amount && bill.estimated_amount" class="ml-1 text-slate-300 dark:text-zinc-600">(est. {{ formatRp(bill.estimated_amount) }})</span>
+                      <span
+                        v-if="bill.payment.actual_amount && bill.estimated_amount && parseFloat(bill.payment.actual_amount) !== parseFloat(bill.estimated_amount)"
+                        class="ml-1 text-slate-300 dark:text-zinc-600"
+                      >(est. {{ formatRp(bill.estimated_amount) }})</span>
                     </template>
-                    <template v-else>
-                      {{ formatRp(bill.estimated_amount) }}
-                    </template>
+                    <template v-else>{{ formatRp(bill.estimated_amount) }}</template>
                   </p>
                 </div>
 
                 <!-- Actions -->
-                <div class="flex shrink-0 items-center gap-1">
-                  <button class="rounded-lg p-1.5 text-slate-300 hover:text-slate-600 dark:text-zinc-700 dark:hover:text-zinc-300 transition-colors" aria-label="Edit tagihan" @click="startEdit(bill)">
+                <div class="flex shrink-0 items-center gap-0.5">
+                  <!-- Skip/unskip: hanya untuk recurring -->
+                  <button
+                    v-if="bill.is_recurring"
+                    class="rounded-lg p-1.5 transition-colors"
+                    :class="bill.skipped
+                      ? 'text-amber-500 hover:text-amber-600 dark:text-amber-400'
+                      : 'text-slate-300 hover:text-slate-500 dark:text-zinc-700 dark:hover:text-zinc-400'"
+                    :aria-label="bill.skipped ? 'Aktifkan kembali bulan ini' : 'Lewati bulan ini'"
+                    :title="bill.skipped ? 'Aktifkan kembali' : 'Lewati bulan ini'"
+                    @click="toggleSkip(bill)"
+                  >
+                    <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24"><path d="M13 9l3 3-3 3M6 9l3 3-3 3" /></svg>
+                  </button>
+                  <button
+                    v-if="!bill.skipped"
+                    class="rounded-lg p-1.5 text-slate-300 transition-colors hover:text-slate-600 dark:text-zinc-700 dark:hover:text-zinc-300"
+                    aria-label="Edit tagihan"
+                    @click="startEdit(bill)"
+                  >
                     <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5Z"/></svg>
                   </button>
-                  <button class="rounded-lg p-1.5 text-slate-300 hover:text-red-400 dark:text-zinc-700 dark:hover:text-red-400 transition-colors" aria-label="Hapus tagihan" @click="deleteBill(bill)">
+                  <button
+                    class="rounded-lg p-1.5 text-slate-300 transition-colors hover:text-red-400 dark:text-zinc-700 dark:hover:text-red-400"
+                    aria-label="Hapus tagihan"
+                    @click="deleteBill(bill)"
+                  >
                     <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>
                   </button>
                 </div>
@@ -332,7 +419,7 @@ onMounted(load);
 
               <!-- Inline pay form -->
               <div v-if="payingId === bill.id" class="border-t border-slate-100 bg-slate-50/60 px-4 py-3 dark:border-zinc-800 dark:bg-zinc-900/50">
-                <p class="mb-2 text-xs font-extrabold text-slate-500 dark:text-zinc-400">Konfirmasi pembayaran</p>
+                <p class="mb-2 text-xs font-extrabold text-slate-500 dark:text-zinc-400">Konfirmasi pembayaran — {{ bill.name }}</p>
                 <div class="flex items-end gap-2">
                   <div class="flex-1">
                     <label class="label mb-1">Nominal aktual (Rp)</label>
@@ -360,19 +447,23 @@ onMounted(load);
           </div>
         </div>
 
+        <!-- Skipped summary note -->
+        <p v-if="skippedBills.length" class="mb-4 text-xs font-semibold text-slate-400 dark:text-zinc-600">
+          {{ skippedBills.length }} tagihan dilewati bulan ini dan tidak dihitung dalam total.
+        </p>
+
         <!-- Summary + Budget -->
         <div class="grid gap-3 sm:grid-cols-2">
           <!-- Summary card -->
           <div class="card p-4">
             <div class="mb-3 flex items-center justify-between">
               <p class="text-xs font-extrabold uppercase text-slate-500 dark:text-zinc-400">Ringkasan {{ monthLabel(month) }}</p>
-              <span class="rounded-full bg-teal-50 px-2 py-0.5 text-[10px] font-extrabold text-teal-700 dark:bg-teal-900/30 dark:text-teal-400">{{ paidCount }}/{{ bills.length }} lunas</span>
+              <span class="rounded-full bg-teal-50 px-2 py-0.5 text-[10px] font-extrabold text-teal-700 dark:bg-teal-900/30 dark:text-teal-400">{{ paidCount }}/{{ activeBills.length }} lunas</span>
             </div>
-            <!-- Progress bar -->
             <div class="mb-3 h-1.5 overflow-hidden rounded-full bg-slate-100 dark:bg-zinc-800">
               <div
                 class="h-full rounded-full bg-teal-500 transition-all duration-500"
-                :style="{ width: bills.length ? (paidCount / bills.length * 100) + '%' : '0%' }"
+                :style="{ width: activeBills.length ? (paidCount / activeBills.length * 100) + '%' : '0%' }"
               />
             </div>
             <div class="space-y-1.5">
@@ -407,16 +498,18 @@ onMounted(load);
               <p class="text-2xl font-extrabold text-slate-900 dark:text-zinc-100">{{ budget ? formatRp(budget) : '—' }}</p>
               <div v-if="budget" class="mt-3 space-y-1.5">
                 <div class="flex items-center justify-between text-sm">
-                  <span class="font-semibold text-slate-500 dark:text-zinc-400">Setelah semua tagihan</span>
-                  <span class="font-extrabold" :class="(budget - totalEstimated) >= 0 ? 'text-teal-600 dark:text-teal-400' : 'text-red-600 dark:text-red-400'">
-                    {{ formatRp(budget - totalEstimated) }}
-                  </span>
+                  <span class="font-semibold text-slate-500 dark:text-zinc-400">Sisa setelah semua lunas</span>
+                  <span
+                    class="font-extrabold"
+                    :class="(budget - totalEstimated) >= 0 ? 'text-teal-600 dark:text-teal-400' : 'text-red-600 dark:text-red-400'"
+                  >{{ formatRp(budget - totalEstimated) }}</span>
                 </div>
                 <div class="flex items-center justify-between text-sm">
-                  <span class="font-semibold text-slate-500 dark:text-zinc-400">Sisa setelah lunas</span>
-                  <span class="font-extrabold" :class="(budget - totalPaid) >= 0 ? 'text-slate-700 dark:text-zinc-200' : 'text-red-600 dark:text-red-400'">
-                    {{ formatRp(budget - totalPaid) }}
-                  </span>
+                  <span class="font-semibold text-slate-500 dark:text-zinc-400">Sisa sekarang</span>
+                  <span
+                    class="font-extrabold"
+                    :class="(budget - totalPaid) >= 0 ? 'text-slate-700 dark:text-zinc-200' : 'text-red-600 dark:text-red-400'"
+                  >{{ formatRp(budget - totalPaid) }}</span>
                 </div>
               </div>
               <p v-else class="mt-1 text-sm text-slate-400 dark:text-zinc-500">Set pemasukan bulanan untuk lihat sisa budget.</p>

@@ -97,6 +97,8 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
         Route::delete('bills/{bill}', [BillController::class, 'destroy']);
         Route::post('bills/{bill}/pay', [BillController::class, 'pay']);
         Route::delete('bills/{bill}/pay/{month}', [BillController::class, 'unpay']);
+        Route::post('bills/{bill}/skip', [BillController::class, 'skip']);
+        Route::delete('bills/{bill}/skip/{month}', [BillController::class, 'unskip']);
         Route::post('bills/set-budget', [BillController::class, 'setBudget']);
         Route::post('lists', [TodoListController::class, 'store']);
         Route::patch('lists/{todoList}', [TodoListController::class, 'update']);
