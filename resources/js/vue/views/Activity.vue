@@ -6,9 +6,12 @@ import { api, unwrap } from '../api';
 const router = useRouter();
 const items = ref<any[]>([]);
 const meta = ref<any>(null);
+const summary = ref<Record<string, number>>({});
 const loading = ref(true);
 const loadingMore = ref(false);
 const filterType = ref('');
+const filterFrom = ref('');
+const filterTo = ref('');
 const page = ref(1);
 
 const typeOptions = [
@@ -65,14 +68,16 @@ const typePaths: Record<string, string> = {
   Doc: 'docs',
 };
 
-const filtered = computed(() =>
-  filterType.value ? items.value.filter((i) => i.record_type === filterType.value) : items.value,
+const summaryEntries = computed(() =>
+  Object.entries(summary.value)
+    .filter(([, count]) => count > 0)
+    .sort(([, a], [, b]) => b - a),
 );
 
 const groupedByDate = computed(() => {
   const groups: { date: string; label: string; items: any[] }[] = [];
   let lastDate = '';
-  for (const item of filtered.value) {
+  for (const item of items.value) {
     const date = item.created_at.slice(0, 10);
     if (date !== lastDate) {
       groups.push({ date, label: formatDateHeader(date), items: [] });
@@ -106,13 +111,51 @@ function recordLabel(item: any) {
   return item.metadata?.title || item.metadata?.topic || item.metadata?.name || `#${item.record_id}`;
 }
 
+function applyPeriod(preset: 'today' | 'week' | 'month') {
+  const now = new Date();
+  filterTo.value = now.toISOString().slice(0, 10);
+  if (preset === 'today') {
+    filterFrom.value = filterTo.value;
+  } else if (preset === 'week') {
+    filterFrom.value = new Date(now.getTime() - 6 * 86400000).toISOString().slice(0, 10);
+  } else {
+    filterFrom.value = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
+  }
+  load();
+}
+
+function clearPeriod() {
+  filterFrom.value = '';
+  filterTo.value = '';
+  load();
+}
+
+function buildParams(extra: Record<string, any> = {}) {
+  const p: Record<string, any> = { per_page: 30, ...extra };
+  if (filterType.value) p.type = filterType.value;
+  if (filterFrom.value) p.from = filterFrom.value;
+  if (filterTo.value) p.to = filterTo.value;
+  return p;
+}
+
+async function loadSummary() {
+  const p: Record<string, string> = {};
+  if (filterFrom.value) p.from = filterFrom.value;
+  if (filterTo.value) p.to = filterTo.value;
+  const data = await api.get('/api/v1/activity/summary', { params: p }).then(unwrap);
+  summary.value = data.summary || {};
+}
+
 async function load() {
   loading.value = true;
   page.value = 1;
   try {
-    const data = await api.get('/api/v1/activity', { params: { per_page: 30 } }).then(unwrap);
-    items.value = data.activity?.data || [];
-    meta.value = data.activity;
+    const [actData] = await Promise.all([
+      api.get('/api/v1/activity', { params: buildParams() }).then(unwrap),
+      loadSummary(),
+    ]);
+    items.value = actData.activity?.data || [];
+    meta.value = actData.activity;
   } catch {
     items.value = [];
   } finally {
@@ -125,7 +168,7 @@ async function loadMore() {
   loadingMore.value = true;
   page.value++;
   try {
-    const data = await api.get('/api/v1/activity', { params: { per_page: 30, page: page.value } }).then(unwrap);
+    const data = await api.get('/api/v1/activity', { params: buildParams({ page: page.value }) }).then(unwrap);
     items.value.push(...(data.activity?.data || []));
     meta.value = data.activity;
   } catch {
@@ -146,9 +189,36 @@ onMounted(load);
         <h1 class="text-2xl font-extrabold">Activity</h1>
         <p class="mt-1 text-sm font-medium text-slate-500 dark:text-zinc-500">All changes and records, newest first.</p>
       </div>
-      <select v-model="filterType" class="field w-auto">
-        <option v-for="opt in typeOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
-      </select>
+    </div>
+
+    <!-- Filters -->
+    <div class="card mb-5 p-4">
+      <div class="flex flex-wrap items-center gap-3">
+        <select v-model="filterType" class="field w-auto" @change="load">
+          <option v-for="opt in typeOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
+        </select>
+        <input v-model="filterFrom" class="field w-auto" type="date" placeholder="From" @change="load" />
+        <input v-model="filterTo" class="field w-auto" type="date" placeholder="To" @change="load" />
+        <div class="flex gap-1.5">
+          <button class="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-600 hover:border-teal-300 hover:bg-teal-50 hover:text-teal-700 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-400" @click="applyPeriod('today')">Today</button>
+          <button class="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-600 hover:border-teal-300 hover:bg-teal-50 hover:text-teal-700 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-400" @click="applyPeriod('week')">This week</button>
+          <button class="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-600 hover:border-teal-300 hover:bg-teal-50 hover:text-teal-700 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-400" @click="applyPeriod('month')">This month</button>
+          <button v-if="filterFrom || filterTo" class="rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-xs font-semibold text-rose-600 hover:bg-rose-100 dark:border-rose-800 dark:bg-rose-900/20 dark:text-rose-400" @click="clearPeriod">Clear</button>
+        </div>
+      </div>
+
+      <!-- Summary stats -->
+      <div v-if="summaryEntries.length" class="mt-3 flex flex-wrap gap-2 border-t border-slate-100 pt-3 dark:border-zinc-800">
+        <span
+          v-for="[type, count] in summaryEntries"
+          :key="type"
+          class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold"
+          :class="typeBadgeColors[type] || 'bg-slate-100 text-slate-500'"
+        >
+          <span class="h-1.5 w-1.5 rounded-full" :class="dotColors[type] || 'bg-slate-400'" />
+          {{ typeLabels[type] || type }}: {{ count }}
+        </span>
+      </div>
     </div>
 
     <div v-if="loading" class="space-y-4">
@@ -158,7 +228,7 @@ onMounted(load);
       </div>
     </div>
 
-    <div v-else-if="!filtered.length" class="card p-10 text-center">
+    <div v-else-if="!items.length" class="card p-10 text-center">
       <div class="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-2xl bg-slate-100 dark:bg-zinc-800">
         <svg class="h-6 w-6 text-slate-400" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" viewBox="0 0 24 24"><path d="M12 8v4l3 3M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/></svg>
       </div>

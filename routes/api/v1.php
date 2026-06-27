@@ -38,6 +38,7 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
         Route::get('reports/{period}/snapshots', [ReportController::class, 'snapshots'])->middleware('ability:reports,read');
         Route::get('search', SearchController::class);
         Route::get('activity', ActivityController::class);
+        Route::get('activity/summary', [ActivityController::class, 'summary']);
         Route::get('configuration', [ConfigurationController::class, 'show']);
         Route::apiResource('projects', ProjectController::class)->only(['index', 'show']);
         Route::apiResource('daily-progress', DailyProgressController::class)->only(['index', 'show'])->parameters(['daily-progress' => 'dailyProgress']);
