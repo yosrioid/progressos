@@ -54,9 +54,21 @@ class BillController extends Controller
         $budgetConfig = Configuration::getValue($user, 'bills', "budget_{$month}");
 
         $items = $bills->map(function (Bill $bill) use ($prevPayments, $prevMonth) {
+            /** @var BillPayment|null $payment */
             $payment = $bill->payments->first();
-            $skipped = $payment?->skipped ?? false;
+            $skipped = $payment instanceof BillPayment && $payment->skipped;
+            /** @var BillPayment|null $prevPayment */
             $prevPayment = $prevPayments->get($bill->id);
+
+            $paymentData = null;
+            if ($payment instanceof BillPayment && ! $skipped) {
+                $paymentData = [
+                    'id' => $payment->id,
+                    'actual_amount' => $payment->actual_amount,
+                    'notes' => $payment->notes,
+                    'paid_at' => $payment->paid_at?->toISOString(),
+                ];
+            }
 
             return [
                 'id' => $bill->id,
@@ -68,13 +80,8 @@ class BillController extends Controller
                 'is_recurring' => $bill->is_recurring,
                 'paid' => $payment !== null && ! $skipped,
                 'skipped' => $skipped,
-                'payment' => ($payment && ! $skipped) ? [
-                    'id' => $payment->id,
-                    'actual_amount' => $payment->actual_amount,
-                    'notes' => $payment->notes,
-                    'paid_at' => $payment->paid_at?->toISOString(),
-                ] : null,
-                'last_payment' => $prevPayment ? [
+                'payment' => $paymentData,
+                'last_payment' => $prevPayment instanceof BillPayment ? [
                     'month' => $prevMonth,
                     'actual_amount' => $prevPayment->actual_amount,
                 ] : null,

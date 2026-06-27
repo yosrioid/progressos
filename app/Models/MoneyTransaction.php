@@ -13,13 +13,10 @@ class MoneyTransaction extends Model
         'category', 'subcategory', 'description', 'amount', 'type', 'currency', 'import_hash',
     ];
 
-    protected function casts(): array
-    {
-        return [
-            'transacted_at' => 'datetime',
-            'amount' => 'decimal:2',
-        ];
-    }
+    protected $casts = [
+        'transacted_at' => 'datetime',
+        'amount' => 'decimal:2',
+    ];
 
     public function user(): BelongsTo
     {

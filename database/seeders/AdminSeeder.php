@@ -17,9 +17,9 @@ class AdminSeeder extends Seeder
         }
 
         User::create([
-            'name' => env('ADMIN_NAME', 'Admin'),
-            'email' => env('ADMIN_EMAIL', 'admin@progressos.local'),
-            'password' => Hash::make(env('ADMIN_PASSWORD', 'changeme123')),
+            'name' => config('app.admin_name', 'Admin'),
+            'email' => config('app.admin_email', 'admin@progressos.local'),
+            'password' => Hash::make((string) config('app.admin_password', 'changeme123')),
             'timezone' => 'Asia/Jakarta',
             'theme' => 'system',
             'email_verified_at' => now(),

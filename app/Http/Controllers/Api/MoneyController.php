@@ -25,13 +25,17 @@ class MoneyController extends Controller
             ->groupByRaw("strftime('%Y-%m', transacted_at)")
             ->orderByRaw("strftime('%Y-%m', transacted_at) DESC")
             ->get()
-            ->map(fn ($m) => [
-                'month' => $m->month,
-                'income' => (float) $m->income,
-                'expense' => (float) $m->expense,
-                'net' => (float) $m->income - (float) $m->expense,
-                'total_count' => (int) $m->total_count,
-            ]);
+            ->map(function ($m) {
+                $row = $m->getAttributes();
+
+                return [
+                    'month' => (string) ($row['month'] ?? ''),
+                    'income' => (float) ($row['income'] ?? 0),
+                    'expense' => (float) ($row['expense'] ?? 0),
+                    'net' => (float) ($row['income'] ?? 0) - (float) ($row['expense'] ?? 0),
+                    'total_count' => (int) ($row['total_count'] ?? 0),
+                ];
+            });
 
         return ApiResponse::ok(['months' => $months]);
     }
