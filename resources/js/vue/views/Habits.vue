@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
 import { api, unwrap } from '../api';
-import { toast } from '../feedback';
+import { confirmAction, toast } from '../feedback';
 
 interface Habit {
   id: number;
@@ -126,7 +126,8 @@ async function submitForm() {
 }
 
 async function confirmDelete(habit: Habit) {
-  if (!confirm(`Delete habit "${habit.name}"? All logs will also be removed.`)) return;
+  const ok = await confirmAction({ title: 'Hapus habit', message: `Hapus "${habit.name}"? Semua log juga akan dihapus.`, confirmLabel: 'Hapus' });
+  if (!ok) return;
   try {
     await api.delete(`/api/v1/habits/${habit.id}`);
     await load();
@@ -140,10 +141,10 @@ onMounted(load);
 
 <template>
   <div>
-    <div class="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <div class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       <div>
         <p class="text-xs font-extrabold uppercase text-teal-700 dark:text-teal-500">Consistency</p>
-        <h1 class="text-2xl font-extrabold">Habit Tracker</h1>
+        <h1 class="text-3xl font-extrabold tracking-tight">Habit Tracker</h1>
         <p class="mt-1 text-sm font-medium text-slate-500 dark:text-zinc-500">Build habits one day at a time</p>
       </div>
       <button class="btn btn-primary" @click="openForm()">+ New Habit</button>

@@ -182,10 +182,10 @@ onMounted(load);
 
 <template>
   <div>
-    <div class="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+    <div class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
       <div>
         <p class="text-xs font-extrabold uppercase text-teal-700 dark:text-teal-500">Timeline</p>
-        <h1 class="text-2xl font-extrabold">Activity</h1>
+        <h1 class="text-3xl font-extrabold tracking-tight">Activity</h1>
         <p class="mt-1 text-sm font-medium text-slate-500 dark:text-zinc-500">All changes and records, newest first.</p>
       </div>
     </div>

@@ -53,7 +53,11 @@ onMounted(async () => {
 <template>
   <div class="min-h-screen bg-stone-50 dark:bg-zinc-950 text-slate-950 dark:text-zinc-100">
     <div class="mx-auto max-w-3xl px-4 py-10">
-      <div v-if="loading" class="py-20 text-center text-sm text-slate-400">Loading…</div>
+      <div v-if="loading" class="space-y-4 py-10">
+        <div class="skeleton h-10 w-2/3 rounded-2xl" />
+        <div class="skeleton h-5 w-32 rounded-xl" />
+        <div class="skeleton h-64 rounded-2xl" />
+      </div>
       <div v-else-if="notFound" class="py-20 text-center">
         <p class="text-2xl font-extrabold">Not Found</p>
         <p class="mt-2 text-sm text-slate-400">This document is not available or the link has expired.</p>

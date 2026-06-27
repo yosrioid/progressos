@@ -73,10 +73,10 @@ onMounted(async () => { await load(); loadSnapshots(); });
 <template>
   <div v-if="!report" class="card p-8 text-center text-sm text-slate-500">Loading report...</div>
   <template v-else>
-    <div class="mb-5 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+    <div class="mb-6 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
       <div>
         <p class="text-xs font-extrabold uppercase text-teal-700 dark:text-teal-500">{{ report.period }}</p>
-        <h1 class="text-2xl font-extrabold capitalize">{{ report.period }} Report</h1>
+        <h1 class="text-3xl font-extrabold tracking-tight capitalize">{{ report.period }} Report</h1>
         <p class="mt-1 text-sm font-medium text-slate-500 dark:text-zinc-500">{{ formatDate(report.start) }} → {{ formatDate(report.end) }}</p>
       </div>
       <div class="flex flex-wrap gap-2">

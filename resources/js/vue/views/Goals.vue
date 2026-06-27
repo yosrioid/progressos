@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
 import { api, unwrap } from '../api';
-import { toast } from '../feedback';
+import { confirmAction, toast } from '../feedback';
 
 interface KeyResult {
   id: number;
@@ -108,7 +108,8 @@ async function submitGoalForm() {
 }
 
 async function deleteGoal(goal: Goal) {
-  if (!confirm(`Delete goal "${goal.title}"?`)) return;
+  const ok = await confirmAction({ title: 'Hapus goal', message: `Hapus "${goal.title}"?`, confirmLabel: 'Hapus' });
+  if (!ok) return;
   try {
     await api.delete(`/api/v1/goals/${goal.id}`);
     await load();
@@ -171,7 +172,8 @@ async function toggleKrDone(goal: Goal, kr: KeyResult) {
 }
 
 async function deleteKr(goal: Goal, kr: KeyResult) {
-  if (!confirm('Delete this key result?')) return;
+  const ok = await confirmAction({ title: 'Hapus key result', message: `Hapus "${kr.title}"?`, confirmLabel: 'Hapus' });
+  if (!ok) return;
   try {
     await api.delete(`/api/v1/goals/${goal.id}/key-results/${kr.id}`);
     await load();
@@ -186,10 +188,10 @@ onMounted(load);
 
 <template>
   <div>
-    <div class="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <div class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       <div>
         <p class="text-xs font-extrabold uppercase text-teal-700 dark:text-teal-500">OKR</p>
-        <h1 class="text-2xl font-extrabold">Goals & OKR</h1>
+        <h1 class="text-3xl font-extrabold tracking-tight">Goals & OKR</h1>
         <p class="mt-1 text-sm font-medium text-slate-500 dark:text-zinc-500">Set goals and track key results</p>
       </div>
       <div class="flex items-center gap-2">

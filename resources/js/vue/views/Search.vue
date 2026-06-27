@@ -128,7 +128,7 @@ onMounted(() => { loadRecent(); load(); });
 <template>
   <div class="mb-5">
     <p class="text-xs font-extrabold uppercase text-teal-700 dark:text-teal-500">Global search</p>
-    <h1 class="mt-1 text-2xl font-extrabold">Search ProgressOS</h1>
+    <h1 class="mt-1 text-3xl font-extrabold tracking-tight">Search ProgressOS</h1>
   </div>
 
   <form class="card mb-4 p-4" @submit.prevent="submit">

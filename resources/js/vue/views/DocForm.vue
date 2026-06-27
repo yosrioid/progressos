@@ -101,7 +101,11 @@ onMounted(() => { loadCategories(); if (isEdit) loadDoc(); });
 </script>
 
 <template>
-  <div v-if="loadingDoc" class="py-12 text-center text-sm text-slate-400">Loading…</div>
+  <div v-if="loadingDoc" class="mx-auto max-w-3xl space-y-4">
+    <div class="skeleton h-10 w-1/2 rounded-2xl" />
+    <div class="skeleton h-40 rounded-2xl" />
+    <div class="skeleton h-32 rounded-2xl" />
+  </div>
   <form v-else class="mx-auto max-w-3xl space-y-5" @submit.prevent="submit">
     <div class="flex items-center justify-between gap-3">
       <div>
