@@ -18,12 +18,12 @@ class MoneyController extends Controller
         $user = $request->user();
 
         $months = MoneyTransaction::ownedBy($user)
-            ->selectRaw("DATE_FORMAT(transacted_at, '%Y-%m') AS month,
+            ->selectRaw("strftime('%Y-%m', transacted_at) AS month,
                 SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END) AS income,
                 SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END) AS expense,
                 COUNT(*) AS total_count")
-            ->groupByRaw("DATE_FORMAT(transacted_at, '%Y-%m')")
-            ->orderByRaw("DATE_FORMAT(transacted_at, '%Y-%m') DESC")
+            ->groupByRaw("strftime('%Y-%m', transacted_at)")
+            ->orderByRaw("strftime('%Y-%m', transacted_at) DESC")
             ->get()
             ->map(fn ($m) => [
                 'month' => $m->month,
@@ -43,7 +43,7 @@ class MoneyController extends Controller
         $user = $request->user();
 
         $transactions = MoneyTransaction::ownedBy($user)
-            ->whereRaw("DATE_FORMAT(transacted_at, '%Y-%m') = ?", [$month])
+            ->whereRaw("strftime('%Y-%m', transacted_at) = ?", [$month])
             ->orderBy('transacted_at', 'desc')
             ->get()
             ->map(fn ($t) => [
