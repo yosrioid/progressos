@@ -30,6 +30,8 @@ import Game2048 from './views/Game2048.vue';
 import MemoryMatch from './views/MemoryMatch.vue';
 import Minesweeper from './views/Minesweeper.vue';
 import Sudoku from './views/Sudoku.vue';
+import Journals from './views/Journals.vue';
+import JournalShow from './views/JournalShow.vue';
 
 export const router = createRouter({
   history: createWebHistory(),
@@ -67,6 +69,9 @@ export const router = createRouter({
     { path: '/milestones/create', component: RecordForm, props: { type: 'milestones' } },
     { path: '/milestones/:id', component: RecordDetail, props: (route) => ({ type: 'milestones', id: route.params.id }) },
     { path: '/milestones/:id/edit', component: RecordForm, props: (route) => ({ type: 'milestones', id: route.params.id }) },
+    { path: '/journal', component: Journals },
+    { path: '/journal/new', component: JournalShow, props: { id: 'new' } },
+    { path: '/journal/:id', component: JournalShow, props: (route) => ({ id: route.params.id }) },
     { path: '/activity', component: Activity },
     { path: '/habits', component: Habits },
     { path: '/goals', component: Goals },

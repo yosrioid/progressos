@@ -29,7 +29,7 @@ const commandOpen = ref(false);
 const commandQuery = ref('');
 const searchInput = ref<HTMLInputElement | null>(null);
 const query = ref('');
-const quickForm = ref({ type: 'work_log', title: '', project_name: '', duration_minutes: 30, notes: '', date: new Date().toISOString().slice(0, 10) });
+const quickForm = ref({ type: 'task', title: '', project_name: '', duration_minutes: 30, notes: '', date: new Date().toISOString().slice(0, 10) });
 const habitList = ref<{ id: number; name: string; icon: string }[]>([]);
 const selectedHabitId = ref<number | null>(null);
 const isGuest = computed(() => !auth.user);
@@ -38,20 +38,21 @@ const navGroups = [
     label: 'Overview',
     items: [
       { label: 'Dashboard', href: '/dashboard', icon: 'dashboard', hint: 'Ringkasan semua aktivitas hari ini — tasks, habit, progress, deadline, dan standup' },
-      { label: 'Projects', href: '/projects', icon: 'folder', hint: 'Kelola proyek aktif dan lihat breakdown tasks, work logs, serta progres per proyek' },
       { label: 'Activity', href: '/activity', icon: 'chart', hint: 'Timeline dan heatmap aktivitas harian — lihat berapa banyak yang sudah dikerjakan tiap hari' },
-      { label: 'Docs', href: '/docs', icon: 'docs', hint: 'Catatan, dokumentasi, dan knowledge base — bisa di-share via link publik' },
-      { label: 'Lists', href: '/lists', icon: 'check', hint: 'Checklist dan to-do list sederhana — bagus untuk belanja, packing, atau prosedur berulang' },
-      { label: 'Tagihan', href: '/bills', icon: 'billing', hint: 'Reminder tagihan dan langganan bulanan agar tidak ada yang terlewat bayar' },
-      { label: 'Transaksi', href: '/money', icon: 'money', hint: 'Catat pemasukan dan pengeluaran harian — lihat ringkasan bulanan per kategori' },
     ],
   },
   {
     label: 'Work',
     items: [
       { label: 'Daily Progress', href: '/daily-progress', icon: 'calendar', hint: 'Jurnal harian — catat apa yang sudah dikerjakan, sedang berjalan, dan hambatan hari ini' },
-      { label: 'Work Logs', href: '/work-logs', icon: 'briefcase', hint: 'Log sesi kerja dengan durasi, proyek, kategori, dan outcome — bisa link ke task' },
       { label: 'Tasks', href: '/tasks', icon: 'check', hint: 'Manajemen task dengan status, prioritas, deadline, dan recurrence — ada view Kanban board juga' },
+      { label: 'Projects', href: '/projects', icon: 'folder', hint: 'Kelola proyek aktif dan lihat breakdown tasks serta progres per proyek' },
+    ],
+  },
+  {
+    label: 'Journal',
+    items: [
+      { label: 'Journal', href: '/journal', icon: 'docs', hint: 'Tulis jurnal harian — AI analisa mood, tema, insight, dan saran dari tulisanmu' },
     ],
   },
   {
@@ -60,6 +61,20 @@ const navGroups = [
       { label: 'Learning', href: '/learning', icon: 'book', hint: 'Catat sesi belajar — topik, sumber, durasi, takeaway, dan next action' },
       { label: 'Goals & OKR', href: '/goals', icon: 'target', hint: 'Set goal jangka panjang dengan key results yang terukur, plus milestones sebagai checkpoint' },
       { label: 'Habits', href: '/habits', icon: 'check', hint: 'Track kebiasaan harian — streak, heatmap 90 hari, dan catatan per hari saat tandai selesai' },
+    ],
+  },
+  {
+    label: 'Notes',
+    items: [
+      { label: 'Docs', href: '/docs', icon: 'docs', hint: 'Catatan, dokumentasi, dan knowledge base — bisa di-share via link publik' },
+      { label: 'Lists', href: '/lists', icon: 'check', hint: 'Checklist dan to-do list sederhana — bagus untuk belanja, packing, atau prosedur berulang' },
+    ],
+  },
+  {
+    label: 'Finance',
+    items: [
+      { label: 'Tagihan', href: '/bills', icon: 'billing', hint: 'Reminder tagihan dan langganan bulanan agar tidak ada yang terlewat bayar' },
+      { label: 'Transaksi', href: '/money', icon: 'money', hint: 'Catat pemasukan dan pengeluaran harian — lihat ringkasan bulanan per kategori' },
     ],
   },
   {
@@ -124,7 +139,6 @@ const activeTheme = computed(() => configuration.appearance.theme || auth.user?.
 const commandItems = computed(() => [
   ...navGroups.flatMap((group) => group.items.map((item) => ({ ...item, group: group.label, action: 'navigate' }))),
   { label: 'New Daily Progress', href: '/daily-progress/create', icon: 'calendar', group: 'Create', action: 'navigate' },
-  { label: 'New Work Log', href: '/work-logs/create', icon: 'briefcase', group: 'Create', action: 'navigate' },
   { label: 'New Task', href: '/tasks/create', icon: 'check', group: 'Create', action: 'navigate' },
   { label: 'New Learning Entry', href: '/learning/create', icon: 'book', group: 'Create', action: 'navigate' },
   { label: 'New Milestone', href: '/milestones/create', icon: 'target', group: 'Create', action: 'navigate' },
@@ -146,7 +160,7 @@ async function submitQuick() {
       const name = habitList.value.find((h) => h.id === selectedHabitId.value)?.name ?? '';
       quick.value = false;
       selectedHabitId.value = null;
-      quickForm.value = { type: 'work_log', title: '', project_name: '', duration_minutes: 30, notes: '', date: new Date().toISOString().slice(0, 10) };
+      quickForm.value = { type: 'task', title: '', project_name: '', duration_minutes: 30, notes: '', date: new Date().toISOString().slice(0, 10) };
       toast({ tone: 'success', title: 'Habit logged', message: name });
     } catch {
       toast({ tone: 'error', title: 'Error', message: 'Could not log habit. Please try again.' });
@@ -162,7 +176,7 @@ async function submitQuick() {
       title: 'Captured',
       message: path ? `Saved. <a href="${path}" class="font-bold underline">View record →</a>` : 'Saved.',
     });
-    quickForm.value = { type: 'work_log', title: '', project_name: '', duration_minutes: 30, notes: '', date: new Date().toISOString().slice(0, 10) };
+    quickForm.value = { type: 'task', title: '', project_name: '', duration_minutes: 30, notes: '', date: new Date().toISOString().slice(0, 10) };
     if (path) await router.push(path);
     else await router.push('/dashboard');
   } catch (e: any) {
@@ -257,9 +271,8 @@ function search() {
 }
 
 function onTimerLog(payload: { title: string; minutes: number }) {
-  quickForm.value.type = 'work_log';
+  quickForm.value.type = 'daily_progress';
   quickForm.value.title = payload.title;
-  quickForm.value.duration_minutes = payload.minutes;
   quickForm.value.date = new Date().toISOString().slice(0, 10);
   quick.value = true;
 }
@@ -634,7 +647,6 @@ onUnmounted(() => {
               <select v-model="quickForm.type" class="field" @change="quickForm.type === 'habit_log' && loadHabits()">
                 <option value="task">Task</option>
                 <option value="blocker">Blocker</option>
-                <option value="work_log">Work log</option>
                 <option value="daily_progress">Daily progress</option>
                 <option value="learning">Learning</option>
                 <option value="habit_log">Habit log</option>
