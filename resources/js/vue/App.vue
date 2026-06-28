@@ -2,6 +2,7 @@
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router';
 import { api, unwrap } from './api';
+import DailyQuote from './components/DailyQuote.vue';
 import DatePicker from './components/DatePicker.vue';
 import WorkTimer from './components/WorkTimer.vue';
 import { dismissToast, feedback, resolveConfirm, toast } from './feedback';
@@ -426,6 +427,7 @@ onUnmounted(() => {
           </div>
         </section>
       </nav>
+      <DailyQuote />
       <div class="shrink-0 border-t border-slate-100 px-4 py-3 dark:border-zinc-800/80">
         <p class="text-[10px] font-semibold uppercase tracking-widest text-slate-300 dark:text-zinc-700">v{{ configuration.appVersion }}</p>
       </div>

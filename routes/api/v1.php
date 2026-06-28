@@ -24,6 +24,7 @@ use App\Http\Controllers\Api\SearchController;
 use App\Http\Controllers\Api\StandupController;
 use App\Http\Controllers\Api\TaskController;
 use App\Http\Controllers\Api\TodoListController;
+use App\Http\Controllers\Api\QuoteController;
 use App\Http\Controllers\Api\WorkLogController;
 use Illuminate\Support\Facades\Route;
 
@@ -43,6 +44,8 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
         Route::get('activity', ActivityController::class);
         Route::get('activity/summary', [ActivityController::class, 'summary']);
         Route::get('configuration', [ConfigurationController::class, 'show']);
+        Route::get('quote/daily', [QuoteController::class, 'daily']);
+        Route::get('quote/config', [QuoteController::class, 'configPayload']);
         Route::apiResource('projects', ProjectController::class)->only(['index', 'show']);
         Route::apiResource('daily-progress', DailyProgressController::class)->only(['index', 'show'])->parameters(['daily-progress' => 'dailyProgress']);
         Route::apiResource('work-logs', WorkLogController::class)->only(['index', 'show'])->parameters(['work-logs' => 'workLog']);
@@ -139,6 +142,10 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
     Route::put('configuration/auth', [ConfigurationController::class, 'updateAuthConfig'])
         ->middleware(['ability:write', 'throttle:api-write']);
     Route::put('configuration/mail', [ConfigurationController::class, 'updateMailConfig'])
+        ->middleware(['ability:write', 'throttle:api-write']);
+    Route::put('configuration/quote', [QuoteController::class, 'saveConfig'])
+        ->middleware(['ability:write', 'throttle:api-write']);
+    Route::post('quote/refresh', [QuoteController::class, 'refresh'])
         ->middleware(['ability:write', 'throttle:api-write']);
 
     Route::middleware(['throttle:api-write'])->group(function () {
