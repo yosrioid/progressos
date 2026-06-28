@@ -53,7 +53,8 @@ class HabitController extends Controller
 
         $data = $habits->map(function (Habit $habit) use ($today, $recentLogs, $heatmapLogs, $allLogsGrouped) {
             $logs = $recentLogs[$habit->id] ?? collect();
-            $todayDone = $logs->contains(fn ($l) => $l->date->toDateString() === $today);
+            $todayLog = $logs->firstWhere(fn ($l) => $l->date->toDateString() === $today);
+            $todayDone = $todayLog !== null;
             $weekDates = $logs->pluck('date')->map(fn ($d) => $d->toDateString())->toArray();
             $heatmap = $heatmapLogs[$habit->id] ?? [];
             $allDates = $allLogsGrouped[$habit->id] ?? [];
@@ -81,6 +82,7 @@ class HabitController extends Controller
                 'active' => $habit->active,
                 'order' => $habit->order,
                 'today_done' => $todayDone,
+                'today_notes' => $todayLog?->notes,
                 'streak' => $streak,
                 'week_dates' => $weekDates,
                 'heatmap' => $heatmap,

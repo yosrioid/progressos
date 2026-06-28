@@ -10,6 +10,7 @@ export type Field = {
 export type RecordConfig = {
   type: string;
   singular: string;
+  hint?: string;
   titleKey: string;
   payloadKey: string;
   listKey: string;
@@ -24,6 +25,7 @@ export const configs: Record<string, RecordConfig> = {
   'daily-progress': {
     type: 'daily-progress',
     singular: 'Daily Progress',
+    hint: 'Jurnal harian — catat apa yang sudah selesai, sedang berjalan, todolist, dan hambatan hari ini',
     titleKey: 'title',
     payloadKey: 'entry',
     listKey: 'entries',
@@ -41,6 +43,7 @@ export const configs: Record<string, RecordConfig> = {
   'work-logs': {
     type: 'work-logs',
     singular: 'Work Log',
+    hint: 'Log sesi kerja dengan durasi, proyek, kategori, dan outcome — bisa link ke task tertentu',
     titleKey: 'title',
     payloadKey: 'log',
     listKey: 'logs',
@@ -65,6 +68,7 @@ export const configs: Record<string, RecordConfig> = {
   tasks: {
     type: 'tasks',
     singular: 'Task',
+    hint: 'Manajemen task dengan status (todo/in_progress/done/blocked), prioritas, deadline, dan recurrence — ada Kanban board di tombol kanan atas',
     titleKey: 'title',
     payloadKey: 'task',
     listKey: 'tasks',
@@ -85,6 +89,7 @@ export const configs: Record<string, RecordConfig> = {
   learning: {
     type: 'learning',
     singular: 'Learning Entry',
+    hint: 'Catat sesi belajar — topik, sumber (buku/artikel/video/kursus), durasi, takeaway, dan next action yang mau dilakukan',
     titleKey: 'topic',
     payloadKey: 'entry',
     listKey: 'entries',
@@ -105,6 +110,7 @@ export const configs: Record<string, RecordConfig> = {
   milestones: {
     type: 'milestones',
     singular: 'Milestone',
+    hint: 'Target terukur sebagai checkpoint menuju goal — bisa auto-track dari work logs, learning, atau tasks berdasarkan filter keyword',
     titleKey: 'title',
     payloadKey: 'milestone',
     listKey: 'milestones',

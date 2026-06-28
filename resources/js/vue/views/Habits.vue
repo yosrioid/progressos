@@ -13,6 +13,7 @@ interface Habit {
   target_days: number[] | null;
   active: boolean;
   today_done: boolean;
+  today_notes: string | null;
   streak: number;
   week_dates: string[];
   heatmap: string[];
@@ -27,6 +28,12 @@ const showForm = ref(false);
 const editingHabit = ref<Habit | null>(null);
 const saving = ref(false);
 const formError = ref('');
+
+// Log notes modal state
+const showLogModal = ref(false);
+const pendingHabit = ref<Habit | null>(null);
+const logNotes = ref('');
+const logSaving = ref(false);
 
 const colorOptions = ['#0d9488', '#0ea5e9', '#8b5cf6', '#ec4899', '#ef4444', '#f97316', '#eab308', '#22c55e', '#06b6d4', '#64748b'];
 const form = ref({ name: '', description: '', icon: '✓', color: '#0d9488', frequency: 'daily' });
@@ -70,25 +77,53 @@ async function load() {
   }
 }
 
-async function toggleToday(habit: Habit) {
-  const prev = habit.today_done;
-  habit.today_done = !prev;
-  if (prev) {
+function openLogModal(habit: Habit) {
+  pendingHabit.value = habit;
+  logNotes.value = '';
+  showLogModal.value = true;
+}
+
+function closeLogModal() {
+  showLogModal.value = false;
+  pendingHabit.value = null;
+  logNotes.value = '';
+}
+
+async function submitLog(notes: string | null) {
+  const habit = pendingHabit.value;
+  if (!habit) return;
+  logSaving.value = true;
+  habit.today_done = true;
+  habit.streak += 1;
+  habit.week_dates = [...habit.week_dates, today.value];
+  closeLogModal();
+  try {
+    await api.post(`/api/v1/habits/${habit.id}/log`, { date: today.value, notes: notes ?? undefined });
+    habit.today_notes = notes;
+  } catch {
+    habit.today_done = false;
     habit.streak = Math.max(0, habit.streak - 1);
+    habit.week_dates = habit.week_dates.filter((d) => d !== today.value);
+  } finally {
+    logSaving.value = false;
+  }
+}
+
+async function toggleToday(habit: Habit) {
+  if (habit.today_done) {
+    // Undo: langsung hapus tanpa modal
+    habit.today_done = false;
+    habit.streak = Math.max(0, habit.streak - 1);
+    habit.today_notes = null;
     try {
       await api.delete(`/api/v1/habits/${habit.id}/log?date=${today.value}`);
     } catch {
-      habit.today_done = prev;
+      habit.today_done = true;
+      habit.streak += 1;
     }
   } else {
-    habit.streak += 1;
-    habit.week_dates = [...habit.week_dates, today.value];
-    try {
-      await api.post(`/api/v1/habits/${habit.id}/log`, { date: today.value });
-    } catch {
-      habit.today_done = prev;
-      habit.streak -= 1;
-    }
+    // Buka modal untuk tambah catatan sebelum log
+    openLogModal(habit);
   }
 }
 
@@ -145,9 +180,9 @@ onMounted(load);
       <div>
         <p class="text-xs font-extrabold uppercase text-teal-700 dark:text-teal-500">Consistency</p>
         <h1 class="text-3xl font-extrabold tracking-tight">Habit Tracker</h1>
-        <p class="mt-1 text-sm font-medium text-slate-500 dark:text-zinc-500">Build habits one day at a time</p>
+        <p class="mt-1 text-sm font-medium text-slate-500 dark:text-zinc-500">Track kebiasaan harian dengan streak dan heatmap 90 hari — klik ikon habit untuk tandai selesai hari ini</p>
       </div>
-      <button class="btn btn-primary" @click="openForm()">+ New Habit</button>
+      <button class="btn btn-primary" title="Buat habit baru" @click="openForm()">+ New Habit</button>
     </div>
 
     <!-- Loading -->
@@ -168,7 +203,7 @@ onMounted(load);
     <template v-else>
       <!-- Today summary -->
       <div class="card mb-4 flex items-center gap-3 p-3">
-        <span class="text-sm font-extrabold text-slate-700 dark:text-zinc-200">{{ todayDoneCount }}/{{ habits.length }} done today</span>
+        <span class="text-sm font-extrabold text-slate-700 dark:text-zinc-200" title="Jumlah habit yang sudah selesai hari ini">{{ todayDoneCount }}/{{ habits.length }} done today</span>
         <div class="flex-1 h-2 bg-slate-100 dark:bg-zinc-800 rounded-full overflow-hidden">
           <div class="h-2 bg-teal-600 rounded-full transition-all" :style="{ width: (habits.length ? todayDoneCount / habits.length * 100 : 0) + '%' }"></div>
         </div>
@@ -181,7 +216,7 @@ onMounted(load);
           <div class="flex items-start gap-3">
             <!-- Check button -->
             <button
-              :title="habit.today_done ? 'Undo' : 'Mark done'"
+              :title="habit.today_done ? 'Klik untuk batalkan (undo)' : 'Klik untuk tandai selesai hari ini — bisa tambah catatan'"
               :class="['w-10 h-10 rounded-xl text-lg font-bold flex items-center justify-center flex-shrink-0 transition-all', habit.today_done ? 'text-white shadow-sm' : 'bg-slate-100 dark:bg-zinc-800 text-slate-400 hover:bg-slate-200 dark:hover:bg-zinc-700']"
               :style="habit.today_done ? { background: habit.color } : {}"
               @click="toggleToday(habit)"
@@ -192,10 +227,15 @@ onMounted(load);
             <div class="flex-1 min-w-0">
               <div class="flex items-center gap-2 flex-wrap">
                 <span class="font-extrabold text-slate-900 dark:text-zinc-100">{{ habit.name }}</span>
-                <span v-if="habit.streak > 0" class="text-xs font-bold text-orange-500">🔥 {{ habit.streak }} days</span>
-                <span class="text-xs text-slate-400 dark:text-zinc-500">{{ habit.total_logs }} total</span>
+                <span v-if="habit.streak > 0" class="text-xs font-bold text-orange-500" title="Streak hari berturut-turut">🔥 {{ habit.streak }} days</span>
+                <span class="text-xs text-slate-400 dark:text-zinc-500" title="Total hari berhasil">{{ habit.total_logs }} total</span>
               </div>
               <p v-if="habit.description" class="text-xs text-slate-500 dark:text-zinc-400 mt-0.5 truncate">{{ habit.description }}</p>
+
+              <!-- Today notes (if exists) -->
+              <p v-if="habit.today_done && habit.today_notes" class="mt-1 text-xs text-slate-500 dark:text-zinc-400 italic bg-slate-50 dark:bg-zinc-800/60 rounded-lg px-2 py-1">
+                📝 {{ habit.today_notes }}
+              </p>
 
               <!-- Week view (last 7 days) -->
               <div class="flex gap-1 mt-2">
@@ -204,7 +244,7 @@ onMounted(load);
                   :key="day.date"
                   :class="['w-6 h-6 rounded text-center text-xs leading-6 font-semibold transition-colors', isLoggedOn(habit, day.date) ? 'text-white' : day.isToday ? 'bg-slate-200 dark:bg-zinc-700 text-slate-500' : 'bg-slate-100 dark:bg-zinc-800 text-slate-300 dark:text-zinc-600']"
                   :style="isLoggedOn(habit, day.date) ? { background: habit.color } : {}"
-                  :title="day.label"
+                  :title="day.label + (isLoggedOn(habit, day.date) ? ' ✓' : '')"
                 >
                   {{ day.short }}
                 </div>
@@ -213,10 +253,10 @@ onMounted(load);
 
             <!-- Actions -->
             <div class="flex items-center gap-1">
-              <button class="btn-icon-edit" aria-label="Edit habit" @click="openForm(habit)">
+              <button class="btn-icon-edit" aria-label="Edit habit" title="Edit habit" @click="openForm(habit)">
                 <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5Z"/></svg>
               </button>
-              <button class="btn-icon-delete" aria-label="Hapus habit" @click="confirmDelete(habit)">
+              <button class="btn-icon-delete" aria-label="Hapus habit" title="Hapus habit dan semua log-nya" @click="confirmDelete(habit)">
                 <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0 1 16.138 21H7.862a2 2 0 0 1-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v3M4 7h16"/></svg>
               </button>
             </div>
@@ -231,16 +271,49 @@ onMounted(load);
                 :key="cell.date"
                 :class="['w-3 h-3 rounded-sm', cell.done ? '' : 'bg-slate-100 dark:bg-zinc-800']"
                 :style="cell.done ? { background: habit.color } : {}"
-                :title="cell.date"
+                :title="cell.date + (cell.done ? ' ✓' : '')"
               ></div>
             </div>
           </div>
-          <button class="mt-2 text-xs font-semibold text-slate-400 hover:text-teal-600 dark:hover:text-teal-400 transition-colors" @click="expandedId = expandedId === habit.id ? null : habit.id">
+          <button class="mt-2 text-xs font-semibold text-slate-400 hover:text-teal-600 dark:hover:text-teal-400 transition-colors" :title="expandedId === habit.id ? 'Sembunyikan heatmap' : 'Lihat heatmap 90 hari terakhir'" @click="expandedId = expandedId === habit.id ? null : habit.id">
             {{ expandedId === habit.id ? '▲ Hide heatmap' : '▼ View 90-day heatmap' }}
           </button>
         </div>
       </div>
     </template>
+
+    <!-- Log notes modal -->
+    <div v-if="showLogModal" class="fixed inset-0 bg-black/60 flex items-end sm:items-center justify-center z-50 px-4 pb-4 sm:pb-0" @click.self="closeLogModal">
+      <div class="bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-4 border border-slate-200 dark:border-zinc-700">
+        <div>
+          <h2 class="text-lg font-extrabold text-slate-900 dark:text-zinc-100">
+            <span :style="{ color: pendingHabit?.color }">{{ pendingHabit?.icon }}</span>
+            {{ pendingHabit?.name }}
+          </h2>
+          <p class="text-sm text-slate-500 dark:text-zinc-400 mt-0.5">Tandai selesai hari ini — tambahkan catatan opsional</p>
+        </div>
+
+        <label class="block">
+          <span class="label mb-1">Catatan hari ini <span class="font-normal text-slate-400">(opsional)</span></span>
+          <textarea
+            v-model="logNotes"
+            class="field resize-none"
+            rows="3"
+            placeholder="Contoh: 30 menit lari pagi, cuaca bagus..."
+            autofocus
+            @keydown.ctrl.enter="submitLog(logNotes.trim() || null)"
+          ></textarea>
+        </label>
+
+        <div class="flex gap-2 pt-1">
+          <button class="btn btn-muted flex-1" @click="closeLogModal">Batal</button>
+          <button class="btn btn-muted flex-1" title="Tandai selesai tanpa catatan" @click="submitLog(null)">Lewati</button>
+          <button class="btn btn-primary flex-1" :disabled="logSaving" title="Tandai selesai dengan catatan (Ctrl+Enter)" @click="submitLog(logNotes.trim() || null)">
+            {{ logSaving ? 'Menyimpan...' : 'Tandai Done' }}
+          </button>
+        </div>
+      </div>
+    </div>
 
     <!-- Form modal -->
     <div v-if="showForm" class="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4" @click.self="closeForm">
@@ -270,6 +343,7 @@ onMounted(load);
                 :key="c"
                 :class="['w-6 h-6 rounded-full border-2 transition-transform', form.color === c ? 'border-slate-900 dark:border-white scale-110' : 'border-transparent']"
                 :style="{ background: c }"
+                :title="c"
                 @click="form.color = c"
               ></button>
             </div>

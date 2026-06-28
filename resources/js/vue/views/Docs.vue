@@ -15,26 +15,39 @@ const meta = ref<any>(null);
 
 async function load() {
   loading.value = true;
-  const params: any = { page: page.value, per_page: 20 };
-  if (search.value) params.search = search.value;
-  if (filterCat.value) params.category = filterCat.value;
-  const data = await api.get('/api/v1/docs', { params }).then(unwrap);
-  docs.value = data.docs?.data || [];
-  meta.value = data.docs;
-  loading.value = false;
+  try {
+    const params: any = { page: page.value, per_page: 20 };
+    if (search.value) params.search = search.value;
+    if (filterCat.value) params.category = filterCat.value;
+    const data = await api.get('/api/v1/docs', { params }).then(unwrap);
+    docs.value = data.docs?.data || [];
+    meta.value = data.docs;
+  } catch (e: any) {
+    toast({ tone: 'error', title: 'Gagal memuat docs', message: e?.response?.data?.message ?? 'Terjadi kesalahan.' });
+  } finally {
+    loading.value = false;
+  }
 }
 
 async function loadCategories() {
-  const data = await api.get('/api/v1/docs/categories').then(unwrap);
-  categories.value = data.categories;
+  try {
+    const data = await api.get('/api/v1/docs/categories').then(unwrap);
+    categories.value = data.categories;
+  } catch {
+    // non-critical
+  }
 }
 
 async function remove(doc: any) {
   const ok = await confirmAction({ title: 'Delete doc', message: `Delete "${doc.title}"? This also removes all attached files.`, confirmLabel: 'Delete' });
   if (!ok) return;
-  await api.delete(`/api/v1/docs/${doc.id}`);
-  toast({ tone: 'success', title: 'Deleted', message: `"${doc.title}" was deleted.` });
-  load();
+  try {
+    await api.delete(`/api/v1/docs/${doc.id}`);
+    toast({ tone: 'success', title: 'Deleted', message: `"${doc.title}" was deleted.` });
+    load();
+  } catch (e: any) {
+    toast({ tone: 'error', title: 'Gagal menghapus', message: e?.response?.data?.message ?? 'Terjadi kesalahan.' });
+  }
 }
 
 function onSearch() { page.value = 1; load(); }

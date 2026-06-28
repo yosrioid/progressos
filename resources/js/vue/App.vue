@@ -36,47 +36,47 @@ const navGroups = [
   {
     label: 'Overview',
     items: [
-      { label: 'Dashboard', href: '/dashboard', icon: 'dashboard' },
-      { label: 'Projects', href: '/projects', icon: 'folder' },
-      { label: 'Activity', href: '/activity', icon: 'chart' },
-      { label: 'Docs', href: '/docs', icon: 'docs' },
-      { label: 'Lists', href: '/lists', icon: 'check' },
-      { label: 'Tagihan', href: '/bills', icon: 'billing' },
-      { label: 'Transaksi', href: '/money', icon: 'money' },
+      { label: 'Dashboard', href: '/dashboard', icon: 'dashboard', hint: 'Ringkasan semua aktivitas hari ini — tasks, habit, progress, deadline, dan standup' },
+      { label: 'Projects', href: '/projects', icon: 'folder', hint: 'Kelola proyek aktif dan lihat breakdown tasks, work logs, serta progres per proyek' },
+      { label: 'Activity', href: '/activity', icon: 'chart', hint: 'Timeline dan heatmap aktivitas harian — lihat berapa banyak yang sudah dikerjakan tiap hari' },
+      { label: 'Docs', href: '/docs', icon: 'docs', hint: 'Catatan, dokumentasi, dan knowledge base — bisa di-share via link publik' },
+      { label: 'Lists', href: '/lists', icon: 'check', hint: 'Checklist dan to-do list sederhana — bagus untuk belanja, packing, atau prosedur berulang' },
+      { label: 'Tagihan', href: '/bills', icon: 'billing', hint: 'Reminder tagihan dan langganan bulanan agar tidak ada yang terlewat bayar' },
+      { label: 'Transaksi', href: '/money', icon: 'money', hint: 'Catat pemasukan dan pengeluaran harian — lihat ringkasan bulanan per kategori' },
     ],
   },
   {
     label: 'Work',
     items: [
-      { label: 'Daily Progress', href: '/daily-progress', icon: 'calendar' },
-      { label: 'Work Logs', href: '/work-logs', icon: 'briefcase' },
-      { label: 'Tasks', href: '/tasks', icon: 'check' },
+      { label: 'Daily Progress', href: '/daily-progress', icon: 'calendar', hint: 'Jurnal harian — catat apa yang sudah dikerjakan, sedang berjalan, dan hambatan hari ini' },
+      { label: 'Work Logs', href: '/work-logs', icon: 'briefcase', hint: 'Log sesi kerja dengan durasi, proyek, kategori, dan outcome — bisa link ke task' },
+      { label: 'Tasks', href: '/tasks', icon: 'check', hint: 'Manajemen task dengan status, prioritas, deadline, dan recurrence — ada view Kanban board juga' },
     ],
   },
   {
     label: 'Learning & Goals',
     items: [
-      { label: 'Learning', href: '/learning', icon: 'book' },
-      { label: 'Goals & OKR', href: '/goals', icon: 'target' },
-      { label: 'Habits', href: '/habits', icon: 'check' },
+      { label: 'Learning', href: '/learning', icon: 'book', hint: 'Catat sesi belajar — topik, sumber, durasi, takeaway, dan next action' },
+      { label: 'Goals & OKR', href: '/goals', icon: 'target', hint: 'Set goal jangka panjang dengan key results yang terukur, plus milestones sebagai checkpoint' },
+      { label: 'Habits', href: '/habits', icon: 'check', hint: 'Track kebiasaan harian — streak, heatmap 90 hari, dan catatan per hari saat tandai selesai' },
     ],
   },
   {
     label: 'Review',
     items: [
-      { label: 'Reports', href: '/reports/weekly', icon: 'chart' },
+      { label: 'Reports', href: '/reports/weekly', icon: 'chart', hint: 'Review mingguan dan bulanan — ringkasan work, learning, habits, dan produktivitas keseluruhan' },
     ],
   },
   {
     label: 'Games',
     items: [
-      { label: 'Games', href: '/games', icon: 'games' },
+      { label: 'Games', href: '/games', icon: 'games', hint: 'Mini-games untuk istirahat otak — Sudoku, Minesweeper, 2048, Memory Match, Pitch Trainer' },
     ],
   },
   {
     label: 'System',
     items: [
-      { label: 'Configuration', href: '/configuration', icon: 'settings' },
+      { label: 'Configuration', href: '/configuration', icon: 'settings', hint: 'Pengaturan aplikasi — notifikasi Telegram, PIN privacy, token API, dan preferensi lainnya' },
     ],
   },
 ];
@@ -152,17 +152,21 @@ async function submitQuick() {
     }
     return;
   }
-  const res = await api.post('/api/v1/quick-capture', quickForm.value).then(unwrap);
-  const path: string | null = res.record_path ?? null;
-  quick.value = false;
-  toast({
-    tone: 'success',
-    title: 'Captured',
-    message: path ? `Saved. <a href="${path}" class="font-bold underline">View record →</a>` : 'Saved.',
-  });
-  quickForm.value = { type: 'work_log', title: '', project_name: '', duration_minutes: 30, notes: '', date: new Date().toISOString().slice(0, 10) };
-  if (path) await router.push(path);
-  else await router.push('/dashboard');
+  try {
+    const res = await api.post('/api/v1/quick-capture', quickForm.value).then(unwrap);
+    const path: string | null = res.record_path ?? null;
+    quick.value = false;
+    toast({
+      tone: 'success',
+      title: 'Captured',
+      message: path ? `Saved. <a href="${path}" class="font-bold underline">View record →</a>` : 'Saved.',
+    });
+    quickForm.value = { type: 'work_log', title: '', project_name: '', duration_minutes: 30, notes: '', date: new Date().toISOString().slice(0, 10) };
+    if (path) await router.push(path);
+    else await router.push('/dashboard');
+  } catch (e: any) {
+    toast({ tone: 'error', title: 'Gagal menyimpan', message: e?.response?.data?.message ?? 'Terjadi kesalahan.' });
+  }
 }
 
 async function loadHabits() {
@@ -210,22 +214,34 @@ async function toggleNotif() {
 
 async function markNotifRead(n: any) {
   if (n.read_at) return;
-  await api.patch(`/api/v1/notifications/${n.id}/read`);
-  n.read_at = new Date().toISOString();
-  notifUnread.value = Math.max(0, notifUnread.value - 1);
-  if (n.action_url) { notifOpen.value = false; router.push(n.action_url); }
+  try {
+    await api.patch(`/api/v1/notifications/${n.id}/read`);
+    n.read_at = new Date().toISOString();
+    notifUnread.value = Math.max(0, notifUnread.value - 1);
+    if (n.action_url) { notifOpen.value = false; router.push(n.action_url); }
+  } catch {
+    // non-critical, notification badge may be slightly off
+  }
 }
 
 async function markAllNotifRead() {
-  await api.post('/api/v1/notifications/mark-all-read');
-  notifications.value.forEach((n) => { n.read_at = new Date().toISOString(); });
-  notifUnread.value = 0;
+  try {
+    await api.post('/api/v1/notifications/mark-all-read');
+    notifications.value.forEach((n) => { n.read_at = new Date().toISOString(); });
+    notifUnread.value = 0;
+  } catch {
+    // non-critical
+  }
 }
 
 async function clearAllNotif() {
-  await api.delete('/api/v1/notifications');
-  notifications.value = [];
-  notifUnread.value = 0;
+  try {
+    await api.delete('/api/v1/notifications');
+    notifications.value = [];
+    notifUnread.value = 0;
+  } catch {
+    // non-critical
+  }
 }
 
 async function logout() {
@@ -394,6 +410,7 @@ onUnmounted(() => {
               v-for="item in group.items"
               :key="item.href"
               :to="item.href"
+              :title="item.hint"
               class="group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-bold text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900 dark:text-zinc-400 dark:hover:bg-zinc-800/60 dark:hover:text-zinc-100"
               :class="isActive(item.href) ? 'bg-teal-50 text-teal-800 ring-1 ring-teal-200/60 dark:bg-teal-500/12 dark:text-teal-300 dark:ring-teal-500/20' : ''"
             >
@@ -580,6 +597,7 @@ onUnmounted(() => {
                 v-for="item in group.items"
                 :key="item.href"
                 :to="item.href"
+                :title="item.hint"
                 class="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-bold text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900 dark:text-zinc-400 dark:hover:bg-zinc-800"
                 :class="isActive(item.href) ? 'bg-teal-50 text-teal-800 ring-1 ring-teal-200/60 dark:bg-teal-500/12 dark:text-teal-300 dark:ring-teal-500/20' : ''"
               >

@@ -132,9 +132,13 @@ async function startPay(bill: BillItem) {
   if (bill.paid) {
     const ok = await confirmAction({ title: 'Batalkan pembayaran', message: `Batalkan pembayaran "${bill.name}"?`, confirmLabel: 'Batalkan' });
     if (!ok) return;
-    await api.delete(`/api/v1/bills/${bill.id}/pay/${month.value}`);
-    bill.paid = false;
-    bill.payment = null;
+    try {
+      await api.delete(`/api/v1/bills/${bill.id}/pay/${month.value}`);
+      bill.paid = false;
+      bill.payment = null;
+    } catch (e: any) {
+      toast({ tone: 'error', title: 'Gagal membatalkan', message: e?.response?.data?.message ?? 'Terjadi kesalahan.' });
+    }
     return;
   }
   payingId.value = bill.id;
@@ -162,15 +166,23 @@ async function confirmPay(bill: BillItem) {
 
 async function toggleSkip(bill: BillItem) {
   if (bill.skipped) {
-    await api.delete(`/api/v1/bills/${bill.id}/skip/${month.value}`);
-    bill.skipped = false;
+    try {
+      await api.delete(`/api/v1/bills/${bill.id}/skip/${month.value}`);
+      bill.skipped = false;
+    } catch (e: any) {
+      toast({ tone: 'error', title: 'Gagal membatalkan skip', message: e?.response?.data?.message ?? 'Terjadi kesalahan.' });
+    }
   } else {
     const ok = await confirmAction({ title: 'Lewati bulan ini', message: `"${bill.name}" tidak berlaku untuk ${monthLabel(month.value)}?`, confirmLabel: 'Lewati' });
     if (!ok) return;
-    if (bill.paid) { await api.delete(`/api/v1/bills/${bill.id}/pay/${month.value}`); bill.paid = false; bill.payment = null; }
-    await api.post(`/api/v1/bills/${bill.id}/skip`, { month: month.value });
-    bill.skipped = true;
-    payingId.value = null;
+    try {
+      if (bill.paid) { await api.delete(`/api/v1/bills/${bill.id}/pay/${month.value}`); bill.paid = false; bill.payment = null; }
+      await api.post(`/api/v1/bills/${bill.id}/skip`, { month: month.value });
+      bill.skipped = true;
+      payingId.value = null;
+    } catch (e: any) {
+      toast({ tone: 'error', title: 'Gagal skip tagihan', message: e?.response?.data?.message ?? 'Terjadi kesalahan.' });
+    }
   }
 }
 
@@ -199,10 +211,14 @@ async function loadAnnual() {
 
 async function saveBudget() {
   const amount = parseAmount(budgetInput.value);
-  await api.post('/api/v1/bills/set-budget', { month: month.value, amount });
-  budget.value = amount;
-  editingBudget.value = false;
-  toast({ tone: 'success', title: 'Budget disimpan', message: showRp(amount) });
+  try {
+    await api.post('/api/v1/bills/set-budget', { month: month.value, amount });
+    budget.value = amount;
+    editingBudget.value = false;
+    toast({ tone: 'success', title: 'Budget disimpan', message: showRp(amount) });
+  } catch (e: any) {
+    toast({ tone: 'error', title: 'Gagal menyimpan budget', message: e?.response?.data?.message ?? 'Terjadi kesalahan.' });
+  }
 }
 
 async function addBill() {

@@ -16,6 +16,7 @@ const prevEntry = ref<{ id: number; date: string; title: string } | null>(null);
 const nextEntry = ref<{ id: number; date: string; title: string } | null>(null);
 const referenceForm = ref({ label: '', url: '', type: 'link', notes: '' });
 const referenceError = ref('');
+const savingReference = ref(false);
 
 const refTypeIcons: Record<string, string> = {
   link: 'M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3M8 12h8',
@@ -280,13 +281,19 @@ async function destroy() {
   });
   if (!confirmed) return;
   deleting.value = true;
-  await api.delete(`${config.value.endpoint}/${props.id}`);
-  toast({ tone: 'success', title: `${config.value.singular} deleted`, message: title.value });
-  await router.push(`/${props.type}`);
+  try {
+    await api.delete(`${config.value.endpoint}/${props.id}`);
+    toast({ tone: 'success', title: `${config.value.singular} deleted`, message: title.value });
+    await router.push(`/${props.type}`);
+  } catch (e: any) {
+    toast({ tone: 'error', title: 'Gagal menghapus', message: e?.response?.data?.message ?? 'Terjadi kesalahan.' });
+    deleting.value = false;
+  }
 }
 
 async function addReference() {
   referenceError.value = '';
+  savingReference.value = true;
   try {
     await api.post('/api/v1/references', {
       referenceable_type: referenceType(),
@@ -298,6 +305,8 @@ async function addReference() {
     await load();
   } catch (e: any) {
     referenceError.value = e.response?.data?.message || 'Could not add reference.';
+  } finally {
+    savingReference.value = false;
   }
 }
 
@@ -309,9 +318,13 @@ async function removeReference(reference: any) {
     danger: true,
   });
   if (!confirmed) return;
-  await api.delete(`/api/v1/references/${reference.id}`);
-  toast({ tone: 'success', title: 'Reference removed', message: reference.label });
-  await load();
+  try {
+    await api.delete(`/api/v1/references/${reference.id}`);
+    toast({ tone: 'success', title: 'Reference removed', message: reference.label });
+    await load();
+  } catch (e: any) {
+    toast({ tone: 'error', title: 'Gagal menghapus referensi', message: e?.response?.data?.message ?? 'Terjadi kesalahan.' });
+  }
 }
 
 onMounted(load);
@@ -534,7 +547,7 @@ onMounted(load);
         <input v-model="referenceForm.label" class="field" placeholder="Label" required />
         <input v-model="referenceForm.url" class="field md:col-span-2" placeholder="https://..." required @input="onReferenceUrlInput" />
         <select v-model="referenceForm.type" class="field"><option v-for="option in ['link', 'doc', 'ticket', 'pr', 'article', 'course', 'other']" :key="option" :value="option">{{ option }}</option></select>
-        <button class="btn btn-primary">Add reference</button>
+        <button class="btn btn-primary" :disabled="savingReference">{{ savingReference ? 'Adding...' : 'Add reference' }}</button>
         <p v-if="referenceError" class="text-sm text-red-700 md:col-span-5">{{ referenceError }}</p>
       </form>
     </section>
