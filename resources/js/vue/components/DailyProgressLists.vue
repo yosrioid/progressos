@@ -3,6 +3,11 @@ import { nextTick, ref } from 'vue';
 
 type SectionKey = 'completed_items' | 'in_progress' | 'todo' | 'blockers';
 
+interface Item {
+  text: string;
+  depth: number;
+}
+
 interface ModelValue {
   completed_items: string[];
   in_progress: string[];
@@ -20,21 +25,35 @@ const SECTIONS: { key: SectionKey; label: string }[] = [
   { key: 'blockers', label: 'Blockers' },
 ];
 
+const MAX_DEPTH = 4;
+
 const inputRefs = ref<Record<string, HTMLInputElement | null>>({});
 const dragging = ref<{ section: SectionKey; index: number } | null>(null);
 const dropTarget = ref<{ section: SectionKey; index: number } | null>(null);
 
-function get(section: SectionKey): string[] {
-  return props.modelValue[section] ?? [];
+function parseItems(raw: string[]): Item[] {
+  return raw.map((s) => {
+    const depth = s.match(/^\t*/)?.[0].length ?? 0;
+    return { text: s.slice(depth), depth };
+  });
 }
 
-function set(section: SectionKey, items: string[]) {
-  emit('update:modelValue', { ...props.modelValue, [section]: items });
+function serializeItems(items: Item[]): string[] {
+  return items.map((item) => '\t'.repeat(item.depth) + item.text);
+}
+
+function get(section: SectionKey): Item[] {
+  return parseItems(props.modelValue[section] ?? []);
+}
+
+function set(section: SectionKey, items: Item[]) {
+  emit('update:modelValue', { ...props.modelValue, [section]: serializeItems(items) });
 }
 
 async function addItem(section: SectionKey) {
   const items = get(section);
-  set(section, [...items, '']);
+  const depth = items.length > 0 ? items[items.length - 1].depth : 0;
+  set(section, [...items, { text: '', depth }]);
   await nextTick();
   inputRefs.value[`${section}-${items.length}`]?.focus();
 }
@@ -47,19 +66,31 @@ function removeItem(section: SectionKey, index: number) {
 
 function updateItem(section: SectionKey, index: number, value: string) {
   const items = [...get(section)];
-  items[index] = value;
+  items[index] = { ...items[index], text: value };
   set(section, items);
 }
 
 async function onKeyDown(e: KeyboardEvent, section: SectionKey, index: number) {
+  const items = get(section);
   if (e.key === 'Enter') {
     e.preventDefault();
-    const items = [...get(section)];
-    items.splice(index + 1, 0, '');
-    set(section, items);
+    const newItems = [...items];
+    newItems.splice(index + 1, 0, { text: '', depth: items[index].depth });
+    set(section, newItems);
     await nextTick();
     inputRefs.value[`${section}-${index + 1}`]?.focus();
-  } else if (e.key === 'Backspace' && get(section)[index] === '') {
+  } else if (e.key === 'Tab') {
+    e.preventDefault();
+    const newItems = [...items];
+    if (e.shiftKey) {
+      newItems[index] = { ...newItems[index], depth: Math.max(0, newItems[index].depth - 1) };
+    } else {
+      newItems[index] = { ...newItems[index], depth: Math.min(MAX_DEPTH, newItems[index].depth + 1) };
+    }
+    set(section, newItems);
+    await nextTick();
+    inputRefs.value[`${section}-${index}`]?.focus();
+  } else if (e.key === 'Backspace' && items[index].text === '') {
     e.preventDefault();
     removeItem(section, index);
     await nextTick();
@@ -98,17 +129,17 @@ function performDrop(targetSection: SectionKey, targetIndex: number) {
   if (!dragging.value) return;
   const { section: srcSection, index: srcIndex } = dragging.value;
   const newData = { ...props.modelValue };
-  const srcItems = [...newData[srcSection]];
+  const srcItems = parseItems([...newData[srcSection]]);
   const [item] = srcItems.splice(srcIndex, 1);
   if (srcSection === targetSection) {
     const adj = targetIndex > srcIndex ? targetIndex - 1 : targetIndex;
     srcItems.splice(adj, 0, item);
-    newData[srcSection] = srcItems;
+    newData[srcSection] = serializeItems(srcItems);
   } else {
-    newData[srcSection] = srcItems;
-    const tgtItems = [...newData[targetSection]];
+    newData[srcSection] = serializeItems(srcItems);
+    const tgtItems = parseItems([...newData[targetSection]]);
     tgtItems.splice(targetIndex, 0, item);
-    newData[targetSection] = tgtItems;
+    newData[targetSection] = serializeItems(tgtItems);
   }
   emit('update:modelValue', newData);
   dragging.value = null;
@@ -157,8 +188,9 @@ function isDraggingFrom(section: SectionKey, index: number) {
           <!-- drop indicator above item -->
           <div v-if="isDropTarget(s.key, i)" class="mx-1 my-0.5 h-0.5 rounded-full bg-teal-500" />
           <div
-            class="group flex items-center gap-1 rounded-lg border border-transparent px-1 py-0.5 transition-colors hover:border-slate-200 hover:bg-white dark:hover:border-zinc-600 dark:hover:bg-zinc-700/50"
+            class="group flex items-center gap-1 rounded-lg border border-transparent py-0.5 pr-1 transition-colors hover:border-slate-200 hover:bg-white dark:hover:border-zinc-600 dark:hover:bg-zinc-700/50"
             :class="isDraggingFrom(s.key, i) ? 'opacity-40' : ''"
+            :style="{ paddingLeft: `${item.depth * 16 + 4}px` }"
             draggable="true"
             @dragstart="onDragStart($event, s.key, i)"
             @dragend="onDragEnd"
@@ -174,7 +206,7 @@ function isDraggingFrom(section: SectionKey, index: number) {
             </span>
             <input
               :ref="(el) => { inputRefs[`${s.key}-${i}`] = el as HTMLInputElement; }"
-              :value="item"
+              :value="item.text"
               type="text"
               class="min-w-0 flex-1 bg-transparent py-1 text-sm text-slate-700 outline-none placeholder:text-slate-300 dark:text-zinc-200 dark:placeholder:text-zinc-600"
               placeholder="Item…"
@@ -195,6 +227,8 @@ function isDraggingFrom(section: SectionKey, index: number) {
         <div v-if="isDropTarget(s.key, get(s.key).length)" class="mx-1 my-0.5 h-0.5 rounded-full bg-teal-500" />
         <p v-if="!get(s.key).length" class="px-1 py-1 text-xs text-slate-400 dark:text-zinc-600">Kosong — klik + Add</p>
       </div>
+
+      <p class="mt-3 text-xs text-slate-400 dark:text-zinc-600">Tab indent · Shift+Tab outdent · Enter baris baru</p>
     </div>
   </div>
 </template>
