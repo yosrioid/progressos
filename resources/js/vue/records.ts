@@ -28,15 +28,11 @@ export const configs: Record<string, RecordConfig> = {
     payloadKey: 'entry',
     listKey: 'entries',
     endpoint: '/api/v1/daily-progress',
-    defaults: { date: today(), title: '', mood: '', in_progress: '', todo: '', blockers: '', notes: '', completed_items: '', tags: '', archived: false },
+    defaults: { date: today(), title: '', mood: '', in_progress: [] as string[], todo: [] as string[], blockers: [] as string[], notes: '', completed_items: [] as string[], tags: '', archived: false },
     fields: [
       { key: 'date', label: 'Date', type: 'date', required: true },
       { key: 'mood', label: 'Mood / Status' },
       { key: 'title', label: 'Title', required: true, span: 'full' },
-      { key: 'completed_items', label: 'Completed items', type: 'textarea', span: 'full' },
-      { key: 'in_progress', label: 'In progress', type: 'textarea', span: 'full' },
-      { key: 'todo', label: 'Todo', type: 'textarea', span: 'full' },
-      { key: 'blockers', label: 'Blockers', type: 'textarea', span: 'full' },
       { key: 'notes', label: 'Notes', type: 'textarea', span: 'full' },
       { key: 'tags', label: 'Tags', type: 'tags', span: 'full' },
       { key: 'archived', label: 'Archived', type: 'checkbox' },
@@ -132,7 +128,17 @@ export const configs: Record<string, RecordConfig> = {
 
 export function normalizeForForm(config: RecordConfig, record?: any) {
   const form = { ...config.defaults, ...(record || {}) };
-  if (Array.isArray(form.completed_items)) form.completed_items = form.completed_items.join('\n');
+  if (config.type === 'daily-progress') {
+    for (const key of ['completed_items', 'in_progress', 'todo', 'blockers']) {
+      if (typeof form[key] === 'string') {
+        form[key] = form[key] ? (form[key] as string).split('\n').filter((s: string) => s.trim() !== '') : [];
+      } else if (!Array.isArray(form[key])) {
+        form[key] = [];
+      }
+    }
+  } else {
+    if (Array.isArray(form.completed_items)) form.completed_items = form.completed_items.join('\n');
+  }
   if (Array.isArray(form.tags)) form.tags = form.tags.map((tag: any) => tag.name || tag).join(', ');
   for (const key of ['date', 'due_date', 'start_date', 'end_date', 'recurrence_ends_at']) {
     if (form[key]) form[key] = String(form[key]).slice(0, 10);
@@ -142,7 +148,18 @@ export function normalizeForForm(config: RecordConfig, record?: any) {
 
 export function serialize(config: RecordConfig, form: Record<string, any>) {
   const payload: Record<string, any> = { ...form };
-  if ('completed_items' in payload) payload.completed_items = String(payload.completed_items || '').split('\n').filter((item) => item.trim() !== '');
+  if (config.type === 'daily-progress') {
+    if ('completed_items' in payload) {
+      payload.completed_items = (Array.isArray(payload.completed_items) ? payload.completed_items : []).filter((s: string) => String(s).trim() !== '');
+    }
+    for (const key of ['in_progress', 'todo', 'blockers']) {
+      if (key in payload) {
+        payload[key] = (Array.isArray(payload[key]) ? payload[key] : []).filter((s: string) => String(s).trim() !== '').join('\n');
+      }
+    }
+  } else {
+    if ('completed_items' in payload) payload.completed_items = String(payload.completed_items || '').split('\n').filter((item) => item.trim() !== '');
+  }
   if ('tags' in payload) payload.tags = String(payload.tags || '').split(',').map((item) => item.trim()).filter(Boolean);
   for (const key of ['project_id', 'task_id', 'actual_duration', 'estimated_duration', 'duration_minutes', 'rating']) {
     if (payload[key] === '' || payload[key] === 0) payload[key] = null;
