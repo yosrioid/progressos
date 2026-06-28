@@ -85,9 +85,9 @@ class JournalController extends Controller
 
         $history = Journal::ownedBy($user)
             ->where('id', '!=', $journal->id)
-            ->whereNotNull('mood')
+            ->where('date', '>=', now()->subDays(30)->toDateString())
             ->orderByDesc('date')
-            ->limit(5)
+            ->limit(30)
             ->get(['date', 'mood', 'tema', 'body']);
 
         $this->currentUser = $user;
