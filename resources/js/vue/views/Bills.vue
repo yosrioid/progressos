@@ -86,6 +86,7 @@ function shortMonthLabel(m: string) {
 }
 
 function shiftMonth(delta: number) {
+  if (loading.value) return;
   const { year, monthIndex } = parseMonth(month.value);
   const d = new Date(year, monthIndex + delta, 1);
   month.value = makeMonth(d.getFullYear(), d.getMonth());
@@ -321,11 +322,11 @@ onMounted(load);
 
     <!-- Month navigator -->
     <div class="card mb-4 flex items-center gap-3 p-3">
-      <button class="rounded-lg p-1.5 text-slate-400 transition-colors hover:text-slate-700 dark:hover:text-zinc-200" aria-label="Bulan sebelumnya" @click="shiftMonth(-1)">
+      <button class="rounded-lg p-1.5 text-slate-400 transition-colors hover:text-slate-700 disabled:opacity-40 dark:hover:text-zinc-200" :disabled="loading" aria-label="Bulan sebelumnya" @click="shiftMonth(-1)">
         <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6" /></svg>
       </button>
       <span class="flex-1 text-center text-sm font-extrabold capitalize text-slate-700 dark:text-zinc-200">{{ monthLabel(month) }}</span>
-      <button class="rounded-lg p-1.5 text-slate-400 transition-colors hover:text-slate-700 dark:hover:text-zinc-200" aria-label="Bulan berikutnya" @click="shiftMonth(1)">
+      <button class="rounded-lg p-1.5 text-slate-400 transition-colors hover:text-slate-700 disabled:opacity-40 dark:hover:text-zinc-200" :disabled="loading" aria-label="Bulan berikutnya" @click="shiftMonth(1)">
         <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6" /></svg>
       </button>
       <!-- Tools -->
