@@ -4,7 +4,7 @@ import { RouterLink, onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import { api, unwrap } from '../api';
 import DatePicker from '../components/DatePicker.vue';
 import DailyProgressLists from '../components/DailyProgressLists.vue';
-import { toast } from '../feedback';
+import { confirmAction, toast } from '../feedback';
 import { pasteLinkOverSelection } from '../linkPaste';
 import { configs, normalizeForForm, serialize, type Field } from '../records';
 
@@ -97,9 +97,13 @@ async function submit() {
 const isDirty = ref(false);
 watch(form, () => { if (!loading.value) isDirty.value = true; }, { deep: true });
 
-onBeforeRouteLeave(() => {
+onBeforeRouteLeave(async () => {
   if (isDirty.value && !saving.value) {
-    return window.confirm('Ada perubahan yang belum disimpan. Yakin mau pergi?');
+    return await confirmAction({
+      title: 'Perubahan belum tersimpan',
+      message: 'Ada perubahan yang belum tersimpan. Yakin mau pergi?',
+      confirmLabel: 'Pergi',
+    });
   }
 });
 

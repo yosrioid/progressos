@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router';
 import { api, unwrap } from './api';
 import DatePicker from './components/DatePicker.vue';
@@ -284,15 +284,25 @@ function applyFavicon(url?: string) {
   link.href = url;
 }
 
+const confirmCancelRef = ref<HTMLButtonElement | null>(null);
+watch(() => feedback.confirm.open, async (open) => {
+  if (open) {
+    await nextTick();
+    confirmCancelRef.value?.focus();
+  }
+});
+
 function shortcuts(event: KeyboardEvent) {
   const target = event.target as HTMLElement | null;
   const typing = ['INPUT', 'TEXTAREA', 'SELECT'].includes(target?.tagName || '');
   if (event.key === 'Escape') {
+    if (feedback.confirm.open) { resolveConfirm(false); return; }
     quick.value = false;
     mobileMenu.value = false;
     profileMenu.value = false;
     commandOpen.value = false;
     shortcutsOpen.value = false;
+    notifOpen.value = false;
   }
   if (typing) return;
   if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
@@ -703,27 +713,55 @@ onUnmounted(() => {
       </section>
     </div>
     <!-- Confirm dialog -->
-    <div v-if="feedback.confirm.open" class="fixed inset-0 z-50 grid place-items-center bg-slate-950/50 p-4 backdrop-blur-[2px]" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
-      <section class="card w-full max-w-md overflow-hidden p-0 shadow-2xl">
-        <div class="border-b border-slate-100 bg-slate-50/70 px-5 py-4 dark:border-zinc-800 dark:bg-zinc-900/60">
-          <div class="flex items-start gap-3">
-            <span class="grid h-10 w-10 shrink-0 place-items-center rounded-2xl" :class="feedback.confirm.danger ? 'bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-400' : 'bg-teal-50 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400'">
-              <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" viewBox="0 0 24 24"><path v-for="path in icons[feedback.confirm.danger ? 'alert' : 'check']" :key="path" :d="path" /></svg>
-            </span>
-            <div>
-              <p class="text-xs font-extrabold uppercase" :class="feedback.confirm.danger ? 'text-red-700 dark:text-red-400' : 'text-teal-700 dark:text-teal-500'">{{ feedback.confirm.danger ? 'Needs confirmation' : 'Confirm action' }}</p>
-              <h2 id="confirm-title" class="mt-1 text-xl font-extrabold">{{ feedback.confirm.title }}</h2>
+    <Transition name="confirm-dialog">
+      <div
+        v-if="feedback.confirm.open"
+        class="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/50 backdrop-blur-[2px] sm:items-center sm:p-4"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="confirm-title"
+        @click.self="resolveConfirm(false)"
+      >
+        <section class="confirm-panel w-full overflow-hidden rounded-t-3xl border border-slate-200 bg-white shadow-2xl dark:border-zinc-800 dark:bg-zinc-900 sm:max-w-md sm:rounded-2xl">
+          <div class="border-b border-slate-100 bg-slate-50/70 px-5 py-4 dark:border-zinc-800 dark:bg-zinc-900/60">
+            <div class="flex items-start gap-3">
+              <span class="grid h-10 w-10 shrink-0 place-items-center rounded-2xl" :class="feedback.confirm.danger ? 'bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-400' : 'bg-teal-50 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400'">
+                <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" viewBox="0 0 24 24"><path v-for="path in icons[feedback.confirm.danger ? 'alert' : 'check']" :key="path" :d="path" /></svg>
+              </span>
+              <div class="min-w-0 flex-1">
+                <p class="text-xs font-extrabold uppercase" :class="feedback.confirm.danger ? 'text-red-700 dark:text-red-400' : 'text-teal-700 dark:text-teal-500'">{{ feedback.confirm.danger ? 'Butuh konfirmasi' : 'Konfirmasi aksi' }}</p>
+                <h2 id="confirm-title" class="mt-1 text-xl font-extrabold">{{ feedback.confirm.title }}</h2>
+              </div>
             </div>
           </div>
-        </div>
-        <div class="px-5 py-4">
-          <p class="mt-2 text-sm leading-6 text-slate-600 dark:text-zinc-400">{{ feedback.confirm.message }}</p>
-        </div>
-        <div class="flex justify-end gap-2 border-t border-slate-100 bg-slate-50/70 px-5 py-4 dark:border-zinc-800 dark:bg-zinc-900/60">
-          <button class="btn btn-muted" @click="resolveConfirm(false)">Cancel</button>
-          <button class="btn" :class="feedback.confirm.danger ? 'btn-danger' : 'btn-primary'" @click="resolveConfirm(true)">{{ feedback.confirm.confirmLabel }}</button>
-        </div>
-      </section>
-    </div>
+          <div class="px-5 py-4">
+            <p class="text-sm leading-6 text-slate-600 dark:text-zinc-400">{{ feedback.confirm.message }}</p>
+          </div>
+          <div class="flex justify-end gap-2 border-t border-slate-100 bg-slate-50/70 px-5 py-4 pb-[calc(1rem+env(safe-area-inset-bottom))] dark:border-zinc-800 dark:bg-zinc-900/60 sm:pb-4">
+            <button ref="confirmCancelRef" class="btn btn-muted" @click="resolveConfirm(false)">Batal</button>
+            <button class="btn" :class="feedback.confirm.danger ? 'btn-danger' : 'btn-primary'" @click="resolveConfirm(true)">{{ feedback.confirm.confirmLabel }}</button>
+          </div>
+        </section>
+      </div>
+    </Transition>
   </div>
 </template>
+
+<style>
+.confirm-dialog-enter-active { transition: opacity 0.15s ease; }
+.confirm-dialog-leave-active { transition: opacity 0.1s ease; }
+.confirm-dialog-enter-from,
+.confirm-dialog-leave-to { opacity: 0; }
+
+.confirm-dialog-enter-active .confirm-panel {
+  transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.confirm-dialog-enter-from .confirm-panel {
+  transform: translateY(100%);
+}
+@media (min-width: 640px) {
+  .confirm-dialog-enter-from .confirm-panel {
+    transform: scale(0.95) translateY(8px);
+  }
+}
+</style>
