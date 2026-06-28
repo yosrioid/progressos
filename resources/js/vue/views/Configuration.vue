@@ -28,7 +28,13 @@ const loadError = ref('');
 const googleHelpOpen = ref(false);
 const googleSsoHelpOpen = ref(false);
 const resendHelpOpen = ref(false);
-const openGroups = ref({ general: true, appearance: false, auth: true, mail: true, google_oauth: false, sync_data: false, notifications: false, history: false, privacy: false });
+const openGroups = ref({ general: true, appearance: false, auth: true, mail: true, google_oauth: false, sync_data: false, notifications: false, history: false, privacy: false, quote: false });
+const quoteConfig = ref<{ enabled: boolean; themes: string[]; has_api_key: boolean; available_themes: string[] }>({
+  enabled: false, themes: ['motivation'], has_api_key: false,
+  available_themes: ['motivation', 'stoic', 'mindfulness', 'productivity', 'creativity', 'philosophy', 'wisdom', 'life', 'humor', 'romantic', 'leadership', 'growth'],
+});
+const quoteForm = ref({ enabled: false, themes: ['motivation'], api_key: '' });
+const quoteSaving = ref(false);
 const privacy = usePrivacyStore();
 const pinInput = ref('');
 const pinConfirm = ref('');
@@ -95,6 +101,16 @@ async function load() {
     authForm.value = { ...authForm.value, google_sso_enabled: authConfig.value.google_sso_enabled, client_id: authConfig.value.client_id, client_secret: '' };
     mailConfig.value = config.mail_config || mailConfig.value;
     mailForm.value = { ...mailForm.value, mailer: mailConfig.value.mailer, from_address: mailConfig.value.from_address, from_name: mailConfig.value.from_name, host: mailConfig.value.host, port: mailConfig.value.port, username: mailConfig.value.username, api_key: '', password: '' };
+    // Load quote config separately
+    try {
+      const qData: any = await api.get('/api/v1/quote/config').then(unwrap);
+      if (qData.quote_config) {
+        quoteConfig.value = { ...quoteConfig.value, ...qData.quote_config };
+        quoteForm.value = { enabled: quoteConfig.value.enabled, themes: [...quoteConfig.value.themes], api_key: '' };
+      }
+    } catch {
+      // non-critical
+    }
   } catch (error: any) {
     loadError.value = error.response?.data?.message || 'Could not load configuration. Please refresh or sign in again.';
     syncs.value = [blankSync()];
@@ -226,6 +242,29 @@ async function runNow(sync: any) {
   runs.value.unshift(data.run);
   toast({ tone: data.run.status === 'completed' ? 'success' : 'error', title: data.run.status === 'completed' ? 'Backup complete' : 'Backup failed', message: data.run.file_path || data.run.error_message });
   await load();
+}
+
+function toggleTheme(theme: string) {
+  const idx = quoteForm.value.themes.indexOf(theme);
+  if (idx >= 0) {
+    if (quoteForm.value.themes.length > 1) quoteForm.value.themes.splice(idx, 1);
+  } else {
+    quoteForm.value.themes.push(theme);
+  }
+}
+
+async function saveQuoteConfig() {
+  quoteSaving.value = true;
+  try {
+    const data: any = await api.put('/api/v1/configuration/quote', quoteForm.value).then(unwrap);
+    quoteConfig.value = { ...quoteConfig.value, ...data.quote_config };
+    quoteForm.value.api_key = '';
+    toast({ tone: 'success', title: 'Quote settings saved', message: quoteConfig.value.enabled ? 'Daily quote aktif.' : 'Daily quote dinonaktifkan.' });
+  } catch (e: any) {
+    toast({ tone: 'error', title: 'Gagal menyimpan', message: e?.response?.data?.message ?? 'Terjadi kesalahan.' });
+  } finally {
+    quoteSaving.value = false;
+  }
 }
 
 onMounted(load);
@@ -672,6 +711,78 @@ onMounted(load);
           <p v-if="pinError" class="text-sm font-semibold text-red-500">{{ pinError }}</p>
           <p v-if="pinSuccess" class="text-sm font-semibold text-teal-600 dark:text-teal-400">{{ pinSuccess }}</p>
           <button class="btn btn-primary" @click="savePin">{{ privacy.hasPin ? 'Ganti PIN' : 'Simpan PIN' }}</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Daily Quote -->
+    <section class="card overflow-hidden p-0">
+      <button type="button" class="flex w-full items-center justify-between gap-4 border-b border-slate-100 bg-slate-50/70 px-5 py-4 text-left dark:border-zinc-800 dark:bg-zinc-800/40" :aria-expanded="openGroups.quote" @click="toggleGroup('quote')">
+        <div>
+          <p class="font-extrabold text-slate-900 dark:text-zinc-100">Daily Quote</p>
+          <span class="mt-1 block text-sm font-medium text-slate-500">Quote harian dari AI berdasarkan tema pilihanmu. Tampil di sidebar.</span>
+        </div>
+        <span class="grid h-8 w-8 place-items-center rounded-xl border border-slate-200 bg-white text-slate-500 transition dark:border-zinc-700 dark:bg-zinc-900" :class="openGroups.quote ? 'rotate-180' : ''">
+          <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>
+        </span>
+      </button>
+      <div v-if="openGroups.quote" class="divide-y divide-slate-100 dark:divide-zinc-800 p-5 space-y-4">
+        <!-- Enable toggle -->
+        <div class="flex items-center justify-between gap-4">
+          <div>
+            <p class="text-sm font-extrabold text-slate-800 dark:text-zinc-200">Aktifkan daily quote</p>
+            <p class="text-xs text-slate-400 dark:text-zinc-500">Muncul di sidebar setiap hari, beda-beda tiap hari</p>
+          </div>
+          <label class="relative inline-flex cursor-pointer items-center">
+            <input v-model="quoteForm.enabled" type="checkbox" class="peer sr-only" />
+            <div class="peer h-6 w-11 rounded-full bg-slate-200 after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:bg-white after:shadow after:transition-all after:content-[''] peer-checked:bg-teal-600 peer-checked:after:translate-x-full dark:bg-zinc-700"></div>
+          </label>
+        </div>
+
+        <!-- API Key -->
+        <div class="pt-4">
+          <label class="block">
+            <span class="label mb-1">
+              Groq API Key
+              <span v-if="quoteConfig.has_api_key" class="ml-2 rounded-full bg-teal-100 px-2 py-0.5 text-[10px] font-extrabold text-teal-700 dark:bg-teal-900/30 dark:text-teal-400">Terkonfigurasi</span>
+            </span>
+            <input
+              v-model="quoteForm.api_key"
+              type="password"
+              class="field"
+              :placeholder="quoteConfig.has_api_key ? 'Kosongkan jika tidak ingin mengganti' : 'gsk_xxxxxxxxxxxxxxxxxxxxxxxx'"
+            />
+          </label>
+          <p class="mt-1 text-xs text-slate-400 dark:text-zinc-500">
+            Daftar gratis di <span class="font-semibold text-teal-600">console.groq.com</span> → API Keys → Create API Key
+          </p>
+        </div>
+
+        <!-- Theme picker -->
+        <div class="pt-4">
+          <p class="label mb-2">Tema quote <span class="font-normal text-slate-400">(bisa pilih lebih dari satu)</span></p>
+          <div class="flex flex-wrap gap-2">
+            <button
+              v-for="theme in quoteConfig.available_themes"
+              :key="theme"
+              type="button"
+              :class="[
+                'rounded-full border px-3 py-1 text-xs font-extrabold transition-colors capitalize',
+                quoteForm.themes.includes(theme)
+                  ? 'border-teal-500 bg-teal-50 text-teal-700 dark:border-teal-600 dark:bg-teal-900/30 dark:text-teal-400'
+                  : 'border-slate-200 bg-white text-slate-500 hover:border-teal-300 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-400'
+              ]"
+              @click="toggleTheme(theme)"
+            >
+              {{ theme }}
+            </button>
+          </div>
+        </div>
+
+        <div class="pt-2 flex justify-end">
+          <button class="btn btn-primary" :disabled="quoteSaving" @click="saveQuoteConfig">
+            {{ quoteSaving ? 'Menyimpan...' : 'Simpan Quote Settings' }}
+          </button>
         </div>
       </div>
     </section>
