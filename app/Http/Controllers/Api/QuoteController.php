@@ -67,7 +67,7 @@ class QuoteController extends Controller
         $data = $request->validate([
             'enabled' => ['required', 'boolean'],
             'themes' => ['required', 'array', 'min:1'],
-            'themes.*' => ['string', 'in:' . implode(',', self::THEMES)],
+            'themes.*' => ['string', 'max:60'],
             'api_key' => ['nullable', 'string', 'max:200'],
         ]);
 
@@ -142,12 +142,7 @@ class QuoteController extends Controller
     {
         $config = $this->quoteConfig($request->user());
 
-        return ApiResponse::ok(['quote_config' => [
-            'enabled' => $config['enabled'] ?? false,
-            'themes' => $config['themes'] ?? ['motivation'],
-            'has_api_key' => filled($config['api_key'] ?? null),
-            'available_themes' => self::THEMES,
-        ]]);
+        return ApiResponse::ok(['quote_config' => $this->buildPayload($config)]);
     }
 
     private function buildPayload(array $config): array
@@ -156,7 +151,6 @@ class QuoteController extends Controller
             'enabled' => $config['enabled'] ?? false,
             'themes' => $config['themes'] ?? ['motivation'],
             'has_api_key' => filled($config['api_key'] ?? null),
-            'available_themes' => self::THEMES,
         ];
     }
 
