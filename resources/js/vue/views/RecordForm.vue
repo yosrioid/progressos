@@ -184,7 +184,7 @@ onMounted(async () => {
         </label>
       </div>
     </section>
-    <div class="fixed inset-x-0 bottom-0 z-20 border-t border-slate-200 bg-white/90 px-4 py-3 backdrop-blur dark:border-zinc-800 dark:bg-zinc-950/90 lg:left-72">
+    <div class="fixed inset-x-0 bottom-0 z-20 border-t border-slate-200 bg-white/90 px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] backdrop-blur dark:border-zinc-800 dark:bg-zinc-950/90 sm:pb-3 lg:left-72">
       <div class="mx-auto flex max-w-7xl justify-end gap-2">
         <RouterLink class="btn btn-muted" :to="isEdit ? `/${type}/${id}` : `/${type}`">Cancel</RouterLink>
         <button class="btn btn-primary" :disabled="saving">{{ saving ? 'Saving...' : 'Save' }}</button>

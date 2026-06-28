@@ -595,52 +595,56 @@ onUnmounted(() => {
     </div>
 
     <!-- Quick add modal -->
-    <div v-if="quick" class="fixed inset-0 z-40 grid place-items-center bg-slate-950/50 p-4 backdrop-blur-[2px]" role="dialog" aria-modal="true" aria-labelledby="quick-add-title">
-      <form class="card w-full max-w-xl overflow-hidden p-0 shadow-2xl" @submit.prevent="submitQuick">
-        <div class="border-b border-slate-100 bg-slate-50/70 px-5 py-4 dark:border-zinc-800 dark:bg-zinc-900/60">
-          <div class="flex items-center justify-between gap-3">
-            <div>
-              <p class="text-xs font-extrabold uppercase text-teal-700 dark:text-teal-500">Capture</p>
-              <h2 id="quick-add-title" class="text-lg font-extrabold">Quick Add</h2>
+    <Transition name="quick-modal">
+      <div v-if="quick" class="fixed inset-0 z-40 flex items-end justify-center bg-slate-950/50 backdrop-blur-[2px] sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby="quick-add-title" @click.self="quick = false">
+        <form class="quick-panel w-full overflow-hidden rounded-t-3xl border border-slate-200 bg-white shadow-2xl dark:border-zinc-800 dark:bg-zinc-900 sm:max-w-xl sm:rounded-2xl" @submit.prevent="submitQuick">
+          <div class="border-b border-slate-100 bg-slate-50/70 px-5 py-4 dark:border-zinc-800 dark:bg-zinc-900/60">
+            <div class="flex items-center justify-between gap-3">
+              <div>
+                <p class="text-xs font-extrabold uppercase text-teal-700 dark:text-teal-500">Capture</p>
+                <h2 id="quick-add-title" class="text-lg font-extrabold">Quick Add</h2>
+              </div>
+              <button type="button" class="btn btn-muted px-3" aria-label="Close quick add" @click="quick = false">
+                <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" viewBox="0 0 24 24"><path v-for="path in icons.close" :key="path" :d="path" /></svg>
+              </button>
             </div>
-            <button type="button" class="btn btn-muted px-3" aria-label="Close quick add" @click="quick = false">
-              <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" viewBox="0 0 24 24"><path v-for="path in icons.close" :key="path" :d="path" /></svg>
-            </button>
           </div>
-        </div>
-        <div class="grid gap-3 p-5 sm:grid-cols-2">
-          <select v-model="quickForm.type" class="field" @change="quickForm.type === 'habit_log' && loadHabits()">
-            <option value="task">Task</option>
-            <option value="blocker">Blocker</option>
-            <option value="work_log">Work log</option>
-            <option value="daily_progress">Daily progress</option>
-            <option value="learning">Learning</option>
-            <option value="habit_log">Habit log</option>
-          </select>
-          <DatePicker v-model="quickForm.date" label="Quick add date" />
-          <!-- Habit log: just pick a habit -->
-          <template v-if="quickForm.type === 'habit_log'">
-            <select v-model="selectedHabitId" class="field sm:col-span-2" required>
-              <option :value="null">— Select habit —</option>
-              <option v-for="h in habitList" :key="h.id" :value="h.id">{{ h.icon ? h.icon + ' ' : '' }}{{ h.name }}</option>
-            </select>
-          </template>
-          <!-- Standard capture fields -->
-          <template v-else>
-            <input v-model="quickForm.title" class="field sm:col-span-2" placeholder="Title" required />
-            <input v-model="quickForm.project_name" list="quick-projects" class="field" placeholder="Project" autocomplete="off" />
-            <datalist id="quick-projects">
-              <option v-for="name in projectNames" :key="name" :value="name" />
-            </datalist>
-            <input v-model="quickForm.duration_minutes" class="field" type="number" min="1" />
-            <textarea v-model="quickForm.notes" class="field min-h-28 sm:col-span-2" placeholder="Notes" @paste="handleQuickNotesPaste" />
-          </template>
-        </div>
-        <div class="flex justify-end border-t border-slate-100 bg-slate-50/70 px-5 py-4 dark:border-zinc-800 dark:bg-zinc-900/60">
-          <button class="btn btn-primary">Capture</button>
-        </div>
-      </form>
-    </div>
+          <div class="max-h-[calc(85vh-8rem)] overflow-y-auto">
+            <div class="grid gap-3 p-5 sm:grid-cols-2">
+              <select v-model="quickForm.type" class="field" @change="quickForm.type === 'habit_log' && loadHabits()">
+                <option value="task">Task</option>
+                <option value="blocker">Blocker</option>
+                <option value="work_log">Work log</option>
+                <option value="daily_progress">Daily progress</option>
+                <option value="learning">Learning</option>
+                <option value="habit_log">Habit log</option>
+              </select>
+              <DatePicker v-model="quickForm.date" label="Quick add date" />
+              <!-- Habit log: just pick a habit -->
+              <template v-if="quickForm.type === 'habit_log'">
+                <select v-model="selectedHabitId" class="field sm:col-span-2" required>
+                  <option :value="null">— Select habit —</option>
+                  <option v-for="h in habitList" :key="h.id" :value="h.id">{{ h.icon ? h.icon + ' ' : '' }}{{ h.name }}</option>
+                </select>
+              </template>
+              <!-- Standard capture fields -->
+              <template v-else>
+                <input v-model="quickForm.title" class="field sm:col-span-2" placeholder="Title" required />
+                <input v-model="quickForm.project_name" list="quick-projects" class="field" placeholder="Project" autocomplete="off" />
+                <datalist id="quick-projects">
+                  <option v-for="name in projectNames" :key="name" :value="name" />
+                </datalist>
+                <input v-model="quickForm.duration_minutes" class="field" type="number" min="1" />
+                <textarea v-model="quickForm.notes" class="field min-h-20 sm:col-span-2 sm:min-h-28" placeholder="Notes" @paste="handleQuickNotesPaste" />
+              </template>
+            </div>
+          </div>
+          <div class="flex justify-end border-t border-slate-100 bg-slate-50/70 px-5 py-4 pb-[calc(1rem+env(safe-area-inset-bottom))] dark:border-zinc-800 dark:bg-zinc-900/60 sm:pb-4">
+            <button class="btn btn-primary">Capture</button>
+          </div>
+        </form>
+      </div>
+    </Transition>
 
     <!-- FAB mobile -->
     <button class="fixed bottom-4 right-4 z-30 grid h-14 w-14 place-items-center rounded-2xl bg-teal-700 text-white shadow-2xl shadow-teal-900/25 sm:hidden" aria-label="Open floating action" @click="quick = true">
@@ -748,6 +752,18 @@ onUnmounted(() => {
 </template>
 
 <style>
+.quick-modal-enter-active { transition: opacity 0.15s ease; }
+.quick-modal-leave-active { transition: opacity 0.1s ease; }
+.quick-modal-enter-from,
+.quick-modal-leave-to { opacity: 0; }
+.quick-modal-enter-active .quick-panel {
+  transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.quick-modal-enter-from .quick-panel { transform: translateY(100%); }
+@media (min-width: 640px) {
+  .quick-modal-enter-from .quick-panel { transform: scale(0.95) translateY(8px); }
+}
+
 .confirm-dialog-enter-active { transition: opacity 0.15s ease; }
 .confirm-dialog-leave-active { transition: opacity 0.1s ease; }
 .confirm-dialog-enter-from,

@@ -226,7 +226,7 @@ onMounted(loadMonths);
 
     <template v-else>
       <!-- All-time summary -->
-      <div class="mb-4 grid grid-cols-3 gap-3">
+      <div class="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
         <div class="rounded-2xl border border-teal-100 bg-teal-50/80 px-4 py-3 dark:border-teal-800/30 dark:bg-teal-900/10">
           <p class="label mb-1">Total pemasukan</p>
           <p class="text-lg font-extrabold text-teal-800 dark:text-teal-300">{{ showRp(totalAllTime.income) }}</p>
@@ -249,7 +249,7 @@ onMounted(loadMonths);
           <button
             v-for="m in months"
             :key="m.month"
-            class="flex shrink-0 flex-col items-center rounded-2xl border px-4 py-2.5 transition-all"
+            class="flex shrink-0 flex-col items-center rounded-2xl border px-3 py-2 transition-all sm:px-4 sm:py-2.5"
             :class="selectedMonth === m.month
               ? 'border-teal-400 bg-teal-50 shadow-sm dark:border-teal-600 dark:bg-teal-900/20'
               : 'border-slate-200 bg-white hover:border-teal-200 hover:bg-teal-50/30 dark:border-zinc-700 dark:bg-zinc-900/40'"
@@ -276,24 +276,24 @@ onMounted(loadMonths);
         <div class="mb-4 grid grid-cols-2 gap-3 md:grid-cols-4">
           <div class="rounded-2xl border border-teal-100 bg-teal-50/80 p-4 dark:border-teal-800/30 dark:bg-teal-900/10">
             <p class="label mb-1">Pemasukan</p>
-            <p class="text-xl font-extrabold text-teal-800 dark:text-teal-300">{{ showRp(monthData.summary.income) }}</p>
+            <p class="text-lg font-extrabold text-teal-800 sm:text-xl dark:text-teal-300">{{ showRp(monthData.summary.income) }}</p>
             <p class="mt-0.5 text-[11px] font-semibold text-teal-600 dark:text-teal-500">{{ monthData.summary.income_count }} transaksi</p>
           </div>
           <div class="rounded-2xl border border-red-100 bg-red-50/80 p-4 dark:border-red-800/30 dark:bg-red-900/10">
             <p class="label mb-1">Pengeluaran</p>
-            <p class="text-xl font-extrabold text-red-700 dark:text-red-400">{{ showRp(monthData.summary.expense) }}</p>
+            <p class="text-lg font-extrabold text-red-700 sm:text-xl dark:text-red-400">{{ showRp(monthData.summary.expense) }}</p>
             <p class="mt-0.5 text-[11px] font-semibold text-red-500 dark:text-red-500">{{ monthData.summary.expense_count }} transaksi</p>
           </div>
           <div class="rounded-2xl border p-4" :class="monthData.summary.net >= 0 ? 'border-teal-200 bg-teal-50 dark:border-teal-700/40 dark:bg-teal-900/15' : 'border-red-200 bg-red-50 dark:border-red-700/40 dark:bg-red-900/10'">
             <p class="label mb-1">Selisih (Net)</p>
-            <p class="text-xl font-extrabold" :class="monthData.summary.net >= 0 ? 'text-teal-800 dark:text-teal-300' : 'text-red-700 dark:text-red-400'">
+            <p class="text-lg font-extrabold sm:text-xl" :class="monthData.summary.net >= 0 ? 'text-teal-800 dark:text-teal-300' : 'text-red-700 dark:text-red-400'">
               {{ privacy.hideSensitive ? '•••••' : (monthData.summary.net >= 0 ? '+' : '') + formatRp(monthData.summary.net) }}
             </p>
             <p class="mt-0.5 text-[11px] font-semibold text-slate-400 dark:text-zinc-500">pemasukan − pengeluaran</p>
           </div>
           <div class="rounded-2xl border border-slate-200 bg-slate-50/80 p-4 dark:border-zinc-700 dark:bg-zinc-800/40">
             <p class="label mb-1">Transfer</p>
-            <p class="text-xl font-extrabold text-slate-700 dark:text-zinc-200">{{ monthData.summary.transfer_count }}</p>
+            <p class="text-lg font-extrabold text-slate-700 sm:text-xl dark:text-zinc-200">{{ monthData.summary.transfer_count }}</p>
             <p class="mt-0.5 text-[11px] font-semibold text-slate-400 dark:text-zinc-500">antar akun</p>
           </div>
         </div>

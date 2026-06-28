@@ -94,10 +94,10 @@ async function copyStandup() {
         <p class="text-sm font-medium text-slate-500">Key signals for the current workday.</p>
       </div>
       <div class="grid grid-cols-2 gap-3 p-4 md:grid-cols-4">
-        <div class="rounded-2xl border border-teal-100 bg-teal-50/70 p-4"><p class="label">Progress</p><p class="mt-3 text-3xl font-extrabold text-teal-800">{{ data.summary.today_progress }}</p><p class="mt-1 text-xs font-semibold text-teal-700">daily entries</p></div>
-        <div class="rounded-2xl border border-sky-100 bg-sky-50/70 p-4"><p class="label">Open tasks</p><p class="mt-3 text-3xl font-extrabold text-sky-800">{{ data.summary.open_tasks }}</p><p class="mt-1 text-xs font-semibold text-sky-700">needs attention</p></div>
-        <div class="rounded-2xl border border-rose-100 bg-rose-50/70 p-4"><p class="label">Blockers</p><p class="mt-3 text-3xl font-extrabold text-rose-800">{{ data.summary.blockers }}</p><p class="mt-1 text-xs font-semibold text-rose-700">active friction</p></div>
-        <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4"><p class="label">Learning</p><p class="mt-3 text-3xl font-extrabold text-slate-900">{{ minutes(data.summary.learning_minutes_this_week) }}</p><p class="mt-1 text-xs font-semibold text-slate-500">this week</p></div>
+        <div class="rounded-2xl border border-teal-100 bg-teal-50/70 p-4"><p class="label">Progress</p><p class="mt-3 text-2xl font-extrabold sm:text-3xl text-teal-800">{{ data.summary.today_progress }}</p><p class="mt-1 text-xs font-semibold text-teal-700">daily entries</p></div>
+        <div class="rounded-2xl border border-sky-100 bg-sky-50/70 p-4"><p class="label">Open tasks</p><p class="mt-3 text-2xl font-extrabold sm:text-3xl text-sky-800">{{ data.summary.open_tasks }}</p><p class="mt-1 text-xs font-semibold text-sky-700">needs attention</p></div>
+        <div class="rounded-2xl border border-rose-100 bg-rose-50/70 p-4"><p class="label">Blockers</p><p class="mt-3 text-2xl font-extrabold sm:text-3xl text-rose-800">{{ data.summary.blockers }}</p><p class="mt-1 text-xs font-semibold text-rose-700">active friction</p></div>
+        <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4"><p class="label">Learning</p><p class="mt-3 text-2xl font-extrabold sm:text-3xl text-slate-900">{{ minutes(data.summary.learning_minutes_this_week) }}</p><p class="mt-1 text-xs font-semibold text-slate-500">this week</p></div>
       </div>
     </section>
     <div class="grid gap-6 xl:grid-cols-3">
@@ -125,7 +125,7 @@ async function copyStandup() {
               <svg v-if="doneTaskIds.has(task.id) || task.status === 'done'" class="h-3 w-3" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="3" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>
             </button>
             <RouterLink :to="`/tasks/${task.id}`" class="min-w-0 flex-1">
-              <p class="font-extrabold text-slate-900 dark:text-zinc-100" :class="doneTaskIds.has(task.id) || task.status === 'done' ? 'line-through opacity-60' : ''">{{ task.title }}</p>
+              <p class="line-clamp-2 font-extrabold text-slate-900 dark:text-zinc-100" :class="doneTaskIds.has(task.id) || task.status === 'done' ? 'line-through opacity-60' : ''">{{ task.title }}</p>
               <p class="mt-1 text-sm font-medium text-slate-500 dark:text-zinc-500">{{ task.project?.name || 'No project' }} · {{ task.status?.replaceAll('_', ' ') }}</p>
             </RouterLink>
           </div>
