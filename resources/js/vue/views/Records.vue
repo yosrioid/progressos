@@ -128,7 +128,7 @@ function heatmapColor(mins: number) {
   if (mins === 0) return 'bg-slate-100 dark:bg-zinc-800';
   if (mins < 30) return 'bg-teal-200 dark:bg-teal-800';
   if (mins < 60) return 'bg-teal-400 dark:bg-teal-600';
-  return 'bg-teal-700';
+  return 'bg-teal-700 dark:bg-teal-500';
 }
 
 function isOverdue(row: any) {
@@ -290,11 +290,11 @@ onMounted(async () => {
             :class="heatmapColor(day.minutes)"
             :title="`${day.date}: ${day.minutes} min`" />
         </div>
-        <div class="mt-1 flex items-center gap-2 text-xs text-slate-400">
+        <div class="mt-1 flex items-center gap-2 text-xs text-slate-400 dark:text-zinc-600">
           <span>Less</span>
-          <div class="h-3 w-3 rounded-sm bg-teal-200" />
-          <div class="h-3 w-3 rounded-sm bg-teal-400" />
-          <div class="h-3 w-3 rounded-sm bg-teal-700" />
+          <div class="h-3 w-3 rounded-sm bg-teal-200 dark:bg-teal-800" />
+          <div class="h-3 w-3 rounded-sm bg-teal-400 dark:bg-teal-600" />
+          <div class="h-3 w-3 rounded-sm bg-teal-700 dark:bg-teal-500" />
           <span>More</span>
         </div>
       </div>
@@ -325,14 +325,14 @@ onMounted(async () => {
     </div>
   </div>
   <form class="card mb-4 overflow-hidden p-0" @submit.prevent="applyFilters()">
-    <div class="flex flex-col gap-3 border-b border-slate-100 bg-slate-50/70 px-4 py-4 lg:flex-row lg:items-center lg:justify-between">
+    <div class="flex flex-col gap-3 border-b border-slate-100 bg-slate-50/70 px-4 py-4 dark:border-zinc-800 dark:bg-zinc-900/60 lg:flex-row lg:items-center lg:justify-between">
       <div>
         <h2 class="font-extrabold">Filters and views</h2>
-        <p class="text-sm font-medium text-slate-500">{{ meta?.total ?? 0 }} records in this workspace</p>
+        <p class="text-sm font-medium text-slate-500 dark:text-zinc-400">{{ meta?.total ?? 0 }} records in this workspace</p>
       </div>
-      <div class="inline-flex w-fit rounded-xl border border-slate-200 bg-white p-1">
-        <button type="button" class="rounded-lg px-3 py-1.5 text-sm font-bold" :class="!compact ? 'bg-slate-900 text-white' : 'text-slate-500'" @click="compact = false">Detailed</button>
-        <button type="button" class="rounded-lg px-3 py-1.5 text-sm font-bold" :class="compact ? 'bg-slate-900 text-white' : 'text-slate-500'" @click="compact = true">Compact</button>
+      <div class="inline-flex w-fit rounded-xl border border-slate-200 bg-white p-1 dark:border-zinc-700 dark:bg-zinc-900">
+        <button type="button" class="rounded-lg px-3 py-1.5 text-sm font-bold" :class="!compact ? 'bg-slate-900 text-white dark:bg-zinc-100 dark:text-zinc-900' : 'text-slate-500 dark:text-zinc-400'" @click="compact = false">Detailed</button>
+        <button type="button" class="rounded-lg px-3 py-1.5 text-sm font-bold" :class="compact ? 'bg-slate-900 text-white dark:bg-zinc-100 dark:text-zinc-900' : 'text-slate-500 dark:text-zinc-400'" @click="compact = true">Compact</button>
       </div>
     </div>
     <div class="p-4">
