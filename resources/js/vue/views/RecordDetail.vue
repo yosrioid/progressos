@@ -146,6 +146,18 @@ const sideMeta = computed(() => {
   ].filter(([, value]) => value);
 });
 
+function parseListField(value: any): { text: string; depth: number }[] {
+  const lines: string[] = Array.isArray(value)
+    ? value
+    : String(value || '').split('\n');
+  return lines
+    .filter((s) => s.trim() !== '')
+    .map((s) => {
+      const depth = s.match(/^\t*/)?.[0].length ?? 0;
+      return { text: s.slice(depth), depth };
+    });
+}
+
 function visibleEntries(row: any) {
   return Object.entries(row || {}).filter(([key, value]) => {
     if (['id', 'user_id', 'project_id', 'deleted_at', 'created_at', 'updated_at', 'references', 'completed_items', 'in_progress', 'todo', 'blockers'].includes(key)) return false;
@@ -352,9 +364,20 @@ onMounted(load);
     </div>
     <div class="p-5">
     <div v-if="type === 'daily-progress'" class="mb-5 grid gap-3 md:grid-cols-2">
-      <div v-for="field in ['completed_items', 'in_progress', 'todo', 'blockers']" :key="field" class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+      <div v-for="field in ['completed_items', 'in_progress', 'todo', 'blockers']" :key="field" class="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-zinc-700 dark:bg-zinc-800/40">
         <p class="label mb-2">{{ field.replaceAll('_', ' ') }}</p>
-        <p class="whitespace-pre-wrap text-sm leading-6 text-slate-700">{{ Array.isArray(record[field]) ? record[field].join('\n') : (record[field] || '-') }}</p>
+        <template v-if="parseListField(record[field]).length">
+          <div
+            v-for="(item, idx) in parseListField(record[field])"
+            :key="idx"
+            class="flex items-start gap-1.5 py-0.5 text-sm leading-6 text-slate-700 dark:text-zinc-300"
+            :style="{ paddingLeft: `${item.depth * 16}px` }"
+          >
+            <span class="mt-2 h-1 w-1 shrink-0 rounded-full bg-slate-400 dark:bg-zinc-500" />
+            <span>{{ item.text }}</span>
+          </div>
+        </template>
+        <p v-else class="text-sm text-slate-400 dark:text-zinc-600">-</p>
       </div>
     </div>
     <div v-if="type === 'work-logs' && record?.task" class="mb-3 flex items-center gap-3 rounded-2xl border border-sky-100 bg-sky-50/60 px-4 py-3 dark:border-sky-800/30 dark:bg-sky-900/10">
