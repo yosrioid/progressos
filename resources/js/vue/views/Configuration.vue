@@ -29,11 +29,11 @@ const googleHelpOpen = ref(false);
 const googleSsoHelpOpen = ref(false);
 const resendHelpOpen = ref(false);
 const openGroups = ref({ general: true, appearance: false, auth: true, mail: true, google_oauth: false, sync_data: false, notifications: false, history: false, privacy: false, quote: false });
-const quoteConfig = ref<{ enabled: boolean; themes: string[]; has_api_key: boolean; available_themes: string[] }>({
+const quoteConfig = ref<{ enabled: boolean; themes: string[]; has_api_key: boolean }>({
   enabled: false, themes: ['motivation'], has_api_key: false,
-  available_themes: ['motivation', 'stoic', 'mindfulness', 'productivity', 'creativity', 'philosophy', 'wisdom', 'life', 'humor', 'romantic', 'leadership', 'growth'],
 });
 const quoteForm = ref({ enabled: false, themes: ['motivation'], api_key: '' });
+const quoteTagInput = ref('');
 const quoteSaving = ref(false);
 const privacy = usePrivacyStore();
 const pinInput = ref('');
@@ -244,12 +244,24 @@ async function runNow(sync: any) {
   await load();
 }
 
-function toggleTheme(theme: string) {
-  const idx = quoteForm.value.themes.indexOf(theme);
-  if (idx >= 0) {
-    if (quoteForm.value.themes.length > 1) quoteForm.value.themes.splice(idx, 1);
-  } else {
-    quoteForm.value.themes.push(theme);
+function addTheme() {
+  const tag = quoteTagInput.value.trim().toLowerCase().replace(/,+$/, '').trim();
+  if (!tag) return;
+  if (!quoteForm.value.themes.includes(tag)) quoteForm.value.themes.push(tag);
+  quoteTagInput.value = '';
+}
+
+function removeTheme(theme: string) {
+  if (quoteForm.value.themes.length <= 1) return;
+  quoteForm.value.themes = quoteForm.value.themes.filter((t) => t !== theme);
+}
+
+function onThemeKeydown(e: KeyboardEvent) {
+  if (e.key === 'Enter' || e.key === ',') {
+    e.preventDefault();
+    addTheme();
+  } else if (e.key === 'Backspace' && quoteTagInput.value === '' && quoteForm.value.themes.length > 1) {
+    quoteForm.value.themes.pop();
   }
 }
 
@@ -758,25 +770,34 @@ onMounted(load);
           </p>
         </div>
 
-        <!-- Theme picker -->
+        <!-- Theme tag input -->
         <div class="pt-4">
-          <p class="label mb-2">Tema quote <span class="font-normal text-slate-400">(bisa pilih lebih dari satu)</span></p>
-          <div class="flex flex-wrap gap-2">
-            <button
-              v-for="theme in quoteConfig.available_themes"
+          <p class="label mb-2">Tema quote <span class="font-normal text-slate-400">(ketik bebas, Enter untuk tambah)</span></p>
+          <div class="flex flex-wrap items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 dark:border-zinc-700 dark:bg-zinc-800 min-h-[42px]">
+            <span
+              v-for="theme in quoteForm.themes"
               :key="theme"
-              type="button"
-              :class="[
-                'rounded-full border px-3 py-1 text-xs font-extrabold transition-colors capitalize',
-                quoteForm.themes.includes(theme)
-                  ? 'border-teal-500 bg-teal-50 text-teal-700 dark:border-teal-600 dark:bg-teal-900/30 dark:text-teal-400'
-                  : 'border-slate-200 bg-white text-slate-500 hover:border-teal-300 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-400'
-              ]"
-              @click="toggleTheme(theme)"
+              class="inline-flex items-center gap-1 rounded-full bg-teal-50 px-2.5 py-0.5 text-xs font-extrabold capitalize text-teal-700 dark:bg-teal-900/30 dark:text-teal-400"
             >
               {{ theme }}
-            </button>
+              <button
+                v-if="quoteForm.themes.length > 1"
+                type="button"
+                class="ml-0.5 text-teal-400 hover:text-teal-700 dark:hover:text-teal-300 leading-none"
+                :title="`Hapus tema '${theme}'`"
+                @click="removeTheme(theme)"
+              >×</button>
+            </span>
+            <input
+              v-model="quoteTagInput"
+              type="text"
+              placeholder="Ketik tema lalu Enter..."
+              class="min-w-[140px] flex-1 bg-transparent text-xs font-medium text-slate-700 placeholder:text-slate-300 focus:outline-none dark:text-zinc-200 dark:placeholder:text-zinc-600"
+              @keydown="onThemeKeydown"
+              @blur="addTheme"
+            />
           </div>
+          <p class="mt-1 text-xs text-slate-400 dark:text-zinc-600">Contoh: motivation, stoic, romantic, introvert — apa saja boleh</p>
         </div>
 
         <div class="pt-2 flex justify-end">
