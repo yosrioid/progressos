@@ -3,6 +3,7 @@ import { onMounted, ref } from 'vue';
 import { RouterLink, useRouter } from 'vue-router';
 import { api, unwrap } from '../api';
 import { confirmAction, toast } from '../feedback';
+import PinGate from '../components/PinGate.vue';
 
 const props = defineProps<{ id: string | 'new' }>();
 const router = useRouter();
@@ -136,6 +137,7 @@ onMounted(load);
 </script>
 
 <template>
+  <PinGate>
   <div class="mx-auto max-w-3xl space-y-5">
     <!-- Header -->
     <div class="flex items-center justify-between gap-3">
@@ -287,4 +289,5 @@ onMounted(load);
       </div>
     </template>
   </div>
+  </PinGate>
 </template>
