@@ -119,8 +119,9 @@ class QuoteController extends Controller
                 return null;
             }
 
+            $this->trackUsage($response->json('usage.total_tokens', 0));
+
             $content = $response->json('choices.0.message.content', '');
-            // Extract JSON from response (sometimes model adds extra text)
             if (preg_match('/\{[^}]+\}/', $content, $matches)) {
                 $parsed = json_decode($matches[0], true);
                 if (isset($parsed['quote'], $parsed['author'])) {
@@ -136,6 +137,48 @@ class QuoteController extends Controller
         }
 
         return null;
+    }
+
+    public function usage(Request $request): \Illuminate\Http\JsonResponse
+    {
+        $today = Carbon::now()->toDateString();
+        $stored = Configuration::getValue($request->user(), 'groq', 'usage', []);
+        $stored = is_array($stored) ? $stored : [];
+
+        if (($stored['date'] ?? '') !== $today) {
+            $stored = ['date' => $today, 'requests' => 0, 'tokens' => 0];
+        }
+
+        return ApiResponse::ok([
+            'usage' => [
+                'date' => $today,
+                'requests' => $stored['requests'] ?? 0,
+                'tokens' => $stored['tokens'] ?? 0,
+                'request_limit' => 14400,
+            ],
+        ]);
+    }
+
+    public static function trackUsageFor($user, int $tokens): void
+    {
+        $today = Carbon::now()->toDateString();
+        $stored = Configuration::getValue($user, 'groq', 'usage', []);
+        $stored = is_array($stored) ? $stored : [];
+
+        if (($stored['date'] ?? '') !== $today) {
+            $stored = ['date' => $today, 'requests' => 0, 'tokens' => 0];
+        }
+
+        $stored['requests'] = ($stored['requests'] ?? 0) + 1;
+        $stored['tokens'] = ($stored['tokens'] ?? 0) + $tokens;
+
+        Configuration::setValue($user, 'groq', 'usage', $stored);
+    }
+
+    private function trackUsage(int $tokens): void
+    {
+        // no-op here — quote generation runs inside Cache::remember (no user context)
+        // usage tracked per-request where user is available
     }
 
     public function configPayload(Request $request): \Illuminate\Http\JsonResponse

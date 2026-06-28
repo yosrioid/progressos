@@ -47,6 +47,7 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
         Route::get('configuration', [ConfigurationController::class, 'show']);
         Route::get('quote/daily', [QuoteController::class, 'daily']);
         Route::get('quote/config', [QuoteController::class, 'configPayload']);
+        Route::get('quote/usage', [QuoteController::class, 'usage']);
         Route::apiResource('journals', JournalController::class)->only(['index', 'show']);
         Route::apiResource('projects', ProjectController::class)->only(['index', 'show']);
         Route::apiResource('daily-progress', DailyProgressController::class)->only(['index', 'show'])->parameters(['daily-progress' => 'dailyProgress']);

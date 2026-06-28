@@ -12,6 +12,8 @@ use Illuminate\Support\Facades\Http;
 
 class JournalController extends Controller
 {
+    private $currentUser = null;
+
     public function index(Request $request)
     {
         $journals = Journal::ownedBy($request->user())
@@ -81,7 +83,15 @@ class JournalController extends Controller
             return ApiResponse::ok(['error' => 'no_api_key'], 'Groq API key belum dikonfigurasi.', 422);
         }
 
-        $result = $this->callGroq($apiKey, $journal->body);
+        $history = Journal::ownedBy($user)
+            ->where('id', '!=', $journal->id)
+            ->whereNotNull('mood')
+            ->orderByDesc('date')
+            ->limit(5)
+            ->get(['date', 'mood', 'tema', 'body']);
+
+        $this->currentUser = $user;
+        $result = $this->callGroq($apiKey, $journal->body, $history->toArray());
 
         if (! $result) {
             return ApiResponse::ok(['error' => 'ai_failed'], 'Gagal mendapatkan analisa dari AI. Coba lagi nanti.', 503);
@@ -99,8 +109,17 @@ class JournalController extends Controller
         return ApiResponse::ok(['journal' => $this->format($journal)], 'Analisa selesai.');
     }
 
-    private function callGroq(string $apiKey, string $body): ?array
+    private function callGroq(string $apiKey, string $body, array $history = []): ?array
     {
+        $historyContext = '';
+        if (! empty($history)) {
+            $lines = array_map(function ($h) {
+                $first = mb_substr($h['body'], 0, 80);
+                return "- {$h['date']} | mood: {$h['mood']} | tema: {$h['tema']} | \"{$first}\"";
+            }, $history);
+            $historyContext = "\n\nRiwayat jurnal sebelumnya (ringkas):\n" . implode("\n", $lines);
+        }
+
         try {
             $response = Http::timeout(20)
                 ->withHeaders([
@@ -114,11 +133,11 @@ class JournalController extends Controller
                     'messages' => [
                         [
                             'role' => 'system',
-                            'content' => 'Kamu adalah teman reflektif yang membantu menganalisa jurnal harian. Selalu balas dengan JSON valid saja, tanpa penjelasan tambahan. Gunakan bahasa Indonesia.',
+                            'content' => 'Kamu adalah teman reflektif yang sudah mengenal penulis jurnal ini dari catatan-catatan sebelumnya. Analisa dengan hangat dan personal, bukan generik. Selalu balas dengan JSON valid saja. Gunakan bahasa Indonesia.',
                         ],
                         [
                             'role' => 'user',
-                            'content' => "Analisa jurnal harian berikut dan balas HANYA dengan JSON ini:\n{\"mood\": \"(1 frasa suasana hati, maks 8 kata)\", \"tema\": \"(tema utama dipisah koma, maks 4 tema)\", \"content\": \"(ringkasan naratif 2-3 kalimat dari isi jurnal, tulis seolah kamu menceritakan kembali hari mereka)\", \"insight\": \"(1-2 insight menarik tentang pola atau kebiasaan yang terlihat)\", \"saran\": \"(1-2 saran konkret yang bisa dilakukan besok)\"}\n\nJurnal:\n{$body}",
+                            'content' => "Analisa jurnal harian berikut dan balas HANYA dengan JSON ini:\n{\"mood\": \"(1 frasa suasana hati, maks 8 kata)\", \"tema\": \"(tema utama dipisah koma, maks 4 tema)\", \"content\": \"(ringkasan naratif 2-3 kalimat, tulis seolah kamu menceritakan kembali hari mereka dengan hangat)\", \"insight\": \"(1-2 insight personal — boleh referensi pola dari riwayat jika relevan)\", \"saran\": \"(1-2 saran konkret untuk besok)\"}\n\nJurnal hari ini:\n{$body}{$historyContext}",
                         ],
                     ],
                 ]);
@@ -126,6 +145,8 @@ class JournalController extends Controller
             if (! $response->successful()) {
                 return null;
             }
+
+            QuoteController::trackUsageFor($this->currentUser, $response->json('usage.total_tokens', 0));
 
             $content = $response->json('choices.0.message.content', '');
             if (preg_match('/\{.*\}/s', $content, $matches)) {

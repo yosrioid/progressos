@@ -386,12 +386,27 @@ watch(() => route.fullPath, () => {
   commandOpen.value = false;
 });
 let notifInterval: ReturnType<typeof setInterval> | null = null;
+let bumpTimeout: ReturnType<typeof setTimeout> | null = null;
+function onActivity() {
+  if (bumpTimeout) return;
+  bumpTimeout = setTimeout(() => {
+    privacy.bump();
+    bumpTimeout = null;
+  }, 10_000);
+}
+
 onMounted(() => {
   window.addEventListener('keydown', shortcuts);
+  window.addEventListener('mousemove', onActivity, { passive: true });
+  window.addEventListener('keydown', onActivity, { passive: true });
+  window.addEventListener('click', onActivity, { passive: true });
   notifInterval = setInterval(() => { if (auth.user) loadNotifications(); }, 60_000);
 });
 onUnmounted(() => {
   window.removeEventListener('keydown', shortcuts);
+  window.removeEventListener('mousemove', onActivity);
+  window.removeEventListener('keydown', onActivity);
+  window.removeEventListener('click', onActivity);
   if (notifInterval) clearInterval(notifInterval);
 });
 </script>

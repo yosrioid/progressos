@@ -35,6 +35,7 @@ const quoteConfig = ref<{ enabled: boolean; themes: string[]; has_api_key: boole
 const quoteForm = ref({ enabled: false, themes: ['motivation'], api_key: '' });
 const quoteTagInput = ref('');
 const quoteSaving = ref(false);
+const groqUsage = ref<{ requests: number; tokens: number; request_limit: number } | null>(null);
 const privacy = usePrivacyStore();
 const pinInput = ref('');
 const pinConfirm = ref('');
@@ -108,6 +109,8 @@ async function load() {
         quoteConfig.value = { ...quoteConfig.value, ...qData.quote_config };
         quoteForm.value = { enabled: quoteConfig.value.enabled, themes: [...quoteConfig.value.themes], api_key: '' };
       }
+      const uData: any = await api.get('/api/v1/quote/usage').then(unwrap);
+      if (uData.usage) groqUsage.value = uData.usage;
     } catch {
       // non-critical
     }
@@ -768,6 +771,26 @@ onMounted(load);
           <p class="mt-1 text-xs text-slate-400 dark:text-zinc-500">
             Daftar gratis di <span class="font-semibold text-teal-600">console.groq.com</span> → API Keys → Create API Key
           </p>
+          <!-- Usage stats -->
+          <div v-if="groqUsage" class="mt-3 rounded-xl bg-slate-50 px-4 py-3 dark:bg-zinc-800/50">
+            <p class="text-xs font-extrabold uppercase tracking-wide text-slate-400 dark:text-zinc-500 mb-2">Penggunaan Hari Ini</p>
+            <div class="flex flex-wrap gap-4 text-sm">
+              <div>
+                <span class="font-extrabold text-slate-800 dark:text-zinc-200">{{ groqUsage.requests.toLocaleString('id-ID') }}</span>
+                <span class="text-slate-400 dark:text-zinc-500"> / {{ groqUsage.request_limit.toLocaleString('id-ID') }} request</span>
+              </div>
+              <div>
+                <span class="font-extrabold text-slate-800 dark:text-zinc-200">{{ groqUsage.tokens.toLocaleString('id-ID') }}</span>
+                <span class="text-slate-400 dark:text-zinc-500"> token</span>
+              </div>
+            </div>
+            <div class="mt-2 h-1.5 w-full rounded-full bg-slate-200 dark:bg-zinc-700">
+              <div
+                class="h-1.5 rounded-full bg-teal-500 transition-all"
+                :style="{ width: Math.min(100, (groqUsage.requests / groqUsage.request_limit) * 100) + '%' }"
+              />
+            </div>
+          </div>
         </div>
 
         <!-- Theme tag input -->
