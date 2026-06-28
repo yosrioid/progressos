@@ -3,6 +3,7 @@ import { computed, onMounted, ref, watch } from 'vue';
 import { RouterLink, onBeforeRouteLeave, useRoute, useRouter } from 'vue-router';
 import { api, unwrap } from '../api';
 import DatePicker from '../components/DatePicker.vue';
+import DailyProgressLists from '../components/DailyProgressLists.vue';
 import { toast } from '../feedback';
 import { pasteLinkOverSelection } from '../linkPaste';
 import { configs, normalizeForForm, serialize, type Field } from '../records';
@@ -129,6 +130,18 @@ onMounted(async () => {
   </div>
   <form v-else class="grid gap-6 pb-24" @submit.prevent="submit">
     <p v-if="error" class="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700">{{ error }}</p>
+    <section v-if="type === 'daily-progress'" class="card overflow-hidden p-0">
+      <div class="border-b border-slate-100 bg-slate-50/70 px-5 py-4">
+        <h2 class="font-extrabold text-slate-900">Progress items</h2>
+        <p class="mt-1 text-sm font-medium text-slate-500">Tambah item per section. Enter untuk baris baru, drag untuk pindahkan antar section.</p>
+      </div>
+      <div class="p-5">
+        <DailyProgressLists
+          :model-value="{ completed_items: form.completed_items, in_progress: form.in_progress, todo: form.todo, blockers: form.blockers }"
+          @update:model-value="(v) => Object.assign(form, v)"
+        />
+      </div>
+    </section>
     <section v-for="section in formSections" :key="section.title" class="card overflow-hidden p-0">
       <div class="border-b border-slate-100 bg-slate-50/70 px-5 py-4">
         <h2 class="font-extrabold text-slate-900">{{ section.title }}</h2>
