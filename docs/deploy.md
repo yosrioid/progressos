@@ -425,20 +425,50 @@ curl -I https://progressos.oirsoy.my.id | grep -i strict
 
 ## Bagian D — Deploy Update
 
-Jalankan setiap kali ada update kode:
+### Alur deploy berbasis tag
+
+Deploy selalu dari **tag**, bukan langsung dari `main`. Ini memisahkan kapan kode merge dan kapan kode masuk production.
+
+**Di mesin lokal / GitHub — setelah PR siap:**
+1. Buka GitHub → Releases → Draft a new release
+2. Pilih tag baru (contoh: `v36`) dan target branch `main`
+3. Publish release
+
+**Di VPS — setelah release dibuat:**
 
 ```bash
 cd /var/www/progressos
-git pull origin main
+git fetch --tags
+LATEST=$(git tag --sort=-creatordate | head -1)
+git checkout $LATEST
 composer install --no-dev --optimize-autoloader
 npm ci && npm run build
 php artisan migrate --force
-APP_VER=$(git describe --tags --always 2>/dev/null || echo "dev")
-sed -i "s/^APP_VERSION=.*/APP_VERSION=${APP_VER}/" .env || echo "APP_VERSION=${APP_VER}" >> .env
+sed -i "s/^APP_VERSION=.*/APP_VERSION=${LATEST}/" .env || echo "APP_VERSION=${LATEST}" >> .env
 php artisan config:cache
 php artisan route:cache
 php artisan view:cache
 sudo supervisorctl restart progressos-worker:*
+echo "Deployed $LATEST"
+```
+
+**Rollback ke versi sebelumnya:**
+
+```bash
+cd /var/www/progressos
+git checkout v34   # ganti ke tag yang diinginkan
+composer install --no-dev --optimize-autoloader
+php artisan migrate --force   # hati-hati jika ada migration baru di v35+
+php artisan config:cache && php artisan route:cache && php artisan view:cache
+sudo supervisorctl restart progressos-worker:*
+```
+
+**Cek versi yang sedang berjalan di VPS:**
+
+```bash
+grep APP_VERSION /var/www/progressos/.env
+# atau
+git -C /var/www/progressos describe --tags
 ```
 
 ---
