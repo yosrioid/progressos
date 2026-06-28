@@ -142,7 +142,7 @@ export function normalizeForForm(config: RecordConfig, record?: any) {
 
 export function serialize(config: RecordConfig, form: Record<string, any>) {
   const payload: Record<string, any> = { ...form };
-  if ('completed_items' in payload) payload.completed_items = String(payload.completed_items || '').split('\n').map((item) => item.trim()).filter(Boolean);
+  if ('completed_items' in payload) payload.completed_items = String(payload.completed_items || '').split('\n').filter((item) => item.trim() !== '');
   if ('tags' in payload) payload.tags = String(payload.tags || '').split(',').map((item) => item.trim()).filter(Boolean);
   for (const key of ['project_id', 'task_id', 'actual_duration', 'estimated_duration', 'duration_minutes', 'rating']) {
     if (payload[key] === '' || payload[key] === 0) payload[key] = null;

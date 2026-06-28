@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { RouterLink, useRouter } from 'vue-router';
 import { api, unwrap } from '../api';
 import { confirmAction, toast } from '../feedback';
@@ -12,6 +12,8 @@ const config = computed(() => configs[props.type]);
 const record = ref<any>(null);
 const loading = ref(true);
 const deleting = ref(false);
+const prevEntry = ref<{ id: number; date: string; title: string } | null>(null);
+const nextEntry = ref<{ id: number; date: string; title: string } | null>(null);
 const referenceForm = ref({ label: '', url: '', type: 'link', notes: '' });
 const referenceError = ref('');
 
@@ -146,7 +148,7 @@ const sideMeta = computed(() => {
 
 function visibleEntries(row: any) {
   return Object.entries(row || {}).filter(([key, value]) => {
-    if (['id', 'user_id', 'project_id', 'deleted_at', 'created_at', 'updated_at', 'references'].includes(key)) return false;
+    if (['id', 'user_id', 'project_id', 'deleted_at', 'created_at', 'updated_at', 'references', 'completed_items', 'in_progress', 'todo', 'blockers'].includes(key)) return false;
     if (value === null || value === '' || value === undefined) return false;
     if (Array.isArray(value) && value.length === 0) return false;
     if (typeof value === 'object' && !Array.isArray(value)) return false;
@@ -186,6 +188,20 @@ function linkParts(text: string) {
   return parts;
 }
 
+async function loadAdjacent() {
+  if (props.type !== 'daily-progress' || !record.value?.date) return;
+  const [y, m, d] = String(record.value.date).split('-').map(Number);
+  const fmt = (dt: Date) => `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+  const prevDate = fmt(new Date(y, m - 1, d - 1));
+  const nextDate = fmt(new Date(y, m - 1, d + 1));
+  const [prevData, nextData] = await Promise.all([
+    api.get('/api/v1/daily-progress', { params: { to: prevDate, sort: 'date', direction: 'desc', per_page: 1 } }).then(unwrap),
+    api.get('/api/v1/daily-progress', { params: { from: nextDate, sort: 'date', direction: 'asc', per_page: 1 } }).then(unwrap),
+  ]);
+  prevEntry.value = prevData.entries?.data?.[0] ?? null;
+  nextEntry.value = nextData.entries?.data?.[0] ?? null;
+}
+
 async function load() {
   loading.value = true;
   const data = await api.get(`${config.value.endpoint}/${props.id}`).then(unwrap);
@@ -201,7 +217,16 @@ async function load() {
   if (props.type === 'milestones' && record.value?.source_type !== 'manual') {
     loadHistory();
   }
+  if (props.type === 'daily-progress') {
+    loadAdjacent();
+  }
 }
+
+watch(() => props.id, () => {
+  prevEntry.value = null;
+  nextEntry.value = null;
+  load();
+});
 
 async function loadHistory() {
   loadingLearning.value = true;
@@ -288,7 +313,27 @@ onMounted(load);
         <h1 class="text-3xl font-extrabold tracking-tight">{{ title }}</h1>
         <p v-if="meta" class="mt-1 text-sm font-medium text-slate-500">{{ meta }}</p>
       </div>
-      <div class="flex gap-2">
+      <div class="flex flex-wrap gap-2">
+        <template v-if="type === 'daily-progress'">
+          <button
+            class="btn btn-muted flex items-center gap-1 disabled:opacity-40"
+            :disabled="!prevEntry"
+            :title="prevEntry ? formatDate(prevEntry.date) : ''"
+            @click="prevEntry && router.push(`/daily-progress/${prevEntry.id}`)"
+          >
+            <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>
+            <span class="hidden sm:inline text-xs">{{ prevEntry ? formatDate(prevEntry.date) : 'Prev' }}</span>
+          </button>
+          <button
+            class="btn btn-muted flex items-center gap-1 disabled:opacity-40"
+            :disabled="!nextEntry"
+            :title="nextEntry ? formatDate(nextEntry.date) : ''"
+            @click="nextEntry && router.push(`/daily-progress/${nextEntry.id}`)"
+          >
+            <span class="hidden sm:inline text-xs">{{ nextEntry ? formatDate(nextEntry.date) : 'Next' }}</span>
+            <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>
+          </button>
+        </template>
         <RouterLink class="btn btn-muted" :to="`/${type}/${id}/edit`">Edit</RouterLink>
         <button class="btn border-red-200 bg-red-50 text-red-700 hover:bg-red-100" :disabled="deleting" @click="destroy">{{ deleting ? 'Deleting...' : 'Delete' }}</button>
       </div>
