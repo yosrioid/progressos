@@ -14,9 +14,9 @@ onMounted(async () => projects.value = (await api.get('/api/v1/projects').then(u
     <RouterLink v-for="project in projects" :key="project.id" :to="`/projects/${project.id}`" class="card p-5 hover:border-teal-400">
       <h2 class="text-lg font-semibold">{{ project.name }}</h2>
       <div class="mt-4 grid grid-cols-3 gap-2 text-center text-sm">
-        <div class="rounded-lg bg-slate-50 p-3"><b>{{ project.open_tasks_count }}</b><p class="text-slate-500">Open</p></div>
-        <div class="rounded-lg bg-slate-50 p-3"><b>{{ project.tasks_count }}</b><p class="text-slate-500">Tasks</p></div>
-        <div class="rounded-lg bg-slate-50 p-3"><b>{{ project.work_logs_count }}</b><p class="text-slate-500">Logs</p></div>
+        <div class="rounded-lg bg-slate-50 p-3 dark:bg-zinc-800/60"><b>{{ project.open_tasks_count }}</b><p class="text-slate-500 dark:text-zinc-400">Open</p></div>
+        <div class="rounded-lg bg-slate-50 p-3 dark:bg-zinc-800/60"><b>{{ project.tasks_count }}</b><p class="text-slate-500 dark:text-zinc-400">Tasks</p></div>
+        <div class="rounded-lg bg-slate-50 p-3 dark:bg-zinc-800/60"><b>{{ project.work_logs_count }}</b><p class="text-slate-500 dark:text-zinc-400">Logs</p></div>
       </div>
     </RouterLink>
   </div>

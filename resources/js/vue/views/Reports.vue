@@ -147,7 +147,7 @@ onMounted(async () => { await load(); loadSnapshots(); });
       <div v-if="isWeekly" class="card p-4">
         <p class="label">Tasks Done</p>
         <p class="mt-2 text-2xl font-extrabold">{{ report.tasks_done?.length ?? 0 }}</p>
-        <p class="mt-1 text-xs font-semibold text-slate-400">completed this week</p>
+        <p class="mt-1 text-xs font-semibold text-slate-400 dark:text-zinc-500">completed this week</p>
       </div>
       <div class="card p-4">
         <p class="label">Work Sessions</p>
@@ -159,7 +159,7 @@ onMounted(async () => { await load(); loadSnapshots(); });
       <div class="card p-4">
         <p class="label">Open Blockers</p>
         <p class="mt-2 text-2xl font-extrabold" :class="report.open_blockers.length > 0 ? 'text-rose-700 dark:text-rose-400' : ''">{{ report.open_blockers.length }}</p>
-        <p class="mt-1 text-xs font-semibold text-slate-400">unresolved</p>
+        <p class="mt-1 text-xs font-semibold text-slate-400 dark:text-zinc-500">unresolved</p>
       </div>
       <div v-if="!isWeekly" class="card p-4"><p class="label">Learning</p><p class="mt-2 text-2xl font-extrabold">{{ minutes(report.learning_totals.minutes) }}</p></div>
     </div>
@@ -167,7 +167,7 @@ onMounted(async () => { await load(); loadSnapshots(); });
     <!-- Trend chart -->
     <div class="card mb-5 p-5">
       <h2 class="mb-4 font-extrabold">Period-over-period delta</h2>
-      <p class="mb-3 text-xs text-slate-400">Change vs previous {{ report.period }}</p>
+      <p class="mb-3 text-xs text-slate-400 dark:text-zinc-500">Change vs previous {{ report.period }}</p>
       <BarChart
         :labels="trendLabels"
         :values="trendValues"
@@ -186,14 +186,14 @@ onMounted(async () => { await load(); loadSnapshots(); });
             <span class="font-semibold">{{ task.title }}</span>
           </li>
         </ul>
-        <p v-else class="text-sm text-slate-400">No tasks completed this period.</p>
+        <p v-else class="text-sm text-slate-400 dark:text-zinc-500">No tasks completed this period.</p>
       </section>
 
       <section class="card p-5">
         <h2 class="mb-4 font-extrabold">Key achievements</h2>
         <ul class="grid gap-2">
           <li v-for="item in report.key_achievements" :key="item" class="rounded-xl border border-teal-100 bg-teal-50/40 px-3 py-2 text-sm font-semibold dark:border-teal-800/30 dark:bg-teal-900/10">{{ item }}</li>
-          <li v-if="report.key_achievements.length === 0" class="text-sm text-slate-400">No achievements captured for this period.</li>
+          <li v-if="report.key_achievements.length === 0" class="text-sm text-slate-400 dark:text-zinc-500">No achievements captured for this period.</li>
         </ul>
       </section>
 
@@ -205,7 +205,7 @@ onMounted(async () => { await load(); loadSnapshots(); });
           :values="categoryValues"
           :format-value="minutes"
         />
-        <p v-else class="text-sm text-slate-400">No time logged this period.</p>
+        <p v-else class="text-sm text-slate-400 dark:text-zinc-500">No time logged this period.</p>
       </section>
 
       <section class="card p-5">
@@ -216,14 +216,14 @@ onMounted(async () => { await load(); loadSnapshots(); });
           :values="projectValues"
           :format-value="(v) => v + ' logs'"
         />
-        <p v-else class="text-sm text-slate-400">No project activity.</p>
+        <p v-else class="text-sm text-slate-400 dark:text-zinc-500">No project activity.</p>
       </section>
 
       <section class="card p-5">
         <h2 class="mb-4 font-extrabold">Open blockers</h2>
         <div class="grid gap-2">
           <div v-for="blocker in report.open_blockers" :key="`${blocker.id}-${blocker.title}`" class="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm dark:border-zinc-700 dark:bg-zinc-800/40"><b>{{ blocker.title }}</b><p class="mt-0.5 text-slate-500 dark:text-zinc-400">{{ blocker.project_name || blocker.priority }}</p></div>
-          <p v-if="report.open_blockers.length === 0" class="text-sm text-slate-400">No open blockers.</p>
+          <p v-if="report.open_blockers.length === 0" class="text-sm text-slate-400 dark:text-zinc-500">No open blockers.</p>
         </div>
       </section>
     </div>
@@ -253,13 +253,13 @@ onMounted(async () => { await load(); loadSnapshots(); });
         <div v-for="snap in snapshots" :key="snap.id" class="rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-zinc-700 dark:bg-zinc-800/40">
           <p class="text-xs font-extrabold text-slate-500 dark:text-zinc-400">{{ formatDate(snap.period_start) }}</p>
           <div class="mt-1.5 flex gap-4 text-sm">
-            <span><b>{{ snap.data?.completed_work_logs ?? '—' }}</b> <span class="text-slate-400">work</span></span>
-            <span><b>{{ snap.data?.open_blockers ?? '—' }}</b> <span class="text-slate-400">blockers</span></span>
-            <span><b>{{ minutes(snap.data?.learning_minutes ?? 0) }}</b> <span class="text-slate-400">learning</span></span>
+            <span><b>{{ snap.data?.completed_work_logs ?? '—' }}</b> <span class="text-slate-400 dark:text-zinc-500">work</span></span>
+            <span><b>{{ snap.data?.open_blockers ?? '—' }}</b> <span class="text-slate-400 dark:text-zinc-500">blockers</span></span>
+            <span><b>{{ minutes(snap.data?.learning_minutes ?? 0) }}</b> <span class="text-slate-400 dark:text-zinc-500">learning</span></span>
           </div>
           <p v-if="snap.reflection" class="mt-2 text-xs text-slate-500 dark:text-zinc-400 italic line-clamp-2">"{{ snap.reflection }}"</p>
         </div>
-        <p v-if="!snapshots.length" class="text-sm text-slate-400">No snapshots saved yet. Click "Save Snapshot" to capture the current period.</p>
+        <p v-if="!snapshots.length" class="text-sm text-slate-400 dark:text-zinc-500">No snapshots saved yet. Click "Save Snapshot" to capture the current period.</p>
       </div>
     </section>
   </template>

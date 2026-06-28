@@ -54,16 +54,28 @@ class ProjectController extends Controller
             ->groupBy('status')
             ->pluck('count', 'status');
 
+        $taskStats = $project->tasks()
+            ->selectRaw("COUNT(*) as total,
+                SUM(CASE WHEN status IN ('todo','in_progress','blocked') THEN 1 ELSE 0 END) as open,
+                SUM(CASE WHEN status = 'done' THEN 1 ELSE 0 END) as done,
+                SUM(CASE WHEN status = 'blocked' THEN 1 ELSE 0 END) as blocked")
+            ->first();
+
+        $workStats = $project->workLogs()
+            ->selectRaw("SUM(actual_duration) as minutes,
+                SUM(CASE WHEN status = 'blocked' THEN 1 ELSE 0 END) as blocked")
+            ->first();
+
         return ApiResponse::item('project', new ProjectResource($project), extra: [
             'tasks' => $project->tasks()->with('project')->orderBy('status')->orderBy('priority')->latest()->take(30)->get(),
             'workLogs' => $project->workLogs()->latest('date')->take(15)->get(),
             'metrics' => [
-                'open_tasks' => $project->tasks()->whereIn('status', ['todo', 'in_progress', 'blocked'])->count(),
-                'completed_tasks' => $project->tasks()->where('status', 'done')->count(),
-                'logged_minutes' => $project->workLogs()->sum('actual_duration'),
-                'blockers' => $project->tasks()->where('status', 'blocked')->count() + $project->workLogs()->where('status', 'blocked')->count(),
-                'completion_rate' => $project->tasks()->count() > 0
-                    ? round($project->tasks()->where('status', 'done')->count() / $project->tasks()->count() * 100)
+                'open_tasks' => (int) ($taskStats->open ?? 0),
+                'completed_tasks' => (int) ($taskStats->done ?? 0),
+                'logged_minutes' => (int) ($workStats->minutes ?? 0),
+                'blockers' => (int) ($taskStats->blocked ?? 0) + (int) ($workStats->blocked ?? 0),
+                'completion_rate' => ($taskStats->total ?? 0) > 0
+                    ? round((int) ($taskStats->done ?? 0) / (int) $taskStats->total * 100)
                     : 0,
             ],
             'monthly_work' => $monthly,
