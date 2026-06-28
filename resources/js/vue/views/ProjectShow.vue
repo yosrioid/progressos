@@ -2,10 +2,12 @@
 import { computed, onMounted, ref } from 'vue';
 import { RouterLink, useRoute } from 'vue-router';
 import { api, unwrap } from '../api';
+import { toast } from '../feedback';
 import { formatDate, minutes } from '../format';
 
 const route = useRoute();
 const data = ref<any>(null);
+const loading = ref(true);
 
 const maxMonthly = computed(() => Math.max(1, ...((data.value?.monthly_work || []).map((m: any) => m.minutes))));
 const maxCategory = computed(() => Math.max(1, ...((data.value?.by_category || []).map((c: any) => c.minutes))));
@@ -25,13 +27,29 @@ const priorityColors: Record<string, string> = {
 };
 
 onMounted(async () => {
-  data.value = await api.get(`/api/v1/projects/${route.params.id}`).then(unwrap);
+  try {
+    data.value = await api.get(`/api/v1/projects/${route.params.id}`).then(unwrap);
+  } catch (e: any) {
+    toast({ tone: 'error', title: 'Gagal memuat proyek', message: e?.response?.data?.message ?? 'Terjadi kesalahan.' });
+  } finally {
+    loading.value = false;
+  }
 });
 </script>
 
 <template>
-  <div v-if="!data" class="card p-8 text-center text-sm text-slate-500">Loading project...</div>
-  <template v-else>
+  <!-- Loading skeleton -->
+  <div v-if="loading" class="space-y-4">
+    <div class="skeleton h-16 rounded-2xl"></div>
+    <div class="grid grid-cols-2 gap-3 lg:grid-cols-5">
+      <div v-for="i in 5" :key="i" class="skeleton h-24 rounded-2xl"></div>
+    </div>
+    <div class="grid gap-4 lg:grid-cols-2">
+      <div class="skeleton h-64 rounded-2xl"></div>
+      <div class="skeleton h-64 rounded-2xl"></div>
+    </div>
+  </div>
+  <template v-else-if="data">
     <div class="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
       <div>
         <p class="text-xs font-extrabold uppercase text-teal-700 dark:text-teal-500">Project workspace</p>

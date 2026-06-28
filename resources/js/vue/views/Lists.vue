@@ -13,8 +13,13 @@ const showForm = ref(false);
 const formInput = ref<HTMLInputElement | null>(null);
 
 async function load() {
-  lists.value = (await api.get('/api/v1/lists').then(unwrap)).lists ?? [];
-  loading.value = false;
+  try {
+    lists.value = (await api.get('/api/v1/lists').then(unwrap)).lists ?? [];
+  } catch (e: any) {
+    toast({ tone: 'error', title: 'Gagal memuat lists', message: e?.response?.data?.message ?? 'Terjadi kesalahan.' });
+  } finally {
+    loading.value = false;
+  }
 }
 
 async function openForm() {
@@ -39,9 +44,13 @@ async function create() {
 async function remove(list: any) {
   const ok = await confirmAction({ title: 'Delete list', message: `Delete "${list.title}"?`, confirmLabel: 'Delete' });
   if (!ok) return;
-  await api.delete(`/api/v1/lists/${list.id}`);
-  lists.value = lists.value.filter((l) => l.id !== list.id);
-  toast({ tone: 'success', title: 'Deleted', message: list.title });
+  try {
+    await api.delete(`/api/v1/lists/${list.id}`);
+    lists.value = lists.value.filter((l) => l.id !== list.id);
+    toast({ tone: 'success', title: 'Deleted', message: list.title });
+  } catch (e: any) {
+    toast({ tone: 'error', title: 'Gagal menghapus', message: e?.response?.data?.message ?? 'Terjadi kesalahan.' });
+  }
 }
 
 const progress = (list: any) => list.items_count ? Math.round((list.completed_count / list.items_count) * 100) : 0;

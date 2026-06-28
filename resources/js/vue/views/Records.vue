@@ -244,7 +244,10 @@ onMounted(async () => {
 
 <template>
   <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-    <div><h1 class="text-3xl font-extrabold tracking-tight">{{ title }}</h1></div>
+    <div>
+      <h1 class="text-3xl font-extrabold tracking-tight">{{ title }}</h1>
+      <p v-if="config?.hint" class="mt-1 text-sm font-medium text-slate-500 dark:text-zinc-500">{{ config.hint }}</p>
+    </div>
     <div class="flex flex-wrap items-center gap-2">
       <!-- Saved view quick-access chips -->
       <template v-if="savedViews.length">
