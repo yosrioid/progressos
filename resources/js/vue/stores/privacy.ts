@@ -63,5 +63,12 @@ export const usePrivacyStore = defineStore('privacy', () => {
     sessionStorage.removeItem('privacy-unlocked-at');
   }
 
-  return { hideSensitive, hasPin, isUnlocked, isSensitivePath, toggleHide, tryUnlock, setPin, removePin, lock };
+  function bump() {
+    if (unlockedAt.value !== null) {
+      unlockedAt.value = Date.now();
+      sessionStorage.setItem('privacy-unlocked-at', String(unlockedAt.value));
+    }
+  }
+
+  return { hideSensitive, hasPin, isUnlocked, isSensitivePath, toggleHide, tryUnlock, setPin, removePin, lock, bump };
 });
