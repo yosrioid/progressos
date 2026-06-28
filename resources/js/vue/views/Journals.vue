@@ -15,14 +15,12 @@ interface JournalItem {
 
 const journals = ref<JournalItem[]>([]);
 const loading = ref(true);
-const total = ref(0);
 
 async function load() {
   loading.value = true;
   try {
     const res = await api.get('/api/v1/journals').then(unwrap);
-    journals.value = res.data ?? [];
-    total.value = res.total ?? 0;
+    journals.value = res.journals ?? [];
   } catch {
     toast({ tone: 'error', title: 'Gagal memuat', message: 'Tidak dapat memuat daftar jurnal.' });
   } finally {
