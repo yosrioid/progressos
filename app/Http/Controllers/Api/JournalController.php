@@ -16,9 +16,11 @@ class JournalController extends Controller
     {
         $journals = Journal::ownedBy($request->user())
             ->orderByDesc('date')
-            ->paginate(20);
+            ->get()
+            ->map(fn ($j) => $this->format($j))
+            ->values();
 
-        return ApiResponse::ok($journals->through(fn ($j) => $this->format($j)));
+        return ApiResponse::ok(['journals' => $journals]);
     }
 
     public function show(Request $request, Journal $journal)

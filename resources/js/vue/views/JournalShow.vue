@@ -161,21 +161,18 @@ onMounted(load);
     </div>
 
     <!-- New journal form -->
-    <div v-else-if="isNew" class="card space-y-4">
-      <div>
-        <label class="label">Tanggal</label>
-        <input v-model="form.date" type="date" class="field mt-1" />
+    <div v-else-if="isNew" class="card space-y-3">
+      <div class="flex items-center gap-3">
+        <input v-model="form.date" type="date" class="field w-44 shrink-0" />
+        <p class="text-sm text-slate-400 dark:text-zinc-500">Tanggal jurnal</p>
       </div>
-      <div>
-        <label class="label">Ceritakan harimu</label>
-        <textarea
-          v-model="form.body"
-          rows="10"
-          class="field mt-1 resize-none"
-          placeholder="Apa yang kamu rasakan, kerjakan, pikirkan hari ini..."
-          autofocus
-        />
-      </div>
+      <textarea
+        v-model="form.body"
+        rows="12"
+        class="field resize-none"
+        placeholder="Apa yang kamu rasakan, kerjakan, pikirkan hari ini..."
+        autofocus
+      />
       <div class="flex justify-end gap-2">
         <RouterLink to="/journal" class="btn">Batal</RouterLink>
         <button class="btn btn-primary" :disabled="saving || !form.body.trim()" @click="save">
@@ -198,7 +195,7 @@ onMounted(load);
         </div>
 
         <template v-if="editing">
-          <textarea v-model="form.body" rows="10" class="field resize-none" />
+          <textarea v-model="form.body" rows="12" class="field resize-none" />
           <div class="flex justify-end gap-2">
             <button class="btn" @click="editing = false">Batal</button>
             <button class="btn btn-primary" :disabled="saving" @click="save">
@@ -241,16 +238,16 @@ onMounted(load);
         <!-- Edit mode -->
         <template v-else-if="editingAnalysis">
           <div>
-            <label class="label">Mood</label>
-            <input v-model="editMood" type="text" class="field mt-1" placeholder="Suasana hati..." />
+            <p class="text-xs font-semibold text-slate-500 dark:text-zinc-400 mb-1">Mood</p>
+            <input v-model="editMood" type="text" class="field" placeholder="Suasana hati..." />
           </div>
           <div>
-            <label class="label">Tema <span class="font-normal text-slate-400">(pisah dengan koma)</span></label>
-            <input v-model="editTema" type="text" class="field mt-1" placeholder="Pekerjaan, refleksi, ..." />
+            <p class="text-xs font-semibold text-slate-500 dark:text-zinc-400 mb-1">Tema <span class="font-normal text-slate-400">(pisah dengan koma)</span></p>
+            <input v-model="editTema" type="text" class="field" placeholder="Pekerjaan, refleksi, ..." />
           </div>
           <div>
-            <label class="label">Ringkasan</label>
-            <textarea v-model="editContent" rows="4" class="field mt-1 resize-none" />
+            <p class="text-xs font-semibold text-slate-500 dark:text-zinc-400 mb-1">Ringkasan</p>
+            <textarea v-model="editContent" rows="4" class="field resize-none" />
           </div>
           <div class="flex justify-end gap-2">
             <button class="btn" @click="editingAnalysis = false">Batal</button>
