@@ -3,6 +3,7 @@ import { onMounted, ref } from 'vue';
 import { RouterLink } from 'vue-router';
 import { api, unwrap } from '../api';
 import { toast } from '../feedback';
+import PinGate from '../components/PinGate.vue';
 
 interface JournalItem {
   id: number;
@@ -40,6 +41,7 @@ onMounted(load);
 </script>
 
 <template>
+  <PinGate>
   <div class="space-y-5">
     <div class="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
       <div>
@@ -96,4 +98,5 @@ onMounted(load);
       </RouterLink>
     </div>
   </div>
+  </PinGate>
 </template>
