@@ -24,6 +24,7 @@ use App\Http\Controllers\Api\SearchController;
 use App\Http\Controllers\Api\StandupController;
 use App\Http\Controllers\Api\TaskController;
 use App\Http\Controllers\Api\TodoListController;
+use App\Http\Controllers\Api\ChatController;
 use App\Http\Controllers\Api\JournalController;
 use App\Http\Controllers\Api\QuoteController;
 use App\Http\Controllers\Api\WorkLogController;
@@ -45,6 +46,8 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
         Route::get('activity', ActivityController::class);
         Route::get('activity/summary', [ActivityController::class, 'summary']);
         Route::get('configuration', [ConfigurationController::class, 'show']);
+        Route::get('chat-sessions', [ChatController::class, 'index']);
+        Route::get('chat-sessions/{chatSession}', [ChatController::class, 'show']);
         Route::get('quote/daily', [QuoteController::class, 'daily']);
         Route::get('quote/config', [QuoteController::class, 'configPayload']);
         Route::get('quote/usage', [QuoteController::class, 'usage']);
@@ -75,6 +78,9 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
     });
 
     Route::middleware(['ability:write', 'throttle:api-write'])->group(function () {
+        Route::post('chat-sessions', [ChatController::class, 'store']);
+        Route::delete('chat-sessions/{chatSession}', [ChatController::class, 'destroy']);
+        Route::post('chat-sessions/{chatSession}/messages', [ChatController::class, 'sendMessage']);
         Route::apiResource('journals', JournalController::class)->only(['store', 'update', 'destroy']);
         Route::post('journals/{journal}/analyze', [JournalController::class, 'analyze']);
         Route::post('habits', [HabitController::class, 'store']);
