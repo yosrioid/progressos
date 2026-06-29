@@ -114,31 +114,55 @@ class JournalController extends Controller
         $historyContext = '';
         if (! empty($history)) {
             $lines = array_map(function ($h) {
-                $first = mb_substr($h['body'], 0, 80);
-                return "- {$h['date']} | mood: {$h['mood']} | tema: {$h['tema']} | \"{$first}\"";
+                $snippet = mb_substr($h['body'], 0, 150);
+                $mood = $h['mood'] ?: '-';
+                $tema = $h['tema'] ?: '-';
+
+                return "• {$h['date']} [mood: {$mood}] [tema: {$tema}]\n  \"{$snippet}\"";
             }, $history);
-            $historyContext = "\n\nRiwayat jurnal sebelumnya (ringkas):\n" . implode("\n", $lines);
+            $historyContext = "\n\nRiwayat jurnal 30 hari terakhir:\n" . implode("\n\n", $lines);
         }
 
+        $systemPrompt = <<<'PROMPT'
+Kamu adalah teman reflektif yang sudah membaca seluruh jurnal harian pengguna ini selama berbulan-bulan.
+
+Gaya analisamu:
+- SANGAT PERSONAL — referensi pola, kemajuan, atau perjuangan spesifik dari riwayat kalau relevan
+- HANGAT tapi JUJUR — seperti teman dekat yang peduli, bukan asisten generik atau motivator klise
+- BERBASIS DATA — kalau ada pola yang terlihat (mis: mood turun di hari tertentu, tema yang berulang, kemajuan nyata), sebutkan eksplisit
+- PRAKTIS — insight dan saran harus actionable dan spesifik ke situasi mereka, bukan nasihat umum
+
+Balas HANYA dengan JSON valid. Gunakan bahasa Indonesia yang natural dan hangat.
+PROMPT;
+
+        $userPrompt = <<<PROMPT
+Analisa jurnal ini secara mendalam. Balas HANYA dengan JSON berikut (tidak ada teks lain di luar JSON):
+
+{
+  "mood": "(1 frasa suasana hati yang nuansed dan presisi — bukan sekadar 'senang' atau 'sedih', contoh: 'bersemangat tapi sedikit cemas', 'lelah tapi lega', maksimal 10 kata)",
+  "tema": "(tema-tema utama dipisah koma, maksimal 5 tema — pilih yang paling substantif dari isi jurnal)",
+  "content": "(ringkasan naratif 3-4 kalimat — ceritakan kembali hari mereka seolah kamu menjelaskan ke orang ketiga, tangkap nuansa emosi dan konteksnya, jangan hanya listing fakta)",
+  "insight": "(2-3 insight yang SPESIFIK dan PERSONAL — kalau ada pola dari riwayat yang relevan sebutkan langsung, contoh: 'Ini sudah kali ketiga dalam bulan ini kamu menyebut...', 'Berbeda dari dua minggu lalu ketika...' — jangan generik)",
+  "saran": "(2-3 saran konkret dan spesifik untuk esok atau minggu depan — harus relevan langsung ke situasi mereka hari ini, bukan nasihat umum)"
+}
+
+Jurnal hari ini:
+{$body}{$historyContext}
+PROMPT;
+
         try {
-            $response = Http::timeout(20)
+            $response = Http::timeout(30)
                 ->withHeaders([
                     'Authorization' => "Bearer {$apiKey}",
                     'Content-Type' => 'application/json',
                 ])
                 ->post('https://api.groq.com/openai/v1/chat/completions', [
-                    'model' => 'llama-3.1-8b-instant',
-                    'max_tokens' => 400,
-                    'temperature' => 0.7,
+                    'model' => 'llama-3.3-70b-versatile',
+                    'max_tokens' => 800,
+                    'temperature' => 0.75,
                     'messages' => [
-                        [
-                            'role' => 'system',
-                            'content' => 'Kamu adalah teman reflektif yang sudah mengenal penulis jurnal ini dari catatan-catatan sebelumnya. Analisa dengan hangat dan personal, bukan generik. Selalu balas dengan JSON valid saja. Gunakan bahasa Indonesia.',
-                        ],
-                        [
-                            'role' => 'user',
-                            'content' => "Analisa jurnal harian berikut dan balas HANYA dengan JSON ini:\n{\"mood\": \"(1 frasa suasana hati, maks 8 kata)\", \"tema\": \"(tema utama dipisah koma, maks 4 tema)\", \"content\": \"(ringkasan naratif 2-3 kalimat, tulis seolah kamu menceritakan kembali hari mereka dengan hangat)\", \"insight\": \"(1-2 insight personal — boleh referensi pola dari riwayat jika relevan)\", \"saran\": \"(1-2 saran konkret untuk besok)\"}\n\nJurnal hari ini:\n{$body}{$historyContext}",
-                        ],
+                        ['role' => 'system', 'content' => $systemPrompt],
+                        ['role' => 'user', 'content' => $userPrompt],
                     ],
                 ]);
 
