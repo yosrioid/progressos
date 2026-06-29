@@ -185,149 +185,151 @@ watch(() => route.query.session, async (id) => {
 </script>
 
 <template>
-  <!-- Full-height chat layout, no card wrapper -->
-  <div class="-mx-4 -mt-4 md:-mx-8 md:-mt-8 flex h-[calc(100vh-4rem)] lg:h-screen overflow-hidden">
+  <div class="-mx-3 -my-4 sm:-mx-5 sm:-my-6 flex gap-0 sm:gap-5 h-[calc(100dvh-7.5rem)] sm:h-[calc(100dvh-4.375rem)] overflow-hidden">
 
-    <!-- Sidebar -->
-    <div class="flex w-60 shrink-0 flex-col bg-slate-900 dark:bg-zinc-950">
-      <!-- Top -->
-      <div class="flex items-center justify-between gap-2 px-3 pt-4 pb-3">
-        <p class="text-xs font-extrabold uppercase tracking-widest text-slate-400">AI Chat</p>
-        <button
-          class="grid h-7 w-7 place-items-center rounded-lg border border-slate-700 text-slate-400 hover:border-slate-500 hover:text-white transition-colors"
-          title="Sesi baru"
-          @click="showNewModal = true"
-        >
-          <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
-        </button>
-      </div>
+    <!-- Session list -->
+    <div class="hidden sm:flex w-56 shrink-0 flex-col gap-3 px-5 py-5">
+      <button class="btn btn-primary w-full text-sm" @click="showNewModal = true">+ Sesi Baru</button>
 
-      <!-- Session list -->
-      <div class="flex-1 overflow-y-auto px-2 pb-4 space-y-0.5">
-        <div v-if="loadingSessions" class="space-y-1.5 p-2">
-          <div v-for="i in 5" :key="i" class="h-9 animate-pulse rounded-lg bg-slate-800" />
+      <div class="flex-1 overflow-y-auto space-y-1 pr-1">
+        <div v-if="loadingSessions" class="space-y-2">
+          <div v-for="i in 4" :key="i" class="h-14 animate-pulse rounded-xl bg-slate-100 dark:bg-zinc-800" />
         </div>
-        <div v-else-if="sessions.length === 0" class="px-3 py-6 text-center">
-          <p class="text-xs text-slate-500">Belum ada sesi.</p>
-          <button class="mt-2 text-xs font-semibold text-teal-400 hover:underline" @click="showNewModal = true">Mulai chat</button>
+        <div v-else-if="sessions.length === 0" class="rounded-xl border border-dashed border-slate-200 dark:border-zinc-700 p-4 text-center">
+          <p class="text-xs text-slate-400 dark:text-zinc-600">Belum ada sesi</p>
         </div>
         <button
           v-for="s in sessions"
           :key="s.id"
           :class="[
-            'group w-full rounded-lg px-3 py-2 text-left transition-colors',
+            'group w-full rounded-xl border px-3 py-2.5 text-left transition-colors',
             activeSession?.id === s.id
-              ? 'bg-slate-700 text-white'
-              : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200',
+              ? 'border-teal-200 bg-teal-50 dark:border-teal-800 dark:bg-teal-900/20'
+              : 'border-transparent hover:border-slate-200 hover:bg-slate-50 dark:hover:border-zinc-700 dark:hover:bg-zinc-800/50',
           ]"
           @click="openSession(s)"
         >
-          <div class="flex items-center gap-2 min-w-0">
-            <span class="text-xs shrink-0">{{ contextIcons[s.context_type] }}</span>
-            <span class="truncate text-xs font-semibold flex-1">{{ s.title }}</span>
+          <div class="flex items-start justify-between gap-1">
+            <span class="text-xs font-extrabold truncate text-slate-700 dark:text-zinc-300 leading-tight">
+              {{ contextIcons[s.context_type] }} {{ s.title }}
+            </span>
             <button
-              class="shrink-0 opacity-0 group-hover:opacity-100 hover:text-red-400 transition-all"
+              class="mt-0.5 shrink-0 opacity-0 group-hover:opacity-100 text-slate-300 hover:text-red-400 transition-all"
               @click.stop="deleteSession(s)"
             >
               <svg class="h-3 w-3" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>
             </button>
           </div>
-          <p class="mt-0.5 text-[10px] text-slate-600 truncate">{{ formatDate(s.updated_at) }}</p>
+          <p class="mt-0.5 text-[10px] text-slate-400 dark:text-zinc-600">{{ formatDate(s.updated_at) }}</p>
         </button>
       </div>
     </div>
 
-    <!-- Main chat -->
-    <div class="flex flex-1 flex-col min-w-0 bg-white dark:bg-zinc-900">
+    <!-- Chat area -->
+    <div class="card flex flex-1 flex-col min-w-0 overflow-hidden p-0">
+
+      <!-- Mobile session bar -->
+      <div class="flex items-center gap-2 border-b border-slate-100 px-3 py-2 sm:hidden dark:border-zinc-800">
+        <div class="flex-1 overflow-x-auto">
+          <div class="flex gap-1.5 min-w-0">
+            <button
+              v-for="s in sessions"
+              :key="s.id"
+              :class="[
+                'shrink-0 rounded-lg px-2.5 py-1 text-xs font-bold transition-colors whitespace-nowrap',
+                activeSession?.id === s.id
+                  ? 'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400'
+                  : 'text-slate-500 hover:bg-slate-100 dark:text-zinc-500 dark:hover:bg-zinc-800',
+              ]"
+              @click="openSession(s)"
+            >{{ contextIcons[s.context_type] }} {{ s.title }}</button>
+          </div>
+        </div>
+        <button class="shrink-0 btn btn-primary px-2.5 py-1 text-xs" @click="showNewModal = true">+</button>
+      </div>
 
       <!-- Empty state -->
-      <div v-if="!activeSession" class="flex flex-1 flex-col items-center justify-center gap-4 p-8 text-center">
-        <div class="grid h-16 w-16 place-items-center rounded-2xl bg-teal-600 text-white shadow-lg shadow-teal-900/20">
-          <svg class="h-8 w-8" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      <div v-if="!activeSession" class="flex flex-1 flex-col items-center justify-center gap-4 p-10 text-center">
+        <div class="grid h-14 w-14 place-items-center rounded-2xl bg-teal-600 text-white shadow-lg shadow-teal-900/10">
+          <svg class="h-7 w-7" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
         </div>
         <div>
-          <p class="text-xl font-extrabold text-slate-800 dark:text-zinc-200">ProgressOS AI</p>
-          <p class="mt-1 text-sm text-slate-400 dark:text-zinc-500">Pilih sesi di kiri atau mulai yang baru.</p>
+          <p class="font-extrabold text-slate-700 dark:text-zinc-300">ProgressOS AI</p>
+          <p class="mt-1 text-sm text-slate-400 dark:text-zinc-500">Pilih sesi atau mulai yang baru.</p>
         </div>
-        <div class="mt-2 grid grid-cols-3 gap-3 text-left max-w-lg w-full">
+        <div class="mt-1 grid grid-cols-3 gap-3 max-w-sm w-full">
           <button
             v-for="type in ['general', 'journal', 'project'] as const"
             :key="type"
-            class="rounded-xl border border-slate-200 p-3 hover:border-teal-400 hover:bg-teal-50 transition-colors dark:border-zinc-700 dark:hover:border-teal-600 dark:hover:bg-teal-900/10"
+            class="rounded-xl border border-slate-200 p-3 text-center hover:border-teal-400 hover:bg-teal-50 transition-colors dark:border-zinc-700 dark:hover:border-teal-700 dark:hover:bg-teal-900/10"
             @click="newContextType = type; createSession()"
           >
-            <p class="text-lg">{{ contextIcons[type] }}</p>
-            <p class="mt-1 text-xs font-extrabold text-slate-700 dark:text-zinc-300">{{ contextLabels[type] }}</p>
+            <p class="text-xl">{{ contextIcons[type] }}</p>
+            <p class="mt-1 text-xs font-extrabold text-slate-600 dark:text-zinc-400">{{ contextLabels[type] }}</p>
           </button>
         </div>
       </div>
 
       <template v-else>
         <!-- Header -->
-        <div class="flex items-center gap-3 border-b border-slate-100 bg-white px-6 py-3 dark:border-zinc-800 dark:bg-zinc-900">
-          <span class="text-xl">{{ contextIcons[activeSession.context_type] }}</span>
+        <div class="flex items-center gap-3 border-b border-slate-100 px-5 py-3 dark:border-zinc-800">
+          <span class="text-lg">{{ contextIcons[activeSession.context_type] }}</span>
           <div class="min-w-0 flex-1">
             <p class="truncate text-sm font-extrabold text-slate-800 dark:text-zinc-200">{{ activeSession.title }}</p>
-            <p class="text-[11px] text-slate-400 dark:text-zinc-600">{{ contextLabels[activeSession.context_type] }} · Groq llama-3.1-8b-instant</p>
+            <p class="text-[11px] text-slate-400 dark:text-zinc-600">{{ contextLabels[activeSession.context_type] }}</p>
           </div>
         </div>
 
         <!-- Messages -->
         <div class="flex-1 overflow-y-auto">
-          <div class="mx-auto max-w-3xl px-4 py-6 space-y-6">
-            <div v-if="loadingMessages" class="space-y-6">
-              <div v-for="i in 3" :key="i" class="flex gap-4">
-                <div class="h-8 w-8 shrink-0 animate-pulse rounded-full bg-slate-100 dark:bg-zinc-800" />
-                <div class="flex-1 space-y-2 pt-1">
-                  <div class="h-3 w-3/4 animate-pulse rounded bg-slate-100 dark:bg-zinc-800" />
-                  <div class="h-3 w-1/2 animate-pulse rounded bg-slate-100 dark:bg-zinc-800" />
-                </div>
-              </div>
+          <div class="mx-auto max-w-2xl px-5 py-5 space-y-5">
+            <div v-if="loadingMessages" class="space-y-4">
+              <div v-for="i in 3" :key="i" class="h-12 animate-pulse rounded-xl bg-slate-100 dark:bg-zinc-800" />
             </div>
             <template v-else>
-              <p v-if="messages.length === 0" class="text-center text-sm text-slate-400 dark:text-zinc-600">
-                Mulai percakapan — AI siap membantu.
+              <p v-if="messages.length === 0" class="text-center text-sm text-slate-400 dark:text-zinc-600 py-6">
+                Mulai percakapan — ketik pesan di bawah.
               </p>
 
               <div
                 v-for="msg in messages"
                 :key="msg.id"
-                :class="['flex gap-4', msg.role === 'user' ? 'flex-row-reverse' : 'flex-row']"
+                :class="['flex gap-3', msg.role === 'user' ? 'justify-end' : 'justify-start']"
               >
-                <!-- Avatar -->
+                <!-- AI avatar -->
                 <div
-                  :class="[
-                    'grid h-8 w-8 shrink-0 place-items-center rounded-full text-[11px] font-extrabold',
-                    msg.role === 'user'
-                      ? 'bg-teal-600 text-white'
-                      : 'bg-slate-800 text-slate-200 dark:bg-zinc-700',
-                  ]"
-                >{{ msg.role === 'user' ? 'U' : 'AI' }}</div>
+                  v-if="msg.role === 'assistant'"
+                  class="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-teal-100 text-[10px] font-extrabold text-teal-700 dark:bg-teal-900/40 dark:text-teal-400 mt-0.5"
+                >AI</div>
 
-                <!-- Content -->
-                <div :class="['min-w-0 flex-1', msg.role === 'user' ? 'flex flex-col items-end' : '']">
+                <div class="max-w-[80%] space-y-1">
                   <div
                     :class="[
-                      'rounded-2xl px-4 py-3 text-sm leading-relaxed',
+                      'rounded-2xl px-4 py-2.5 text-sm font-medium leading-relaxed',
                       msg.role === 'user'
-                        ? 'bg-teal-600 text-white rounded-tr-sm max-w-[85%]'
-                        : 'bg-slate-50 text-slate-800 dark:bg-zinc-800 dark:text-zinc-200 rounded-tl-sm',
+                        ? 'rounded-tr-sm bg-teal-600 text-white'
+                        : 'rounded-tl-sm bg-slate-100 text-slate-800 dark:bg-zinc-800 dark:text-zinc-200',
                     ]"
                   >
-                    <p class="whitespace-pre-wrap font-medium">{{ msg.content }}</p>
+                    <p class="whitespace-pre-wrap">{{ msg.content }}</p>
                   </div>
-                  <p :class="['mt-1 text-[10px]', msg.role === 'user' ? 'text-slate-400 dark:text-zinc-600 pr-1' : 'text-slate-400 dark:text-zinc-600 pl-1']">
-                    {{ formatTime(msg.created_at) }}
-                    <span v-if="msg.role === 'assistant' && msg.tokens"> · {{ msg.tokens }} token</span>
+                  <p :class="['text-[10px] text-slate-400 dark:text-zinc-600', msg.role === 'user' ? 'text-right' : 'pl-1']">
+                    {{ formatTime(msg.created_at) }}<span v-if="msg.role === 'assistant' && msg.tokens"> · {{ msg.tokens }} token</span>
                   </p>
                 </div>
+
+                <!-- User avatar -->
+                <div
+                  v-if="msg.role === 'user'"
+                  class="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-teal-600 text-[10px] font-extrabold text-white mt-0.5"
+                >U</div>
               </div>
 
               <!-- Typing indicator -->
-              <div v-if="sending" class="flex gap-4">
-                <div class="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-slate-800 text-[11px] font-extrabold text-slate-200 dark:bg-zinc-700">AI</div>
-                <div class="flex items-center gap-1.5 rounded-2xl rounded-tl-sm bg-slate-50 px-4 py-3 dark:bg-zinc-800">
-                  <span v-for="i in 3" :key="i" class="h-2 w-2 rounded-full bg-slate-400 dark:bg-zinc-500 animate-bounce" :style="{ animationDelay: `${(i - 1) * 160}ms` }" />
+              <div v-if="sending" class="flex gap-3 justify-start">
+                <div class="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-teal-100 text-[10px] font-extrabold text-teal-700 dark:bg-teal-900/40 dark:text-teal-400 mt-0.5">AI</div>
+                <div class="flex items-center gap-1.5 rounded-2xl rounded-tl-sm bg-slate-100 px-4 py-3 dark:bg-zinc-800">
+                  <span v-for="i in 3" :key="i" class="h-1.5 w-1.5 rounded-full bg-slate-400 dark:bg-zinc-500 animate-bounce" :style="{ animationDelay: `${(i - 1) * 160}ms` }" />
                 </div>
               </div>
 
@@ -336,37 +338,35 @@ watch(() => route.query.session, async (id) => {
           </div>
         </div>
 
-        <!-- Input area -->
-        <div class="border-t border-slate-100 bg-white px-4 py-4 dark:border-zinc-800 dark:bg-zinc-900">
-          <div class="mx-auto max-w-3xl">
-            <div class="flex items-end gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 focus-within:border-teal-400 transition-colors dark:border-zinc-700 dark:bg-zinc-800 dark:focus-within:border-teal-600">
-              <textarea
-                ref="inputRef"
-                v-model="input"
-                rows="1"
-                class="flex-1 resize-none bg-transparent text-sm font-medium text-slate-800 placeholder:text-slate-400 focus:outline-none dark:text-zinc-200 dark:placeholder:text-zinc-600"
-                placeholder="Pesan... (Enter kirim · Shift+Enter baris baru)"
-                :disabled="sending"
-                style="max-height: 160px;"
-                @keydown="onKeydown"
-                @input="autoResize"
-              />
-              <button
-                :class="[
-                  'grid h-8 w-8 shrink-0 place-items-center rounded-xl transition-colors',
-                  input.trim() && !sending
-                    ? 'bg-teal-600 text-white hover:bg-teal-700'
-                    : 'bg-slate-200 text-slate-400 dark:bg-zinc-700 dark:text-zinc-500 cursor-not-allowed',
-                ]"
-                :disabled="sending || !input.trim()"
-                @click="send"
-              >
-                <svg v-if="sending" class="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
-                <svg v-else class="h-4 w-4" fill="currentColor" viewBox="0 0 24 24"><path d="M2.01 21 23 12 2.01 3 2 10l15 2-15 2z"/></svg>
-              </button>
-            </div>
-            <p class="mt-2 text-center text-[10px] text-slate-300 dark:text-zinc-700">Powered by Groq · llama-3.1-8b-instant · Hanya 12 pesan terakhir yang dikirim ke AI</p>
+        <!-- Input -->
+        <div class="border-t border-slate-100 px-5 py-4 dark:border-zinc-800">
+          <div class="flex items-end gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 focus-within:border-teal-400 transition-colors dark:border-zinc-700 dark:bg-zinc-800 dark:focus-within:border-teal-600">
+            <textarea
+              ref="inputRef"
+              v-model="input"
+              rows="1"
+              class="flex-1 resize-none bg-transparent text-sm font-medium text-slate-800 placeholder:text-slate-400 focus:outline-none dark:text-zinc-200 dark:placeholder:text-zinc-500"
+              placeholder="Pesan... (Enter kirim · Shift+Enter baris baru)"
+              :disabled="sending"
+              style="max-height: 160px;"
+              @keydown="onKeydown"
+              @input="autoResize"
+            />
+            <button
+              :class="[
+                'grid h-8 w-8 shrink-0 place-items-center rounded-lg transition-colors',
+                input.trim() && !sending
+                  ? 'bg-teal-600 text-white hover:bg-teal-700'
+                  : 'bg-slate-200 text-slate-400 dark:bg-zinc-700 dark:text-zinc-500 cursor-not-allowed',
+              ]"
+              :disabled="sending || !input.trim()"
+              @click="send"
+            >
+              <svg v-if="sending" class="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
+              <svg v-else class="h-4 w-4" fill="currentColor" viewBox="0 0 24 24"><path d="M2.01 21 23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+            </button>
           </div>
+          <p class="mt-1.5 text-center text-[10px] text-slate-300 dark:text-zinc-700">Groq · llama-3.1-8b-instant · 12 pesan terakhir dikirim ke AI</p>
         </div>
       </template>
     </div>
@@ -374,7 +374,7 @@ watch(() => route.query.session, async (id) => {
 
   <!-- New session modal -->
   <Transition enter-active-class="transition duration-200 ease-out" enter-from-class="opacity-0" enter-to-class="opacity-100" leave-active-class="transition duration-150" leave-from-class="opacity-100" leave-to-class="opacity-0">
-    <div v-if="showNewModal" class="fixed inset-0 z-50 flex items-end justify-center bg-black/50 px-4 pb-6 sm:items-center" @click.self="showNewModal = false">
+    <div v-if="showNewModal" class="fixed inset-0 z-50 flex items-end justify-center bg-black/40 px-4 pb-6 sm:items-center" @click.self="showNewModal = false">
       <div class="card w-full max-w-sm p-6 space-y-4">
         <p class="font-extrabold text-slate-800 dark:text-zinc-200">Sesi Chat Baru</p>
         <div class="space-y-2">
