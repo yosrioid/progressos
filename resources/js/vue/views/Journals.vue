@@ -14,14 +14,28 @@ interface JournalItem {
   analyzed_at: string | null;
 }
 
+interface AiProfile {
+  text?: string;
+  updated_at?: string;
+  entry_count?: number;
+}
+
 const journals = ref<JournalItem[]>([]);
 const loading = ref(true);
+const profile = ref<AiProfile>({});
+const totalEntries = ref(0);
+const profileExpanded = ref(false);
 
 async function load() {
   loading.value = true;
   try {
-    const res = await api.get('/api/v1/journals').then(unwrap);
-    journals.value = res.journals ?? [];
+    const [journalRes, profileRes] = await Promise.all([
+      api.get('/api/v1/journals').then(unwrap),
+      api.get('/api/v1/journals/profile').then(unwrap),
+    ]);
+    journals.value = journalRes.journals ?? [];
+    profile.value = profileRes.profile ?? {};
+    totalEntries.value = profileRes.total_entries ?? 0;
   } catch {
     toast({ tone: 'error', title: 'Gagal memuat', message: 'Tidak dapat memuat daftar jurnal.' });
   } finally {
@@ -31,6 +45,10 @@ async function load() {
 
 function formatDate(d: string) {
   return new Date(d).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+}
+
+function formatShortDate(d: string) {
+  return new Date(d).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
 function preview(body: string) {
@@ -50,6 +68,35 @@ onMounted(load);
         <p class="mt-1 text-sm font-medium text-slate-500 dark:text-zinc-500">Tulis bebas, AI analisa mood, tema, insight, dan saran.</p>
       </div>
       <RouterLink to="/journal/new" class="btn btn-primary shrink-0">+ Tulis Hari Ini</RouterLink>
+    </div>
+
+    <!-- AI Memory card -->
+    <div v-if="profile.text || totalEntries > 0" class="card p-4">
+      <button class="flex w-full items-start gap-3 text-left" @click="profileExpanded = !profileExpanded">
+        <div class="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-teal-50 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400">
+          <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" viewBox="0 0 24 24"><path d="M9.663 17h4.673M12 3v1m6.364 1.636-.707.707M21 12h-1M4 12H3m3.343-5.657-.707-.707m2.828 9.9a5 5 0 1 1 7.072 0l-.548.547A3.374 3.374 0 0 0 14 18.469V19a2 2 0 1 1-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
+        </div>
+        <div class="min-w-0 flex-1">
+          <p class="text-sm font-extrabold text-slate-800 dark:text-zinc-200">Apa yang AI ketahui tentang kamu</p>
+          <p class="mt-0.5 text-xs text-slate-400 dark:text-zinc-500">
+            <span v-if="profile.entry_count">Dibangun dari {{ profile.entry_count }} analisa</span>
+            <span v-else-if="totalEntries > 0">{{ totalEntries }} jurnal tersimpan — analisa pertama untuk mulai membangun memori AI</span>
+            <span v-else>Belum ada memori — analisa jurnal pertamamu untuk mulai</span>
+            <span v-if="profile.updated_at"> · Diperbarui {{ formatShortDate(profile.updated_at) }}</span>
+          </p>
+        </div>
+        <svg
+          :class="['h-4 w-4 shrink-0 text-slate-400 transition-transform mt-0.5', profileExpanded ? 'rotate-180' : '']"
+          fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24"
+        ><path d="m6 9 6 6 6-6"/></svg>
+      </button>
+
+      <div v-if="profileExpanded && profile.text" class="mt-4 border-t border-slate-100 pt-4 dark:border-zinc-800">
+        <p class="whitespace-pre-wrap text-sm leading-relaxed text-slate-600 dark:text-zinc-400">{{ profile.text }}</p>
+      </div>
+      <div v-else-if="profileExpanded && !profile.text" class="mt-4 border-t border-slate-100 pt-4 dark:border-zinc-800">
+        <p class="text-sm text-slate-400 dark:text-zinc-500">Belum ada profil. Klik "Analisa AI" di jurnal mana saja untuk mulai membangun memori.</p>
+      </div>
     </div>
 
     <!-- Loading -->
