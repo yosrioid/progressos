@@ -53,7 +53,6 @@ const navGroups = [
     label: 'Journal & AI',
     items: [
       { label: 'Journal', href: '/journal', icon: 'docs', hint: 'Tulis jurnal harian — AI analisa mood, tema, insight, dan saran dari tulisanmu' },
-      { label: 'AI Chat', href: '/chat', icon: 'spark', hint: 'Chat dengan AI — bahas jurnal, proyek, atau apa saja. History tersimpan.' },
     ],
   },
   {
