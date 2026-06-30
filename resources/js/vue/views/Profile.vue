@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
+import { useRoute } from 'vue-router';
 import { api, unwrap } from '../api';
 import { toast } from '../feedback';
 import { useAuthStore } from '../stores/auth';
@@ -7,6 +8,7 @@ import { timezones, useConfigurationStore } from '../stores/configuration';
 import { usePrivacyStore } from '../stores/privacy';
 
 const auth = useAuthStore();
+const route = useRoute();
 const configuration = useConfigurationStore();
 const profile = ref({ name: auth.user?.name || '', email: auth.user?.email || '', timezone: auth.user?.timezone || configuration.timezone || 'Asia/Jakarta' });
 const password = ref({ current_password: '', password: '', password_confirmation: '' });
@@ -35,6 +37,13 @@ const quoteHasCustom = ref(false);
 const quoteSaving = ref(false);
 
 onMounted(async () => {
+  // Refresh user state after Google connect callback
+  if (route.query.google === 'connected') {
+    await auth.boot();
+    toast({ tone: 'success', title: 'Google terhubung' });
+    window.history.replaceState({}, '', '/profile');
+  }
+
   try {
     const data: any = await api.get('/api/v1/quote/config').then(unwrap);
     if (data.quote_config) {

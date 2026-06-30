@@ -218,7 +218,7 @@ class AuthController extends Controller
         return $user->toArray() + [
             'avatar_url' => $user->avatar_path ? '/storage/'.$user->avatar_path : null,
             'is_admin' => $user->isAdmin(),
-            'has_google' => $user->google_connected === true,
+            'has_google' => (bool) $user->google_connected,
             'google_sso_enabled' => (bool) (is_array($googleConfig) ? ($googleConfig['enabled'] ?? false) : false),
         ];
     }
