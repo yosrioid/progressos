@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Configuration;
 use App\Support\ApiResponse;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
@@ -136,7 +137,7 @@ class QuoteController extends Controller
         return null;
     }
 
-    public function usage(Request $request): \Illuminate\Http\JsonResponse
+    public function usage(Request $request): JsonResponse
     {
         $today = Carbon::now()->toDateString();
         $stored = Configuration::getValue($request->user(), 'groq', 'usage', []);
@@ -178,7 +179,7 @@ class QuoteController extends Controller
         // usage tracked per-request where user is available
     }
 
-    public function configPayload(Request $request): \Illuminate\Http\JsonResponse
+    public function configPayload(Request $request): JsonResponse
     {
         $config = $this->quoteConfig($request->user());
 
