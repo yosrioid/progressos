@@ -4,11 +4,18 @@ import { api, unwrap } from '../api';
 import { toast } from '../feedback';
 import { useAuthStore } from '../stores/auth';
 import { timezones, useConfigurationStore } from '../stores/configuration';
+import { usePrivacyStore } from '../stores/privacy';
 
 const auth = useAuthStore();
 const configuration = useConfigurationStore();
 const profile = ref({ name: auth.user?.name || '', email: auth.user?.email || '', timezone: auth.user?.timezone || configuration.timezone || 'Asia/Jakarta' });
 const password = ref({ current_password: '', password: '', password_confirmation: '' });
+const showPassword = ref(false);
+const privacy = usePrivacyStore();
+const pinInput = ref('');
+const pinConfirm = ref('');
+const pinError = ref('');
+const pinSuccess = ref('');
 const avatar = ref<File | null>(null);
 const avatarPreview = ref('');
 const avatarLoadFailed = ref(false);
@@ -107,6 +114,25 @@ async function savePassword() {
   } catch (e: any) {
     error.value = e.response?.data?.message || 'Could not change password.';
   }
+}
+
+function savePin() {
+  pinError.value = '';
+  pinSuccess.value = '';
+  if (pinInput.value.length < 4) { pinError.value = 'PIN minimal 4 digit.'; return; }
+  if (pinInput.value !== pinConfirm.value) { pinError.value = 'PIN tidak cocok.'; return; }
+  privacy.setPin(pinInput.value);
+  pinInput.value = '';
+  pinConfirm.value = '';
+  pinSuccess.value = 'PIN berhasil disimpan.';
+}
+
+function removePin() {
+  privacy.removePin();
+  pinInput.value = '';
+  pinConfirm.value = '';
+  pinError.value = '';
+  pinSuccess.value = 'PIN dihapus.';
 }
 
 async function saveAvatar() {
@@ -289,12 +315,73 @@ async function croppedAvatarBlob(): Promise<Blob> {
         <p class="text-sm font-medium text-slate-500">Use a strong password and update it when access changes.</p>
       </div>
       <div class="grid gap-4 p-5 md:grid-cols-3">
-        <label><span class="label mb-1">Current password</span><input v-model="password.current_password" class="field" type="password" required /></label>
-        <label><span class="label mb-1">New password</span><input v-model="password.password" class="field" type="password" required /></label>
-        <label><span class="label mb-1">Confirm new password</span><input v-model="password.password_confirmation" class="field" type="password" required /></label>
+        <div>
+          <span class="label mb-1">Current password</span>
+          <div class="relative">
+            <input v-model="password.current_password" :type="showPassword ? 'text' : 'password'" class="field pr-20" required />
+            <button type="button" class="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-slate-700 dark:hover:text-zinc-300" @click="showPassword = !showPassword">{{ showPassword ? 'Sembunyikan' : 'Tampilkan' }}</button>
+          </div>
+        </div>
+        <div>
+          <span class="label mb-1">New password</span>
+          <div class="relative">
+            <input v-model="password.password" :type="showPassword ? 'text' : 'password'" class="field pr-20" required />
+            <button type="button" class="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-slate-700 dark:hover:text-zinc-300" @click="showPassword = !showPassword">{{ showPassword ? 'Sembunyikan' : 'Tampilkan' }}</button>
+          </div>
+        </div>
+        <div>
+          <span class="label mb-1">Confirm new password</span>
+          <div class="relative">
+            <input v-model="password.password_confirmation" :type="showPassword ? 'text' : 'password'" class="field pr-20" required />
+            <button type="button" class="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-slate-700 dark:hover:text-zinc-300" @click="showPassword = !showPassword">{{ showPassword ? 'Sembunyikan' : 'Tampilkan' }}</button>
+          </div>
+        </div>
       </div>
       <div class="flex justify-end border-t border-slate-100 bg-slate-50/70 px-5 py-4"><button class="btn btn-primary">Change password</button></div>
     </form>
+
+    <!-- PIN Lock -->
+    <div class="card overflow-hidden p-0">
+      <div class="border-b border-slate-100 bg-slate-50/70 px-5 py-4 dark:border-zinc-800 dark:bg-zinc-800/50">
+        <h2 class="font-extrabold">PIN Lock</h2>
+        <p class="text-sm font-medium text-slate-500">Kunci otomatis halaman /money dan /bills. Berlaku hanya di perangkat ini.</p>
+      </div>
+      <div class="p-5 space-y-4">
+        <!-- Status -->
+        <div class="flex items-center gap-3 rounded-xl border p-3 dark:border-zinc-700" :class="privacy.hasPin ? 'border-teal-200 bg-teal-50/60 dark:bg-teal-900/10' : 'border-slate-200 bg-slate-50 dark:bg-zinc-800/40'">
+          <div class="grid h-8 w-8 shrink-0 place-items-center rounded-xl" :class="privacy.hasPin ? 'bg-teal-100 dark:bg-teal-900/30' : 'bg-slate-200 dark:bg-zinc-700'">
+            <svg class="h-4 w-4" :class="privacy.hasPin ? 'text-teal-600 dark:text-teal-400' : 'text-slate-500 dark:text-zinc-400'" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" viewBox="0 0 24 24">
+              <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+          </div>
+          <div class="min-w-0 flex-1">
+            <p class="text-sm font-extrabold" :class="privacy.hasPin ? 'text-teal-800 dark:text-teal-300' : 'text-slate-600 dark:text-zinc-300'">
+              {{ privacy.hasPin ? 'PIN aktif' : 'PIN belum diset' }}
+            </p>
+            <p class="text-xs font-semibold text-slate-500 dark:text-zinc-500">{{ privacy.hasPin ? 'Halaman keuangan terkunci saat dibuka atau setelah 5 menit.' : 'Tanpa PIN, siapapun yang buka browser bisa akses halaman keuangan.' }}</p>
+          </div>
+          <button v-if="privacy.hasPin" class="btn btn-muted text-xs text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20" type="button" @click="removePin">Hapus PIN</button>
+        </div>
+        <!-- Form -->
+        <div class="space-y-3">
+          <p class="text-sm font-extrabold text-slate-700 dark:text-zinc-200">{{ privacy.hasPin ? 'Ganti PIN' : 'Set PIN' }}</p>
+          <div class="grid gap-3 sm:grid-cols-2">
+            <div>
+              <label class="label mb-1">PIN baru (min. 4 digit)</label>
+              <input v-model="pinInput" type="password" inputmode="numeric" maxlength="8" autocomplete="new-password" class="field text-center tracking-[0.4em]" placeholder="••••" />
+            </div>
+            <div>
+              <label class="label mb-1">Konfirmasi PIN</label>
+              <input v-model="pinConfirm" type="password" inputmode="numeric" maxlength="8" autocomplete="new-password" class="field text-center tracking-[0.4em]" placeholder="••••" @keydown.enter="savePin" />
+            </div>
+          </div>
+          <p v-if="pinError" class="text-sm font-semibold text-red-500">{{ pinError }}</p>
+          <p v-if="pinSuccess" class="text-sm font-semibold text-teal-600 dark:text-teal-400">{{ pinSuccess }}</p>
+          <button class="btn btn-primary" type="button" @click="savePin">{{ privacy.hasPin ? 'Ganti PIN' : 'Simpan PIN' }}</button>
+        </div>
+      </div>
+    </div>
+
     <div v-if="quoteEnabled" class="card overflow-hidden p-0">
       <div class="border-b border-slate-100 bg-slate-50/70 px-5 py-4">
         <h2 class="font-extrabold">Daily Quote Themes</h2>

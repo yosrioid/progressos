@@ -3,7 +3,6 @@ import { computed, onMounted, ref } from 'vue';
 import { api, unwrap } from '../api';
 import { confirmAction, toast } from '../feedback';
 import { timezones, useConfigurationStore } from '../stores/configuration';
-import { usePrivacyStore } from '../stores/privacy';
 
 const configuration = useConfigurationStore();
 const loading = ref(true);
@@ -28,7 +27,7 @@ const loadError = ref('');
 const googleHelpOpen = ref(false);
 const googleSsoHelpOpen = ref(false);
 const resendHelpOpen = ref(false);
-const openGroups = ref({ general: true, appearance: false, auth: true, mail: true, google_oauth: false, sync_data: false, notifications: false, history: false, privacy: false, quote: false });
+const openGroups = ref({ general: true, appearance: false, auth: true, mail: true, google_oauth: false, sync_data: false, notifications: false, history: false, quote: false });
 const quoteConfig = ref<{ enabled: boolean; themes: string[]; has_api_key: boolean }>({
   enabled: false, themes: ['motivation'], has_api_key: false,
 });
@@ -36,30 +35,10 @@ const quoteForm = ref({ enabled: false, themes: ['motivation'], api_key: '' });
 const quoteTagInput = ref('');
 const quoteSaving = ref(false);
 const groqUsage = ref<{ requests: number; tokens: number; request_limit: number } | null>(null);
-const privacy = usePrivacyStore();
-const pinInput = ref('');
-const pinConfirm = ref('');
-const pinError = ref('');
-const pinSuccess = ref('');
-
-function savePin() {
-  pinError.value = '';
-  pinSuccess.value = '';
-  if (pinInput.value.length < 4) { pinError.value = 'PIN minimal 4 digit.'; return; }
-  if (pinInput.value !== pinConfirm.value) { pinError.value = 'PIN tidak cocok.'; return; }
-  privacy.setPin(pinInput.value);
-  pinInput.value = '';
-  pinConfirm.value = '';
-  pinSuccess.value = 'PIN berhasil disimpan.';
-}
-
-function removePin() {
-  privacy.removePin();
-  pinInput.value = '';
-  pinConfirm.value = '';
-  pinError.value = '';
-  pinSuccess.value = 'PIN dihapus.';
-}
+const showClientSecret = ref(false);
+const showMailApiKey = ref(false);
+const showSmtpPassword = ref(false);
+const showGroqApiKey = ref(false);
 const timezonePreview = computed(() => {
   try {
     return new Intl.DateTimeFormat('en', {
@@ -397,7 +376,10 @@ onMounted(load);
               <span class="font-extrabold text-slate-800">Google Client Secret</span>
               <p class="text-xs font-semibold text-slate-500">{{ authConfig.has_client_secret ? 'Already saved. Fill in to replace.' : 'Not set.' }}</p>
             </div>
-            <input v-model="authForm.client_secret" class="field" type="password" placeholder="GOCSPX-..." autocomplete="new-password" />
+            <div class="relative">
+              <input v-model="authForm.client_secret" :type="showClientSecret ? 'text' : 'password'" class="field pr-20" placeholder="GOCSPX-..." autocomplete="new-password" />
+              <button type="button" class="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-slate-700 dark:hover:text-zinc-300" @click="showClientSecret = !showClientSecret">{{ showClientSecret ? 'Sembunyikan' : 'Tampilkan' }}</button>
+            </div>
           </div>
         </div>
         <div class="flex justify-end border-t border-slate-100 bg-slate-50/70 px-5 py-4">
@@ -462,7 +444,10 @@ onMounted(load);
                 </div>
                 <p class="text-xs font-semibold text-slate-500">{{ mailConfig.has_api_key ? 'Already saved. Fill in to replace.' : 'Not set.' }}</p>
               </div>
-              <input v-model="mailForm.api_key" class="field" type="password" placeholder="re_xxxxxxxxxxxx" autocomplete="new-password" />
+              <div class="relative">
+                <input v-model="mailForm.api_key" :type="showMailApiKey ? 'text' : 'password'" class="field pr-20" placeholder="re_xxxxxxxxxxxx" autocomplete="new-password" />
+                <button type="button" class="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-slate-700 dark:hover:text-zinc-300" @click="showMailApiKey = !showMailApiKey">{{ showMailApiKey ? 'Sembunyikan' : 'Tampilkan' }}</button>
+              </div>
             </div>
           </template>
 
@@ -485,7 +470,10 @@ onMounted(load);
                 <span class="font-extrabold text-slate-800">Password</span>
                 <p class="text-xs font-semibold text-slate-500">{{ mailConfig.has_password ? 'Already saved. Fill in to replace.' : 'Not set.' }}</p>
               </div>
-              <input v-model="mailForm.password" class="field" type="password" autocomplete="new-password" />
+              <div class="relative">
+                <input v-model="mailForm.password" :type="showSmtpPassword ? 'text' : 'password'" class="field pr-20" autocomplete="new-password" />
+                <button type="button" class="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-slate-700 dark:hover:text-zinc-300" @click="showSmtpPassword = !showSmtpPassword">{{ showSmtpPassword ? 'Sembunyikan' : 'Tampilkan' }}</button>
+              </div>
             </div>
           </template>
         </div>
@@ -680,56 +668,6 @@ onMounted(load);
       </div>
     </section>
 
-    <!-- Privacy & Security -->
-    <section class="card overflow-hidden p-0">
-      <button type="button" class="flex w-full items-center justify-between gap-4 border-b border-slate-100 bg-slate-50/70 px-5 py-4 text-left" :aria-expanded="openGroups.privacy" @click="toggleGroup('privacy')">
-        <span>
-          <span class="block text-xs font-extrabold uppercase text-teal-700">Keamanan</span>
-          <span class="mt-1 block text-lg font-extrabold text-slate-950 dark:text-zinc-100">Privasi & Keamanan</span>
-          <span class="mt-1 block text-sm font-medium text-slate-500 dark:text-zinc-400">PIN passcode untuk halaman /money dan /bills. Kunci otomatis 5 menit.</span>
-        </span>
-        <span class="grid h-8 w-8 place-items-center rounded-xl border border-slate-200 bg-white text-slate-500 transition dark:border-zinc-700 dark:bg-zinc-900" :class="openGroups.privacy ? 'rotate-180' : ''">
-          <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6" /></svg>
-        </span>
-      </button>
-      <div v-if="openGroups.privacy" class="p-5">
-        <!-- Status -->
-        <div class="mb-4 flex items-center gap-3 rounded-xl border p-3 dark:border-zinc-700" :class="privacy.hasPin ? 'border-teal-200 bg-teal-50/60 dark:bg-teal-900/10' : 'border-slate-200 bg-slate-50 dark:bg-zinc-800/40'">
-          <div class="grid h-8 w-8 shrink-0 place-items-center rounded-xl" :class="privacy.hasPin ? 'bg-teal-100 dark:bg-teal-900/30' : 'bg-slate-200 dark:bg-zinc-700'">
-            <svg class="h-4 w-4" :class="privacy.hasPin ? 'text-teal-600 dark:text-teal-400' : 'text-slate-500 dark:text-zinc-400'" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" viewBox="0 0 24 24">
-              <rect x="3" y="11" width="18" height="11" rx="2"/>
-              <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-            </svg>
-          </div>
-          <div class="min-w-0 flex-1">
-            <p class="text-sm font-extrabold" :class="privacy.hasPin ? 'text-teal-800 dark:text-teal-300' : 'text-slate-600 dark:text-zinc-300'">
-              {{ privacy.hasPin ? 'PIN aktif' : 'PIN belum diset' }}
-            </p>
-            <p class="text-xs font-semibold text-slate-500 dark:text-zinc-500">{{ privacy.hasPin ? 'Halaman keuangan terkunci saat dibuka atau setelah 5 menit.' : 'Tanpa PIN, siapapun yang buka tab browser bisa akses halaman keuangan.' }}</p>
-          </div>
-          <button v-if="privacy.hasPin" class="btn btn-muted text-xs text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20" @click="removePin">Hapus PIN</button>
-        </div>
-
-        <!-- Set / Change PIN form -->
-        <div class="space-y-3">
-          <p class="text-sm font-extrabold text-slate-700 dark:text-zinc-200">{{ privacy.hasPin ? 'Ganti PIN' : 'Set PIN' }}</p>
-          <div class="grid gap-3 sm:grid-cols-2">
-            <div>
-              <label class="label mb-1">PIN baru (min. 4 digit)</label>
-              <input v-model="pinInput" type="password" inputmode="numeric" maxlength="8" autocomplete="new-password" class="field text-center tracking-[0.4em]" placeholder="••••" />
-            </div>
-            <div>
-              <label class="label mb-1">Konfirmasi PIN</label>
-              <input v-model="pinConfirm" type="password" inputmode="numeric" maxlength="8" autocomplete="new-password" class="field text-center tracking-[0.4em]" placeholder="••••" @keydown.enter="savePin" />
-            </div>
-          </div>
-          <p v-if="pinError" class="text-sm font-semibold text-red-500">{{ pinError }}</p>
-          <p v-if="pinSuccess" class="text-sm font-semibold text-teal-600 dark:text-teal-400">{{ pinSuccess }}</p>
-          <button class="btn btn-primary" @click="savePin">{{ privacy.hasPin ? 'Ganti PIN' : 'Simpan PIN' }}</button>
-        </div>
-      </div>
-    </section>
-
     <!-- Daily Quote -->
     <section class="card overflow-hidden p-0">
       <button type="button" class="flex w-full items-center justify-between gap-4 border-b border-slate-100 bg-slate-50/70 px-5 py-4 text-left dark:border-zinc-800 dark:bg-zinc-800/40" :aria-expanded="openGroups.quote" @click="toggleGroup('quote')">
@@ -761,12 +699,15 @@ onMounted(load);
               Groq API Key
               <span v-if="quoteConfig.has_api_key" class="ml-2 rounded-full bg-teal-100 px-2 py-0.5 text-[10px] font-extrabold text-teal-700 dark:bg-teal-900/30 dark:text-teal-400">Terkonfigurasi</span>
             </span>
-            <input
-              v-model="quoteForm.api_key"
-              type="password"
-              class="field"
-              :placeholder="quoteConfig.has_api_key ? 'Kosongkan jika tidak ingin mengganti' : 'gsk_xxxxxxxxxxxxxxxxxxxxxxxx'"
-            />
+            <div class="relative">
+              <input
+                v-model="quoteForm.api_key"
+                :type="showGroqApiKey ? 'text' : 'password'"
+                class="field pr-20"
+                :placeholder="quoteConfig.has_api_key ? 'Kosongkan jika tidak ingin mengganti' : 'gsk_xxxxxxxxxxxxxxxxxxxxxxxx'"
+              />
+              <button type="button" class="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-slate-700 dark:hover:text-zinc-300" @click="showGroqApiKey = !showGroqApiKey">{{ showGroqApiKey ? 'Sembunyikan' : 'Tampilkan' }}</button>
+            </div>
           </label>
           <p class="mt-1 text-xs text-slate-400 dark:text-zinc-500">
             Daftar gratis di <span class="font-semibold text-teal-600">console.groq.com</span> → API Keys → Create API Key
