@@ -19,7 +19,9 @@ const showCreate = ref(false);
 const editTarget = ref<AppUser | null>(null);
 const resetTarget = ref<AppUser | null>(null);
 const showPassword = ref(false);
+const showPasswordConfirm = ref(false);
 const showResetPassword = ref(false);
+const showResetPasswordConfirm = ref(false);
 
 const createForm = ref({ name: '', email: '', password: '', password_confirmation: '', timezone: 'Asia/Jakarta' });
 const editForm = ref({ name: '', email: '', timezone: '' });
@@ -202,18 +204,26 @@ onMounted(load);
               <button type="button" class="btn btn-muted py-0.5 text-xs" @click="fillGeneratedPassword">Generate</button>
             </div>
             <div class="relative">
-              <input v-model="createForm.password" :type="showPassword ? 'text' : 'password'" class="field pr-20" required />
-              <button
-                type="button"
-                class="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-slate-700 dark:hover:text-zinc-300"
-                @click="showPassword = !showPassword"
-              >{{ showPassword ? 'Sembunyikan' : 'Tampilkan' }}</button>
+              <input v-model="createForm.password" :type="showPassword ? 'text' : 'password'" class="field pr-9" required />
+              <button type="button" class="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300" @click="showPassword = !showPassword">
+                <svg v-if="!showPassword" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>
+                <svg v-else class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+              </button>
             </div>
             <div v-if="showPassword && createForm.password" class="mt-1 flex items-center gap-2 rounded bg-slate-50 px-3 py-2 font-mono text-sm dark:bg-zinc-800">
               <span class="flex-1 select-all break-all text-slate-800 dark:text-zinc-200">{{ createForm.password }}</span>
             </div>
           </div>
-          <label class="sm:col-span-2"><span class="label mb-1">Konfirmasi Password</span><input v-model="createForm.password_confirmation" :type="showPassword ? 'text' : 'password'" class="field" required /></label>
+          <div class="sm:col-span-2">
+            <span class="label mb-1">Konfirmasi Password</span>
+            <div class="relative">
+              <input v-model="createForm.password_confirmation" :type="showPasswordConfirm ? 'text' : 'password'" class="field pr-9" required />
+              <button type="button" class="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300" @click="showPasswordConfirm = !showPasswordConfirm">
+                <svg v-if="!showPasswordConfirm" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>
+                <svg v-else class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+              </button>
+            </div>
+          </div>
           <label class="sm:col-span-2">
             <span class="label mb-1">Timezone</span>
             <select v-model="createForm.timezone" class="field">
@@ -271,20 +281,28 @@ onMounted(load);
               <button type="button" class="btn btn-muted py-0.5 text-xs" @click="fillGeneratedResetPassword">Generate</button>
             </div>
             <div class="relative">
-              <input v-model="resetForm.password" :type="showResetPassword ? 'text' : 'password'" class="field pr-20" required />
-              <button
-                type="button"
-                class="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-slate-700 dark:hover:text-zinc-300"
-                @click="showResetPassword = !showResetPassword"
-              >{{ showResetPassword ? 'Sembunyikan' : 'Tampilkan' }}</button>
+              <input v-model="resetForm.password" :type="showResetPassword ? 'text' : 'password'" class="field pr-9" required />
+              <button type="button" class="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300" @click="showResetPassword = !showResetPassword">
+                <svg v-if="!showResetPassword" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>
+                <svg v-else class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+              </button>
             </div>
             <div v-if="showResetPassword && resetForm.password" class="mt-1 flex items-center gap-2 rounded bg-slate-50 px-3 py-2 font-mono text-sm dark:bg-zinc-800">
               <span class="flex-1 select-all break-all text-slate-800 dark:text-zinc-200">{{ resetForm.password }}</span>
             </div>
           </div>
-          <label><span class="label mb-1">Konfirmasi Password</span><input v-model="resetForm.password_confirmation" :type="showResetPassword ? 'text' : 'password'" class="field" required /></label>
+          <div>
+            <span class="label mb-1">Konfirmasi Password</span>
+            <div class="relative">
+              <input v-model="resetForm.password_confirmation" :type="showResetPasswordConfirm ? 'text' : 'password'" class="field pr-9" required />
+              <button type="button" class="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300" @click="showResetPasswordConfirm = !showResetPasswordConfirm">
+                <svg v-if="!showResetPasswordConfirm" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>
+                <svg v-else class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+              </button>
+            </div>
+          </div>
           <div class="flex justify-end gap-2">
-            <button type="button" class="btn btn-muted" @click="resetTarget = null; showResetPassword = false">Batal</button>
+            <button type="button" class="btn btn-muted" @click="resetTarget = null; showResetPassword = false; showResetPasswordConfirm = false">Batal</button>
             <button type="submit" class="btn btn-primary">Reset</button>
           </div>
         </form>

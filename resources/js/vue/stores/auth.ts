@@ -43,5 +43,9 @@ export const useAuthStore = defineStore('auth', {
       const data = await api.post('/api/profile/avatar', payload, { headers: { 'Content-Type': 'multipart/form-data' } }).then(unwrap);
       this.user = data.user;
     },
+    async disconnectGoogle() {
+      const data = await api.delete('/api/profile/google').then(unwrap);
+      this.user = data.user;
+    },
   },
 });
