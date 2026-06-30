@@ -18,10 +18,31 @@ const loading = ref(true);
 const showCreate = ref(false);
 const editTarget = ref<AppUser | null>(null);
 const resetTarget = ref<AppUser | null>(null);
+const showPassword = ref(false);
+const showResetPassword = ref(false);
 
 const createForm = ref({ name: '', email: '', password: '', password_confirmation: '', timezone: 'Asia/Jakarta' });
 const editForm = ref({ name: '', email: '', timezone: '' });
 const resetForm = ref({ password: '', password_confirmation: '' });
+
+function generatePassword(): string {
+  const chars = 'abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789!@#$%';
+  return Array.from({ length: 14 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+}
+
+function fillGeneratedPassword() {
+  const pw = generatePassword();
+  createForm.value.password = pw;
+  createForm.value.password_confirmation = pw;
+  showPassword.value = true;
+}
+
+function fillGeneratedResetPassword() {
+  const pw = generatePassword();
+  resetForm.value.password = pw;
+  resetForm.value.password_confirmation = pw;
+  showResetPassword.value = true;
+}
 
 async function load() {
   loading.value = true;
@@ -38,10 +59,11 @@ async function createUser() {
     const data = await api.post('/api/admin/users', createForm.value).then(unwrap);
     users.value.push(data.user);
     showCreate.value = false;
+    showPassword.value = false;
     createForm.value = { name: '', email: '', password: '', password_confirmation: '', timezone: 'Asia/Jakarta' };
-    toast('User berhasil dibuat.', 'success');
+    toast({ tone: 'success', title: 'User dibuat', message: `Akun ${data.user.name} berhasil dibuat.` });
   } catch (e: any) {
-    toast(e?.response?.data?.message || 'Gagal membuat user.', 'error');
+    toast({ tone: 'error', title: 'Gagal', message: e?.response?.data?.message || 'Gagal membuat user.' });
   }
 }
 
@@ -57,9 +79,9 @@ async function saveEdit() {
     const idx = users.value.findIndex((u) => u.id === editTarget.value!.id);
     if (idx !== -1) users.value[idx] = data.user;
     editTarget.value = null;
-    toast('User diperbarui.', 'success');
+    toast({ tone: 'success', title: 'User diperbarui' });
   } catch (e: any) {
-    toast(e?.response?.data?.message || 'Gagal memperbarui user.', 'error');
+    toast({ tone: 'error', title: 'Gagal', message: e?.response?.data?.message || 'Gagal memperbarui user.' });
   }
 }
 
@@ -73,9 +95,11 @@ async function saveResetPassword() {
   try {
     await api.post(`/api/admin/users/${resetTarget.value.id}/reset-password`, resetForm.value);
     resetTarget.value = null;
-    toast('Password berhasil direset.', 'success');
+    showResetPassword.value = false;
+    resetForm.value = { password: '', password_confirmation: '' };
+    toast({ tone: 'success', title: 'Password direset' });
   } catch (e: any) {
-    toast(e?.response?.data?.message || 'Gagal reset password.', 'error');
+    toast({ tone: 'error', title: 'Gagal', message: e?.response?.data?.message || 'Gagal reset password.' });
   }
 }
 
@@ -87,9 +111,9 @@ async function toggleDisable(user: AppUser) {
     const data = await api.post(`/api/admin/users/${user.id}/${action}`).then(unwrap);
     const idx = users.value.findIndex((u) => u.id === user.id);
     if (idx !== -1) users.value[idx] = data.user;
-    toast(`User ${user.is_disabled ? 'diaktifkan' : 'dinonaktifkan'}.`, 'success');
+    toast({ tone: 'success', title: `User ${user.is_disabled ? 'diaktifkan' : 'dinonaktifkan'}` });
   } catch (e: any) {
-    toast(e?.response?.data?.message || 'Gagal mengubah status user.', 'error');
+    toast({ tone: 'error', title: 'Gagal', message: e?.response?.data?.message || 'Gagal mengubah status user.' });
   }
 }
 
@@ -98,9 +122,9 @@ async function deleteUser(user: AppUser) {
   try {
     await api.delete(`/api/admin/users/${user.id}`);
     users.value = users.value.filter((u) => u.id !== user.id);
-    toast('User dihapus.', 'success');
+    toast({ tone: 'success', title: 'User dihapus' });
   } catch (e: any) {
-    toast(e?.response?.data?.message || 'Gagal menghapus user.', 'error');
+    toast({ tone: 'error', title: 'Gagal', message: e?.response?.data?.message || 'Gagal menghapus user.' });
   }
 }
 
@@ -172,8 +196,24 @@ onMounted(load);
         <form class="grid gap-4 p-5 sm:grid-cols-2" @submit.prevent="createUser">
           <label class="sm:col-span-2"><span class="label mb-1">Nama</span><input v-model="createForm.name" class="field" required /></label>
           <label class="sm:col-span-2"><span class="label mb-1">Email</span><input v-model="createForm.email" type="email" class="field" required /></label>
-          <label><span class="label mb-1">Password</span><input v-model="createForm.password" type="password" class="field" required /></label>
-          <label><span class="label mb-1">Konfirmasi Password</span><input v-model="createForm.password_confirmation" type="password" class="field" required /></label>
+          <div class="sm:col-span-2">
+            <div class="mb-1 flex items-center justify-between">
+              <span class="label">Password</span>
+              <button type="button" class="btn btn-muted py-0.5 text-xs" @click="fillGeneratedPassword">Generate</button>
+            </div>
+            <div class="relative">
+              <input v-model="createForm.password" :type="showPassword ? 'text' : 'password'" class="field pr-20" required />
+              <button
+                type="button"
+                class="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-slate-700 dark:hover:text-zinc-300"
+                @click="showPassword = !showPassword"
+              >{{ showPassword ? 'Sembunyikan' : 'Tampilkan' }}</button>
+            </div>
+            <div v-if="showPassword && createForm.password" class="mt-1 flex items-center gap-2 rounded bg-slate-50 px-3 py-2 font-mono text-sm dark:bg-zinc-800">
+              <span class="flex-1 select-all break-all text-slate-800 dark:text-zinc-200">{{ createForm.password }}</span>
+            </div>
+          </div>
+          <label class="sm:col-span-2"><span class="label mb-1">Konfirmasi Password</span><input v-model="createForm.password_confirmation" :type="showPassword ? 'text' : 'password'" class="field" required /></label>
           <label class="sm:col-span-2">
             <span class="label mb-1">Timezone</span>
             <select v-model="createForm.timezone" class="field">
@@ -184,7 +224,7 @@ onMounted(load);
             </select>
           </label>
           <div class="flex justify-end gap-2 sm:col-span-2">
-            <button type="button" class="btn btn-muted" @click="showCreate = false">Batal</button>
+            <button type="button" class="btn btn-muted" @click="showCreate = false; showPassword = false">Batal</button>
             <button type="submit" class="btn btn-primary">Buat</button>
           </div>
         </form>
@@ -225,10 +265,26 @@ onMounted(load);
           <p class="mt-0.5 text-sm font-medium text-slate-500">{{ resetTarget.name }}</p>
         </div>
         <form class="grid gap-4 p-5" @submit.prevent="saveResetPassword">
-          <label><span class="label mb-1">Password Baru</span><input v-model="resetForm.password" type="password" class="field" required /></label>
-          <label><span class="label mb-1">Konfirmasi Password</span><input v-model="resetForm.password_confirmation" type="password" class="field" required /></label>
+          <div>
+            <div class="mb-1 flex items-center justify-between">
+              <span class="label">Password Baru</span>
+              <button type="button" class="btn btn-muted py-0.5 text-xs" @click="fillGeneratedResetPassword">Generate</button>
+            </div>
+            <div class="relative">
+              <input v-model="resetForm.password" :type="showResetPassword ? 'text' : 'password'" class="field pr-20" required />
+              <button
+                type="button"
+                class="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-slate-700 dark:hover:text-zinc-300"
+                @click="showResetPassword = !showResetPassword"
+              >{{ showResetPassword ? 'Sembunyikan' : 'Tampilkan' }}</button>
+            </div>
+            <div v-if="showResetPassword && resetForm.password" class="mt-1 flex items-center gap-2 rounded bg-slate-50 px-3 py-2 font-mono text-sm dark:bg-zinc-800">
+              <span class="flex-1 select-all break-all text-slate-800 dark:text-zinc-200">{{ resetForm.password }}</span>
+            </div>
+          </div>
+          <label><span class="label mb-1">Konfirmasi Password</span><input v-model="resetForm.password_confirmation" :type="showResetPassword ? 'text' : 'password'" class="field" required /></label>
           <div class="flex justify-end gap-2">
-            <button type="button" class="btn btn-muted" @click="resetTarget = null">Batal</button>
+            <button type="button" class="btn btn-muted" @click="resetTarget = null; showResetPassword = false">Batal</button>
             <button type="submit" class="btn btn-primary">Reset</button>
           </div>
         </form>

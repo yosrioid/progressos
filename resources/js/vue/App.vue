@@ -359,6 +359,7 @@ function isActive(href: string) {
 
 watch(() => auth.user, async (user) => {
   if (!user) return;
+  privacy.init(String(user.id));
   if (isAdmin.value) return;
   try {
     await configuration.load();

@@ -5,13 +5,22 @@ const SENSITIVE_PATHS = ['/money', '/bills'];
 const UNLOCK_MS = 5 * 60 * 1000;
 
 export const usePrivacyStore = defineStore('privacy', () => {
-  const hideSensitive = ref(localStorage.getItem('privacy-hide') === '1');
-  const pinStored = ref(localStorage.getItem('privacy-pin') ?? '');
-  const unlockedAt = ref<number | null>(
-    sessionStorage.getItem('privacy-unlocked-at')
-      ? Number(sessionStorage.getItem('privacy-unlocked-at'))
-      : null,
-  );
+  const uid = ref<string | null>(null);
+  const pinKey = () => uid.value ? `privacy-pin-${uid.value}` : null;
+  const hideKey = () => uid.value ? `privacy-hide-${uid.value}` : null;
+  const unlockKey = () => uid.value ? `privacy-unlocked-at-${uid.value}` : null;
+
+  const hideSensitive = ref(false);
+  const pinStored = ref('');
+  const unlockedAt = ref<number | null>(null);
+
+  function init(userId: string) {
+    uid.value = userId;
+    pinStored.value = localStorage.getItem(`privacy-pin-${userId}`) ?? '';
+    hideSensitive.value = localStorage.getItem(`privacy-hide-${userId}`) === '1';
+    const savedUnlock = sessionStorage.getItem(`privacy-unlocked-at-${userId}`);
+    unlockedAt.value = savedUnlock ? Number(savedUnlock) : null;
+  }
 
   // Reactive clock so isUnlocked re-evaluates every 30s without user interaction.
   const now = ref(Date.now());
@@ -32,13 +41,13 @@ export const usePrivacyStore = defineStore('privacy', () => {
 
   function toggleHide() {
     hideSensitive.value = !hideSensitive.value;
-    localStorage.setItem('privacy-hide', hideSensitive.value ? '1' : '0');
+    const k = hideKey(); if (k) localStorage.setItem(k, hideSensitive.value ? '1' : '0');
   }
 
   function tryUnlock(input: string): boolean {
     if (input === pinStored.value) {
       unlockedAt.value = Date.now();
-      sessionStorage.setItem('privacy-unlocked-at', String(unlockedAt.value));
+      const k = unlockKey(); if (k) sessionStorage.setItem(k, String(unlockedAt.value));
       return true;
     }
     return false;
@@ -46,29 +55,29 @@ export const usePrivacyStore = defineStore('privacy', () => {
 
   function setPin(newPin: string) {
     pinStored.value = newPin;
-    localStorage.setItem('privacy-pin', newPin);
+    const k = pinKey(); if (k) localStorage.setItem(k, newPin);
     unlockedAt.value = Date.now();
-    sessionStorage.setItem('privacy-unlocked-at', String(unlockedAt.value));
+    const uk = unlockKey(); if (uk) sessionStorage.setItem(uk, String(unlockedAt.value));
   }
 
   function removePin() {
     pinStored.value = '';
-    localStorage.removeItem('privacy-pin');
+    const k = pinKey(); if (k) localStorage.removeItem(k);
     unlockedAt.value = null;
-    sessionStorage.removeItem('privacy-unlocked-at');
+    const uk = unlockKey(); if (uk) sessionStorage.removeItem(uk);
   }
 
   function lock() {
     unlockedAt.value = null;
-    sessionStorage.removeItem('privacy-unlocked-at');
+    const k = unlockKey(); if (k) sessionStorage.removeItem(k);
   }
 
   function bump() {
     if (unlockedAt.value !== null) {
       unlockedAt.value = Date.now();
-      sessionStorage.setItem('privacy-unlocked-at', String(unlockedAt.value));
+      const k = unlockKey(); if (k) sessionStorage.setItem(k, String(unlockedAt.value));
     }
   }
 
-  return { hideSensitive, hasPin, isUnlocked, isSensitivePath, toggleHide, tryUnlock, setPin, removePin, lock, bump };
+  return { hideSensitive, hasPin, isUnlocked, isSensitivePath, toggleHide, tryUnlock, setPin, removePin, lock, bump, init };
 });
