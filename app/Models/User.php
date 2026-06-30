@@ -10,6 +10,9 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 
+/**
+ * @property \Illuminate\Support\Carbon|null $disabled_at
+ */
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */

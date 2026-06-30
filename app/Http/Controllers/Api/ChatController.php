@@ -99,7 +99,7 @@ class ChatController extends Controller
             ->limit(self::HISTORY_LIMIT)
             ->get()
             ->reverse()
-            ->map(fn ($m) => ['role' => $m->role, 'content' => $m->content])
+            ->map(fn (ChatMessage $m) => ['role' => $m->role, 'content' => $m->content])
             ->values()
             ->toArray();
 
@@ -166,7 +166,8 @@ class ChatController extends Controller
                 return $base."\n\nPengguna belum memiliki proyek.";
             }
 
-            $lines = $projects->map(function ($p) {
+            $lines = $projects->map(function (Project $p) {
+                // @phpstan-ignore property.notFound, property.notFound
                 return "- {$p->name} (status: {$p->status}, open tasks: {$p->open_tasks_count})";
             })->join("\n");
 
