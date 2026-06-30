@@ -2,6 +2,7 @@
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router';
 import { api, unwrap } from './api';
+import ChatBubble from './components/ChatBubble.vue';
 import DailyQuote from './components/DailyQuote.vue';
 import DatePicker from './components/DatePicker.vue';
 import WorkTimer from './components/WorkTimer.vue';
@@ -735,10 +736,8 @@ onUnmounted(() => {
       </div>
     </Transition>
 
-    <!-- FAB mobile -->
-    <button class="fixed bottom-4 right-4 z-30 grid h-14 w-14 place-items-center rounded-2xl bg-teal-700 text-white shadow-2xl shadow-teal-900/25 sm:hidden" aria-label="Open floating action" @click="quick = true">
-      <svg class="h-6 w-6" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24"><path v-for="path in icons.plus" :key="path" :d="path" /></svg>
-    </button>
+    <!-- Chat bubble (mobile: navigates to /inbox; desktop: floating panel) -->
+    <ChatBubble v-if="auth.user && !isAdmin" />
 
     <!-- Command palette -->
     <div v-if="commandOpen && !isAdmin" class="fixed inset-0 z-50 grid place-items-start bg-slate-950/50 p-3 pt-20 backdrop-blur-[2px] sm:p-6 sm:pt-24" role="dialog" aria-modal="true" aria-labelledby="command-title">
