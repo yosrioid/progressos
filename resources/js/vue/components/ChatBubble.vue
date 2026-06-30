@@ -3,7 +3,6 @@ import { ref, watch, onMounted, onUnmounted, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
 import { useInboxStore, type InboxUser } from '../stores/inbox';
 import { useAuthStore } from '../stores/auth';
-import { api } from '../api';
 
 const inbox = useInboxStore();
 const auth = useAuthStore();
@@ -17,12 +16,12 @@ const pendingFile = ref<File | null>(null);
 const pendingFilePreview = ref<string | null>(null);
 const messagesEl = ref<HTMLElement | null>(null);
 const showEmojiPicker = ref(false);
-const sending = ref(false);
 const showNewChat = ref(false);
 const contextMenu = ref<{ x: number; y: number; messageId: number } | null>(null);
 
 let pollInterval: ReturnType<typeof setInterval> | null = null;
 let unreadInterval: ReturnType<typeof setInterval> | null = null;
+let convInterval: ReturnType<typeof setInterval> | null = null;
 
 const EMOJIS = ['😀','😂','😍','🥰','😎','🤔','😅','😭','❤️','👍','👎','🙏','🔥','✨','🎉','💯','😊','🤣','😘','😢','😡','🤯','😴','🤗','💪','🎯','🚀','💡','⚡','🌟','😏','🥳','😳','🤭','😬','🙄','😤','😩','🤩','😋','🤤','😇','🥺','😱','🫡','💀','🫶','🤝','👏','🫠'];
 
@@ -31,12 +30,14 @@ onMounted(async () => {
     await inbox.loadConversations();
     await inbox.loadUnread();
     unreadInterval = setInterval(() => inbox.loadUnread(), 15_000);
+    convInterval = setInterval(() => inbox.loadConversations(), 30_000);
   }
 });
 
 onUnmounted(() => {
   if (pollInterval) clearInterval(pollInterval);
   if (unreadInterval) clearInterval(unreadInterval);
+  if (convInterval) clearInterval(convInterval);
 });
 
 watch(() => inbox.activeId, (id) => {
@@ -105,18 +106,16 @@ function removePendingFile() {
 }
 
 async function handleSend() {
-  if ((!bodyInput.value.trim() && !pendingFile.value) || !inbox.activeId || sending.value) return;
-  sending.value = true;
-  try {
-    await inbox.sendMessage(inbox.activeId, bodyInput.value, pendingFile.value ?? undefined);
-    bodyInput.value = '';
-    removePendingFile();
-    showEmojiPicker.value = false;
-    await nextTick();
-    scrollBottom();
-  } finally {
-    sending.value = false;
-  }
+  if ((!bodyInput.value.trim() && !pendingFile.value) || !inbox.activeId) return;
+  const body = bodyInput.value;
+  const file = pendingFile.value ?? undefined;
+  // Clear input immediately (optimistic)
+  bodyInput.value = '';
+  removePendingFile();
+  showEmojiPicker.value = false;
+  await inbox.sendMessage(inbox.activeId, body, file);
+  await nextTick();
+  scrollBottom();
 }
 
 function handleKeydown(e: KeyboardEvent) {
@@ -183,7 +182,6 @@ function closeAll() {
     >
       <!-- Conversation list -->
       <div class="flex w-52 shrink-0 flex-col border-r border-slate-100 dark:border-zinc-800">
-        <!-- Header -->
         <div class="flex items-center justify-between border-b border-slate-100 px-3 py-3 dark:border-zinc-800">
           <span class="text-sm font-extrabold text-slate-800 dark:text-zinc-200">Pesan</span>
           <button class="rounded-lg p-1 text-slate-400 hover:bg-slate-100 dark:hover:bg-zinc-800" @click.stop="showNewChat = !showNewChat">
@@ -265,7 +263,7 @@ function closeAll() {
           </div>
 
           <!-- Messages -->
-          <div ref="messagesEl" class="flex-1 overflow-y-auto p-3 space-y-1">
+          <div ref="messagesEl" class="flex-1 overflow-y-auto space-y-1 p-3">
             <div v-if="inbox.loadingMessages" class="py-8 text-center text-xs text-slate-400">Memuat...</div>
             <template v-else>
               <div
@@ -276,10 +274,13 @@ function closeAll() {
                 @contextmenu.prevent="openContextMenu($event, msg.id, msg.sender_id)"
               >
                 <div
-                  class="max-w-[75%] rounded-2xl px-3 py-2 text-sm"
-                  :class="msg.sender_id === auth.user?.id
-                    ? 'rounded-br-sm bg-teal-600 text-white'
-                    : 'rounded-bl-sm bg-slate-100 text-slate-800 dark:bg-zinc-800 dark:text-zinc-200'"
+                  class="max-w-[75%] rounded-2xl px-3 py-2 text-sm transition-opacity"
+                  :class="[
+                    msg.sender_id === auth.user?.id
+                      ? 'rounded-br-sm bg-teal-600 text-white'
+                      : 'rounded-bl-sm bg-slate-100 text-slate-800 dark:bg-zinc-800 dark:text-zinc-200',
+                    msg.pending ? 'opacity-60' : 'opacity-100',
+                  ]"
                 >
                   <template v-if="msg.deleted">
                     <em class="text-xs opacity-60">Pesan dihapus</em>
@@ -298,7 +299,16 @@ function closeAll() {
                     </a>
                     <p v-if="msg.body" class="whitespace-pre-wrap break-words">{{ msg.body }}</p>
                   </template>
-                  <span class="mt-0.5 block text-right text-[10px] opacity-60">{{ formatTime(msg.created_at) }}</span>
+                  <!-- Timestamp + status indicator -->
+                  <span class="mt-0.5 flex items-center justify-end gap-1 text-[10px] opacity-60">
+                    {{ formatTime(msg.created_at) }}
+                    <template v-if="msg.sender_id === auth.user?.id && !msg.deleted">
+                      <!-- Pending: clock spinner -->
+                      <svg v-if="msg.pending" class="h-3 w-3 animate-spin" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                      <!-- Sent: single checkmark -->
+                      <svg v-else class="h-3 w-3" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+                    </template>
+                  </span>
                 </div>
               </div>
             </template>
@@ -343,7 +353,7 @@ function closeAll() {
             />
             <button
               class="shrink-0 rounded-xl bg-teal-600 p-2 text-white transition hover:bg-teal-700 disabled:opacity-40"
-              :disabled="(!bodyInput.trim() && !pendingFile) || sending"
+              :disabled="!bodyInput.trim() && !pendingFile"
               @click.stop="handleSend"
             >
               <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
