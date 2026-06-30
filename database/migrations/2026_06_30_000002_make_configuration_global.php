@@ -8,15 +8,13 @@ return new class extends Migration
 {
     public function up(): void
     {
-        // Drop unique and index constraints that depend on user_id before altering
         Schema::table('configurations', function (Blueprint $table) {
+            // Must drop FK before dropping indexes that the FK depends on
+            $table->dropForeign(['user_id']);
             $table->dropUnique(['user_id', 'group', 'key']);
             $table->dropIndex(['user_id', 'group']);
-        });
-
-        Schema::table('configurations', function (Blueprint $table) {
-            $table->dropConstrainedForeignId('user_id');
-            $table->foreignId('user_id')->nullable()->constrained()->nullOnDelete()->after('id');
+            $table->foreignId('user_id')->nullable()->change();
+            $table->foreign('user_id')->references('id')->on('users')->nullOnDelete();
             $table->unique(['user_id', 'group', 'key']);
             $table->index(['user_id', 'group']);
         });
@@ -28,13 +26,11 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('configurations', function (Blueprint $table) {
+            $table->dropForeign(['user_id']);
             $table->dropUnique(['user_id', 'group', 'key']);
             $table->dropIndex(['user_id', 'group']);
-        });
-
-        Schema::table('configurations', function (Blueprint $table) {
-            $table->dropConstrainedForeignId('user_id');
-            $table->foreignId('user_id')->constrained()->cascadeOnDelete()->after('id');
+            $table->foreignId('user_id')->nullable(false)->change();
+            $table->foreign('user_id')->references('id')->on('users')->cascadeOnDelete();
             $table->unique(['user_id', 'group', 'key']);
             $table->index(['user_id', 'group']);
         });
