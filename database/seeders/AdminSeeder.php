@@ -10,8 +10,8 @@ class AdminSeeder extends Seeder
 {
     public function run(): void
     {
-        if (User::count() > 0) {
-            $this->command->info('User already exists, skipping AdminSeeder.');
+        if (User::where('role', 'admin')->exists()) {
+            $this->command->info('Admin user already exists, skipping AdminSeeder.');
 
             return;
         }
@@ -20,11 +20,12 @@ class AdminSeeder extends Seeder
             'name' => config('app.admin_name', 'Admin'),
             'email' => config('app.admin_email', 'admin@progressos.local'),
             'password' => Hash::make((string) config('app.admin_password', 'changeme123')),
+            'role' => 'admin',
             'timezone' => 'Asia/Jakarta',
             'theme' => 'system',
             'email_verified_at' => now(),
         ]);
 
-        $this->command->info('Admin user created.');
+        $this->command->info('Admin user created: '.config('app.admin_email', 'admin@progressos.local'));
     }
 }

@@ -15,9 +15,19 @@ class User extends Authenticatable
     /** @use HasFactory<UserFactory> */
     use HasApiTokens, HasFactory, Notifiable;
 
-    protected $fillable = ['name', 'email', 'password', 'google_id', 'avatar_path', 'timezone', 'theme', 'dashboard_layout', 'notification_preferences'];
+    protected $fillable = ['name', 'email', 'password', 'role', 'google_id', 'avatar_path', 'timezone', 'theme', 'dashboard_layout', 'notification_preferences', 'disabled_at'];
 
     protected $hidden = ['password', 'remember_token', 'google_id'];
+
+    public function isAdmin(): bool
+    {
+        return $this->role === 'admin';
+    }
+
+    public function isDisabled(): bool
+    {
+        return $this->disabled_at !== null;
+    }
 
     public function dailyProgressEntries(): HasMany
     {
@@ -138,6 +148,7 @@ class User extends Authenticatable
     {
         return [
             'email_verified_at' => 'datetime',
+            'disabled_at' => 'datetime',
             'password' => 'hashed',
             'dashboard_layout' => 'array',
             'notification_preferences' => 'array',

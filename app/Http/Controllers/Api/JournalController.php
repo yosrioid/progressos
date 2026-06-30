@@ -87,7 +87,7 @@ class JournalController extends Controller
         abort_unless($journal->user_id === $request->user()->id, 403);
 
         $user = $request->user();
-        $config = Configuration::getValue($user, 'quote', 'groq', []);
+        $config = Configuration::getValue(null, 'quote', 'groq', []);
         $apiKey = is_array($config) ? ($config['api_key'] ?? null) : null;
 
         if (! $apiKey) {

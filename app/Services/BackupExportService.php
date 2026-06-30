@@ -36,7 +36,7 @@ class BackupExportService
             $module = (string) ($sync['module'] ?? '');
             $rows = $this->rowsFor($user, $module);
             $path = $this->writeCsv($user, $module, $rows);
-            $connection ??= Configuration::getValue($user, 'sync', 'google_sheets');
+            $connection ??= Configuration::getValue(null, 'sync', 'google_sheets');
             if (! $connection) {
                 throw new \InvalidArgumentException('Backup connection is required before syncing to Google Sheets.');
             }
@@ -71,7 +71,7 @@ class BackupExportService
         $count = 0;
         User::query()->chunkById(50, function ($users) use (&$count) {
             foreach ($users as $user) {
-                $connection = Configuration::getValue($user, 'sync', 'google_sheets');
+                $connection = Configuration::getValue(null, 'sync', 'google_sheets');
                 $syncs = $this->syncsFor($user);
                 foreach ($syncs as $index => $sync) {
                     if (! ($sync['enabled'] ?? true)) {
@@ -85,7 +85,7 @@ class BackupExportService
                         $this->run($user, $sync, $connection);
                         $syncs[$index]['last_run_at'] = now()->toISOString();
                         $syncs[$index]['next_run_at'] = $this->nextRunAt($sync['frequency'] ?? 'daily')->toISOString();
-                        Configuration::setValue($user, 'sync', 'backup_schedules', array_values($syncs));
+                        Configuration::setValue(null, 'sync', 'backup_schedules', array_values($syncs));
                     });
                     $count++;
                 }
@@ -122,7 +122,7 @@ class BackupExportService
 
     public function syncsFor(User $user): array
     {
-        $syncs = Configuration::getValue($user, 'sync', 'backup_schedules', []);
+        $syncs = Configuration::getValue(null, 'sync', 'backup_schedules', []);
 
         return is_array($syncs) ? $syncs : [];
     }

@@ -73,7 +73,7 @@ class ChatController extends Controller
         ]);
 
         $user = $request->user();
-        $config = Configuration::getValue($user, 'quote', 'groq', []);
+        $config = Configuration::getValue(null, 'quote', 'groq', []);
         $apiKey = is_array($config) ? ($config['api_key'] ?? null) : null;
 
         if (! $apiKey) {

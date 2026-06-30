@@ -22,7 +22,7 @@ it('runs due backup syncs and exports spreadsheet compatible csv files', functio
         ],
         'status' => 'verified',
     ];
-    Configuration::setValue($user, 'sync', 'google_sheets', $connection, true);
+    Configuration::setValue(null, 'sync', 'google_sheets', $connection, true);
     $this->mock(GoogleSheetsBackupService::class)
         ->shouldReceive('append')
         ->once()
@@ -37,11 +37,11 @@ it('runs due backup syncs and exports spreadsheet compatible csv files', functio
         'enabled' => true,
         'next_run_at' => now()->subMinute()->toISOString(),
     ];
-    Configuration::setValue($user, 'sync', 'backup_schedules', [$sync]);
+    Configuration::setValue(null, 'sync', 'backup_schedules', [$sync]);
 
     $count = app(BackupExportService::class)->runDue();
     $run = BackupRun::query()->where('sync_id', 'sync-tasks')->first();
-    $freshSync = collect(Configuration::getValue($user, 'sync', 'backup_schedules', []))->firstWhere('id', 'sync-tasks');
+    $freshSync = collect(Configuration::getValue(null, 'sync', 'backup_schedules', []))->firstWhere('id', 'sync-tasks');
 
     expect($count)->toBe(1)
         ->and($freshSync['last_run_at'])->not->toBeNull()

@@ -34,6 +34,12 @@ class AuthController extends Controller
             return ApiResponse::ok([], 'Invalid credentials.', 422);
         }
 
+        if (Auth::guard('web')->user()->isDisabled()) {
+            Auth::guard('web')->logout();
+
+            return ApiResponse::ok([], 'Account is disabled. Please contact the administrator.', 403);
+        }
+
         if ($request->hasSession()) {
             $request->session()->regenerate();
         }
@@ -124,12 +130,11 @@ class AuthController extends Controller
 
     private function applyMailConfig(string $email): void
     {
-        $user = User::where('email', $email)->first();
-        if (! $user) {
+        if (! User::where('email', $email)->exists()) {
             return;
         }
 
-        $config = Configuration::getValue($user, 'mail', 'smtp');
+        $config = Configuration::getValue(null, 'mail', 'smtp');
         if (! is_array($config) || ($config['mailer'] ?? 'log') === 'log') {
             return;
         }
@@ -193,6 +198,7 @@ class AuthController extends Controller
     {
         return $user->toArray() + [
             'avatar_url' => $user->avatar_path ? '/storage/'.$user->avatar_path : null,
+            'is_admin' => $user->isAdmin(),
         ];
     }
 }

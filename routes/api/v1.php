@@ -30,7 +30,7 @@ use App\Http\Controllers\Api\QuoteController;
 use App\Http\Controllers\Api\WorkLogController;
 use Illuminate\Support\Facades\Route;
 
-Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
+Route::middleware(['auth:sanctum', 'not.admin'])->prefix('v1')->group(function () {
     Route::middleware(['ability:read', 'throttle:api-read'])->group(function () {
         Route::get('dashboard', DashboardController::class);
         Route::get('analytics', AnalyticsController::class);
@@ -130,13 +130,7 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
         Route::delete('docs/{doc}/share', [DocController::class, 'unshare']);
         Route::post('docs/{doc}/files', [DocFileController::class, 'store']);
         Route::delete('docs/{doc}/files/{docFile}', [DocFileController::class, 'destroy']);
-        Route::put('configuration/settings', [ConfigurationController::class, 'updateSettings']);
-        Route::put('configuration/backup-connection', [ConfigurationController::class, 'updateConnection']);
-        Route::post('configuration/backup-connection/verify', [ConfigurationController::class, 'verifyConnection']);
-        Route::post('configuration/backup-syncs', [ConfigurationController::class, 'storeSync']);
-        Route::patch('configuration/backup-syncs/{sync}', [ConfigurationController::class, 'updateSync']);
-        Route::delete('configuration/backup-syncs/{sync}', [ConfigurationController::class, 'destroySync']);
-        Route::post('configuration/backup-syncs/{sync}/run', [ConfigurationController::class, 'runSync']);
+        // Configuration write routes moved to /api/admin/configuration (admin-only)
     });
 
     Route::post('quick-capture', CaptureController::class)
@@ -151,12 +145,9 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
     Route::post('reports/{period}/snapshots', [ReportController::class, 'storeSnapshot'])
         ->middleware(['ability:reports,write', 'throttle:api-write']);
 
-    Route::put('configuration/auth', [ConfigurationController::class, 'updateAuthConfig'])
-        ->middleware(['ability:write', 'throttle:api-write']);
-    Route::put('configuration/mail', [ConfigurationController::class, 'updateMailConfig'])
-        ->middleware(['ability:write', 'throttle:api-write']);
-    Route::put('configuration/quote', [QuoteController::class, 'saveConfig'])
-        ->middleware(['ability:write', 'throttle:api-write']);
+    // configuration/auth, configuration/mail, configuration/quote moved to /api/admin/configuration
+    Route::put('quote/themes', [QuoteController::class, 'saveUserThemes'])->middleware(['ability:write', 'throttle:api-write']);
+    Route::delete('quote/themes', [QuoteController::class, 'clearUserThemes'])->middleware(['ability:write']);
     Route::post('quote/refresh', [QuoteController::class, 'refresh'])
         ->middleware(['ability:write', 'throttle:api-write']);
 

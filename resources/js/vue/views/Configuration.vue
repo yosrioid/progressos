@@ -84,7 +84,7 @@ async function load() {
   loading.value = true;
   loadError.value = '';
   try {
-    const data: any = await api.get('/api/v1/configuration').then(unwrap);
+    const data: any = await api.get('/api/admin/configuration').then(unwrap);
     const config = data.configuration;
     modules.value = config.available_modules;
     frequencies.value = config.frequencies;
@@ -145,7 +145,7 @@ async function selectCredentialFile(event: Event) {
 async function saveConnection(showToast = true) {
   saving.value = true;
   try {
-    const data: any = await api.put('/api/v1/configuration/backup-connection', connectionForm.value).then(unwrap);
+    const data: any = await api.put('/api/admin/configuration/backup-connection', connectionForm.value).then(unwrap);
     connection.value = data.connection;
     connectionForm.value.credentials_json = '';
     credentialFileName.value = '';
@@ -159,7 +159,7 @@ async function saveConnection(showToast = true) {
 }
 
 async function saveSettings(showToast = true) {
-  const data: any = await api.put('/api/v1/configuration/settings', groupSettings.value).then(unwrap);
+  const data: any = await api.put('/api/admin/configuration/settings', groupSettings.value).then(unwrap);
   groupSettings.value = { ...groupSettings.value, ...(data.groups || {}) };
   configuration.applyGroups(data.groups || {});
   if (showToast) toast({ tone: 'success', title: 'Settings saved', message: 'General configuration values were updated.' });
@@ -167,7 +167,7 @@ async function saveSettings(showToast = true) {
 
 async function verifyConnection() {
   try {
-    const data: any = await api.post('/api/v1/configuration/backup-connection/verify').then(unwrap);
+    const data: any = await api.post('/api/admin/configuration/backup-connection/verify').then(unwrap);
     connection.value = data.connection;
     toast({ tone: 'success', title: 'Connection verified', message: 'Required Google Sheets fields are present.' });
   } catch (error: any) {
@@ -187,22 +187,22 @@ async function saveSync(sync: any, showToast = true) {
     enabled: sync.enabled,
   };
   const request = sync.id
-    ? api.patch(`/api/v1/configuration/backup-syncs/${sync.id}`, payload)
-    : api.post('/api/v1/configuration/backup-syncs', payload);
+    ? api.patch(`/api/admin/configuration/backup-syncs/${sync.id}`, payload)
+    : api.post('/api/admin/configuration/backup-syncs', payload);
   const data: any = await request.then(unwrap);
   Object.assign(sync, data.sync);
   if (showToast) toast({ tone: 'success', title: 'Sync saved', message: `${moduleLabel(sync.module)} backup is configured.` });
 }
 
 async function saveAuthConfig(showToast = true) {
-  const data: any = await api.put('/api/v1/configuration/auth', authForm.value).then(unwrap);
+  const data: any = await api.put('/api/admin/configuration/auth', authForm.value).then(unwrap);
   authConfig.value = data.auth_config;
   authForm.value.client_secret = '';
   if (showToast) toast({ tone: 'success', title: 'SSO settings saved', message: 'Google login settings were updated.' });
 }
 
 async function saveMailConfig(showToast = true) {
-  const data: any = await api.put('/api/v1/configuration/mail', mailForm.value).then(unwrap);
+  const data: any = await api.put('/api/admin/configuration/mail', mailForm.value).then(unwrap);
   mailConfig.value = data.mail_config;
   mailForm.value.api_key = '';
   mailForm.value.password = '';
@@ -234,14 +234,14 @@ async function removeSync(sync: any, index: number) {
   }
   const ok = await confirmAction({ title: 'Delete backup sync?', message: 'This removes the schedule and its future runs. Existing backup files remain in storage.', confirmLabel: 'Delete', danger: true });
   if (!ok) return;
-  await api.delete(`/api/v1/configuration/backup-syncs/${sync.id}`);
+  await api.delete(`/api/admin/configuration/backup-syncs/${sync.id}`);
   syncs.value.splice(index, 1);
   toast({ tone: 'success', title: 'Sync deleted', message: 'Backup schedule removed.' });
 }
 
 async function runNow(sync: any) {
   if (!sync.id) await saveSync(sync, false);
-  const data: any = await api.post(`/api/v1/configuration/backup-syncs/${sync.id}/run`).then(unwrap);
+  const data: any = await api.post(`/api/admin/configuration/backup-syncs/${sync.id}/run`).then(unwrap);
   runs.value.unshift(data.run);
   toast({ tone: data.run.status === 'completed' ? 'success' : 'error', title: data.run.status === 'completed' ? 'Backup complete' : 'Backup failed', message: data.run.file_path || data.run.error_message });
   await load();
@@ -271,7 +271,7 @@ function onThemeKeydown(e: KeyboardEvent) {
 async function saveQuoteConfig() {
   quoteSaving.value = true;
   try {
-    const data: any = await api.put('/api/v1/configuration/quote', quoteForm.value).then(unwrap);
+    const data: any = await api.put('/api/admin/configuration/quote', quoteForm.value).then(unwrap);
     quoteConfig.value = { ...quoteConfig.value, ...data.quote_config };
     quoteForm.value.api_key = '';
     toast({ tone: 'success', title: 'Quote settings saved', message: quoteConfig.value.enabled ? 'Daily quote aktif.' : 'Daily quote dinonaktifkan.' });

@@ -9,9 +9,9 @@ use App\Services\GoogleSheetsBackupService;
 use Illuminate\Support\Facades\Storage;
 
 it('stores verifies and lists backup configuration', function () {
-    $user = User::factory()->create();
+    $user = User::factory()->create(['role' => 'admin']);
 
-    $this->actingAs($user)->putJson('/api/v1/configuration/settings', [
+    $this->actingAs($user)->putJson('/api/admin/configuration/settings', [
         'general' => [
             'app_name' => 'ProgressOS Work',
             'project_name' => 'Personal Ops',
@@ -28,7 +28,7 @@ it('stores verifies and lists backup configuration', function () {
         ],
     ])->assertOk()->assertJsonPath('groups.general.app_name', 'ProgressOS Work');
 
-    $this->actingAs($user)->putJson('/api/v1/configuration/backup-connection', [
+    $this->actingAs($user)->putJson('/api/admin/configuration/backup-connection', [
         'name' => 'Personal Sheets',
         'spreadsheet_id' => 'sheet_123',
         'credentials_json' => json_encode([
@@ -38,22 +38,22 @@ it('stores verifies and lists backup configuration', function () {
         ]),
     ])->assertOk()->assertJsonPath('connection.has_credentials', true);
 
-    $this->actingAs($user)->postJson('/api/v1/configuration/backup-connection/verify')
+    $this->actingAs($user)->postJson('/api/admin/configuration/backup-connection/verify')
         ->assertOk()
         ->assertJsonPath('connection.status', 'verified')
         ->assertJsonPath('connection.service_account_email', 'backup@progressos.iam.gserviceaccount.com');
 
-    $this->actingAs($user)->getJson('/api/v1/configuration')
+    $this->actingAs($user)->getJson('/api/admin/configuration')
         ->assertOk()
         ->assertJsonPath('configuration.groups.general.project_name', 'Personal Ops')
         ->assertJsonPath('configuration.connection.name', 'Personal Sheets');
 
-    expect(Configuration::query()->where('user_id', $user->id)->where('group', 'sync')->where('key', 'google_sheets')->exists())->toBeTrue();
+    expect(Configuration::query()->whereNull('user_id')->where('group', 'sync')->where('key', 'google_sheets')->exists())->toBeTrue();
 });
 
 it('creates updates deletes and runs backup syncs', function () {
     Storage::fake('local');
-    $user = User::factory()->create();
+    $user = User::factory()->create(['role' => 'admin']);
     $connection = [
         'provider' => 'google_sheets',
         'name' => 'Personal Sheets',
@@ -65,7 +65,7 @@ it('creates updates deletes and runs backup syncs', function () {
         ],
         'status' => 'verified',
     ];
-    Configuration::setValue($user, 'sync', 'google_sheets', $connection, true);
+    Configuration::setValue(null, 'sync', 'google_sheets', $connection, true);
     $this->mock(GoogleSheetsBackupService::class)
         ->shouldReceive('append')
         ->once()
@@ -74,7 +74,7 @@ it('creates updates deletes and runs backup syncs', function () {
     WorkLog::factory()->for($user)->create(['title' => 'Backup this work', 'project_name' => 'ABC']);
     LearningEntry::factory()->for($user)->create(['topic' => 'Backup learning']);
 
-    $response = $this->actingAs($user)->postJson('/api/v1/configuration/backup-syncs', [
+    $response = $this->actingAs($user)->postJson('/api/admin/configuration/backup-syncs', [
         'module' => 'work_logs',
         'frequency' => 'daily',
         'destination_sheet_name' => 'work_daily',
@@ -83,14 +83,14 @@ it('creates updates deletes and runs backup syncs', function () {
 
     $syncId = $response->json('sync.id');
 
-    $this->actingAs($user)->patchJson("/api/v1/configuration/backup-syncs/{$syncId}", [
+    $this->actingAs($user)->patchJson("/api/admin/configuration/backup-syncs/{$syncId}", [
         'module' => 'learning',
         'frequency' => 'weekly',
         'destination_sheet_name' => 'learning_weekly',
         'enabled' => true,
     ])->assertOk()->assertJsonPath('sync.frequency', 'weekly');
 
-    $run = $this->actingAs($user)->postJson("/api/v1/configuration/backup-syncs/{$syncId}/run")
+    $run = $this->actingAs($user)->postJson("/api/admin/configuration/backup-syncs/{$syncId}/run")
         ->assertCreated()
         ->assertJsonPath('run.status', 'completed')
         ->json('run');
@@ -98,6 +98,6 @@ it('creates updates deletes and runs backup syncs', function () {
     expect(BackupRun::query()->where('id', $run['id'])->where('rows_exported', 1)->exists())->toBeTrue();
     Storage::assertExists(str($run['file_path'])->after('local CSV: ')->toString());
 
-    $this->actingAs($user)->deleteJson("/api/v1/configuration/backup-syncs/{$syncId}")->assertNoContent();
-    expect(collect(Configuration::getValue($user, 'sync', 'backup_schedules', []))->where('id', $syncId)->isEmpty())->toBeTrue();
+    $this->actingAs($user)->deleteJson("/api/admin/configuration/backup-syncs/{$syncId}")->assertNoContent();
+    expect(collect(Configuration::getValue(null, 'sync', 'backup_schedules', []))->where('id', $syncId)->isEmpty())->toBeTrue();
 });

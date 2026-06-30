@@ -2,12 +2,15 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\Auditable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Configuration extends Model
 {
+    use Auditable;
+
     public const GROUPS = ['general', 'appearance', 'sync', 'notifications'];
 
     public const SYNC_MODULES = ['daily_progress', 'work_logs', 'tasks', 'learning', 'milestones', 'reports'];
@@ -29,14 +32,11 @@ class Configuration extends Model
         return $this->belongsTo(User::class);
     }
 
-    public function scopeOwnedBy(Builder $query, User $user): Builder
+    public static function getValue(?User $user, string $group, string $key, mixed $default = null): mixed
     {
-        return $query->where('user_id', $user->id);
-    }
-
-    public static function getValue(User $user, string $group, string $key, mixed $default = null): mixed
-    {
-        $config = static::ownedBy($user)->where('group', $group)->where('key', $key)->first();
+        $query = static::where('group', $group)->where('key', $key);
+        $user === null ? $query->whereNull('user_id') : $query->where('user_id', $user->id);
+        $config = $query->first();
         if (! $config) {
             return $default;
         }
@@ -44,9 +44,9 @@ class Configuration extends Model
         return $config->encrypted_value ?? $config->value ?? $default;
     }
 
-    public static function setValue(User $user, string $group, string $key, mixed $value, bool $encrypted = false, string $type = 'array'): self
+    public static function setValue(?User $user, string $group, string $key, mixed $value, bool $encrypted = false, string $type = 'array'): self
     {
-        $config = static::firstOrNew(['user_id' => $user->id, 'group' => $group, 'key' => $key]);
+        $config = static::firstOrNew(['user_id' => $user?->id ?? null, 'group' => $group, 'key' => $key]);
         $config->type = $type;
         $config->value = $encrypted ? null : $value;
         $config->encrypted_value = $encrypted ? $value : null;

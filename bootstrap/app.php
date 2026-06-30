@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Middleware\EnsureApiTokenCan;
+use App\Http\Middleware\EnsureIsAdmin;
+use App\Http\Middleware\EnsureIsNotAdmin;
 use App\Http\Middleware\SecurityHeaders;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -17,6 +19,8 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
             'ability' => EnsureApiTokenCan::class,
+            'admin' => EnsureIsAdmin::class,
+            'not.admin' => EnsureIsNotAdmin::class,
         ]);
 
         $middleware->statefulApi();
