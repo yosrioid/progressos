@@ -146,7 +146,7 @@ function avatarInitial(name: string) {
 </script>
 
 <template>
-  <div class="flex h-[calc(100dvh-4rem)] flex-col" @click="contextMenu = null">
+  <div @click="contextMenu = null">
     <!-- Conversation list -->
     <template v-if="view === 'list'">
       <div class="flex items-center justify-between border-b border-slate-100 px-4 py-3 dark:border-zinc-800">
@@ -235,7 +235,7 @@ function avatarInitial(name: string) {
       </div>
 
       <!-- Messages -->
-      <div ref="messagesEl" class="flex-1 overflow-y-auto space-y-1 p-3">
+      <div ref="messagesEl" class="max-h-[calc(100svh-16rem)] overflow-y-auto space-y-1 p-3">
         <div v-if="inbox.loadingMessages" class="py-8 text-center text-sm text-slate-400">Memuat pesan...</div>
         <template v-else>
           <div

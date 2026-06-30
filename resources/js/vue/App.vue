@@ -10,10 +10,12 @@ import { dismissToast, feedback, resolveConfirm, toast } from './feedback';
 import { pasteLinkOverSelection } from './linkPaste';
 import { useAuthStore } from './stores/auth';
 import { useConfigurationStore } from './stores/configuration';
+import { useInboxStore } from './stores/inbox';
 import { usePrivacyStore } from './stores/privacy';
 
 const auth = useAuthStore();
 const configuration = useConfigurationStore();
+const inboxStore = useInboxStore();
 const privacy = usePrivacyStore();
 const router = useRouter();
 const route = useRoute();
@@ -603,6 +605,11 @@ onUnmounted(() => {
               <RouterLink to="/profile" class="mt-2 flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-100 dark:text-zinc-300 dark:hover:bg-zinc-800" role="menuitem">
                 <svg class="h-4 w-4 text-slate-400 dark:text-zinc-600" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" viewBox="0 0 24 24"><path v-for="path in icons.user" :key="path" :d="path" /></svg>
                 Profile settings
+              </RouterLink>
+              <RouterLink v-if="!isAdmin" to="/inbox" class="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-100 dark:text-zinc-300 dark:hover:bg-zinc-800" role="menuitem" @click="profileMenu = false">
+                <svg class="h-4 w-4 text-slate-400 dark:text-zinc-600" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                Inbox
+                <span v-if="inboxStore.unreadTotal > 0" class="ml-auto flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-extrabold text-white">{{ inboxStore.unreadTotal > 99 ? '99+' : inboxStore.unreadTotal }}</span>
               </RouterLink>
               <button class="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-bold text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20" role="menuitem" @click="logout">
                 <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" viewBox="0 0 24 24"><path v-for="path in icons.logout" :key="path" :d="path" /></svg>
