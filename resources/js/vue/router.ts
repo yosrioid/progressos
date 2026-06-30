@@ -33,6 +33,7 @@ import Sudoku from './views/Sudoku.vue';
 import Journals from './views/Journals.vue';
 import JournalShow from './views/JournalShow.vue';
 import AdminUsers from './views/AdminUsers.vue';
+import Inbox from './views/Inbox.vue';
 
 export const router = createRouter({
   history: createWebHistory(),
@@ -92,6 +93,7 @@ export const router = createRouter({
     { path: '/games/2048', component: Game2048 },
     { path: '/games/memory', component: MemoryMatch },
 
+    { path: '/inbox', component: Inbox },
     { path: '/admin/users', component: AdminUsers, meta: { admin: true } },
     { path: '/configuration', component: Configuration, meta: { admin: true } },
   ],

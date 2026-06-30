@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\ActivityController;
+use App\Http\Controllers\Api\InboxController;
 use App\Http\Controllers\Api\AnalyticsController;
 use App\Http\Controllers\Api\BillController;
 use App\Http\Controllers\Api\CaptureController;
@@ -200,4 +201,16 @@ Route::middleware(['auth:sanctum', 'not.admin'])->prefix('v1')->group(function (
             Route::post('sessions/{session}/complete', [GameController::class, 'completeSession']);
         });
     }); // end throttle:api-write game group
+
+    // Inbox (user-to-user messaging)
+    Route::prefix('inbox')->group(function () {
+        Route::get('conversations', [InboxController::class, 'conversations'])->middleware('throttle:api-read');
+        Route::post('conversations', [InboxController::class, 'start'])->middleware(['ability:write', 'throttle:api-write']);
+        Route::get('conversations/{conversation}/messages', [InboxController::class, 'messages'])->middleware('throttle:api-read');
+        Route::post('conversations/{conversation}/messages', [InboxController::class, 'send'])->middleware(['ability:write', 'throttle:api-write']);
+        Route::delete('messages/{message}', [InboxController::class, 'deleteMessage'])->middleware(['ability:write', 'throttle:api-write']);
+        Route::get('messages/{message}/file', [InboxController::class, 'serveFile'])->middleware('throttle:api-read');
+        Route::get('unread', [InboxController::class, 'unread'])->middleware('throttle:api-read');
+        Route::get('users', [InboxController::class, 'searchUsers'])->middleware('throttle:api-read');
+    });
 });
