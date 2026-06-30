@@ -52,9 +52,9 @@ class JournalController extends Controller
         abort_unless($journal->user_id === $request->user()->id, 403);
 
         $data = $request->validate([
-            'body'       => ['sometimes', 'string', 'max:10000'],
-            'mood'       => ['sometimes', 'nullable', 'string', 'max:100'],
-            'tema'       => ['sometimes', 'nullable', 'string', 'max:200'],
+            'body' => ['sometimes', 'string', 'max:10000'],
+            'mood' => ['sometimes', 'nullable', 'string', 'max:100'],
+            'tema' => ['sometimes', 'nullable', 'string', 'max:200'],
             'ai_content' => ['sometimes', 'nullable', 'string', 'max:5000'],
         ]);
 
@@ -87,7 +87,7 @@ class JournalController extends Controller
         abort_unless($journal->user_id === $request->user()->id, 403);
 
         $user = $request->user();
-        $config = Configuration::getValue($user, 'quote', 'groq', []);
+        $config = Configuration::getValue(null, 'quote', 'groq', []);
         $apiKey = is_array($config) ? ($config['api_key'] ?? null) : null;
 
         if (! $apiKey) {
@@ -115,20 +115,20 @@ class JournalController extends Controller
         }
 
         $journal->update([
-            'mood'        => $result['mood'],
-            'tema'        => $result['tema'],
-            'ai_content'  => $result['content'],
-            'ai_insight'  => $result['insight'],
-            'ai_saran'    => $result['saran'],
+            'mood' => $result['mood'],
+            'tema' => $result['tema'],
+            'ai_content' => $result['content'],
+            'ai_insight' => $result['insight'],
+            'ai_saran' => $result['saran'],
             'analyzed_at' => now(),
         ]);
 
         // Simpan profil yang diperbarui AI
         if (! empty($result['profile'])) {
             Configuration::setValue($user, 'journal', 'ai_profile', [
-                'text'         => $result['profile'],
-                'updated_at'   => now()->toDateString(),
-                'entry_count'  => ($profileData['entry_count'] ?? 0) + 1,
+                'text' => $result['profile'],
+                'updated_at' => now()->toDateString(),
+                'entry_count' => ($profileData['entry_count'] ?? 0) + 1,
             ]);
         }
 
@@ -147,7 +147,7 @@ class JournalController extends Controller
 
                 return "• {$h['date']} [mood: {$mood}] [tema: {$tema}]\n  \"{$snippet}\"";
             }, $history);
-            $historyContext = "\n\n=== JURNAL 14 HARI TERAKHIR ===\n" . implode("\n\n", $lines);
+            $historyContext = "\n\n=== JURNAL 14 HARI TERAKHIR ===\n".implode("\n\n", $lines);
         }
 
         // Profil persisten (memori jangka panjang)
@@ -192,13 +192,13 @@ PROMPT;
             $response = Http::timeout(45)
                 ->withHeaders([
                     'Authorization' => "Bearer {$apiKey}",
-                    'Content-Type'  => 'application/json',
+                    'Content-Type' => 'application/json',
                 ])
                 ->post('https://api.groq.com/openai/v1/chat/completions', [
-                    'model'       => 'llama-3.3-70b-versatile',
-                    'max_tokens'  => 1500,
+                    'model' => 'llama-3.3-70b-versatile',
+                    'max_tokens' => 1500,
                     'temperature' => 0.75,
-                    'messages'    => [
+                    'messages' => [
                         ['role' => 'system', 'content' => $systemPrompt],
                         ['role' => 'user',   'content' => $userPrompt],
                     ],
@@ -207,7 +207,7 @@ PROMPT;
             if (! $response->successful()) {
                 Log::error('Groq journal analyze failed', [
                     'status' => $response->status(),
-                    'body'   => $response->body(),
+                    'body' => $response->body(),
                 ]);
 
                 return null;
@@ -236,16 +236,16 @@ PROMPT;
     private function format(Journal $journal): array
     {
         return [
-            'id'          => $journal->id,
-            'date'        => $journal->date->toDateString(),
-            'body'        => $journal->body,
-            'mood'        => $journal->mood,
-            'tema'        => $journal->tema,
-            'ai_content'  => $journal->ai_content,
-            'ai_insight'  => $journal->ai_insight,
-            'ai_saran'    => $journal->ai_saran,
+            'id' => $journal->id,
+            'date' => $journal->date->toDateString(),
+            'body' => $journal->body,
+            'mood' => $journal->mood,
+            'tema' => $journal->tema,
+            'ai_content' => $journal->ai_content,
+            'ai_insight' => $journal->ai_insight,
+            'ai_saran' => $journal->ai_saran,
             'analyzed_at' => $journal->analyzed_at?->toIso8601String(),
-            'created_at'  => $journal->created_at->toIso8601String(),
+            'created_at' => $journal->created_at->toIso8601String(),
         ];
     }
 }

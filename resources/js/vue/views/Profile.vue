@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { onMounted, ref } from 'vue';
+import { api, unwrap } from '../api';
 import { toast } from '../feedback';
 import { useAuthStore } from '../stores/auth';
 import { timezones, useConfigurationStore } from '../stores/configuration';
@@ -17,6 +18,71 @@ const cropBox = ref({ x: 56, y: 56, size: 176 });
 const cropDrag = ref<{ mode: 'move' | 'resize'; startX: number; startY: number; original: { x: number; y: number; size: number } } | null>(null);
 const message = ref('');
 const error = ref('');
+
+const quoteEnabled = ref(false);
+const quoteThemes = ref<string[]>(['motivation']);
+const quoteTagInput = ref('');
+const quoteHasCustom = ref(false);
+const quoteSaving = ref(false);
+
+onMounted(async () => {
+  try {
+    const data: any = await api.get('/api/v1/quote/config').then(unwrap);
+    if (data.quote_config) {
+      quoteEnabled.value = data.quote_config.enabled ?? false;
+      quoteThemes.value = [...(data.quote_config.themes ?? ['motivation'])];
+      quoteHasCustom.value = data.quote_config.has_custom_themes ?? false;
+    }
+  } catch {}
+});
+
+async function saveQuoteThemes() {
+  quoteSaving.value = true;
+  try {
+    const data: any = await api.put('/api/v1/quote/themes', { themes: quoteThemes.value }).then(unwrap);
+    if (data.quote_config) {
+      quoteThemes.value = [...data.quote_config.themes];
+      quoteHasCustom.value = data.quote_config.has_custom_themes;
+    }
+    toast({ tone: 'success', title: 'Quote themes saved', message: 'Your daily quote will use these themes.' });
+  } catch {
+    toast({ tone: 'error', title: 'Could not save themes' });
+  } finally {
+    quoteSaving.value = false;
+  }
+}
+
+async function resetQuoteThemes() {
+  quoteSaving.value = true;
+  try {
+    const data: any = await api.delete('/api/v1/quote/themes').then(unwrap);
+    if (data.quote_config) {
+      quoteThemes.value = [...data.quote_config.themes];
+      quoteHasCustom.value = data.quote_config.has_custom_themes;
+    }
+    toast({ tone: 'success', title: 'Reset to global default', message: 'Using global quote themes set by admin.' });
+  } catch {
+    toast({ tone: 'error', title: 'Could not reset themes' });
+  } finally {
+    quoteSaving.value = false;
+  }
+}
+
+function addQuoteTag() {
+  const tag = quoteTagInput.value.trim().toLowerCase().replace(/,+$/, '').trim();
+  if (tag && !quoteThemes.value.includes(tag)) quoteThemes.value.push(tag);
+  quoteTagInput.value = '';
+}
+
+function removeQuoteTag(theme: string) {
+  if (quoteThemes.value.length <= 1) return;
+  quoteThemes.value = quoteThemes.value.filter((t) => t !== theme);
+}
+
+function onQuoteTagKey(e: KeyboardEvent) {
+  if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); addQuoteTag(); }
+  else if (e.key === 'Backspace' && quoteTagInput.value === '' && quoteThemes.value.length > 1) quoteThemes.value.pop();
+}
 
 async function saveProfile() {
   message.value = '';
@@ -229,6 +295,41 @@ async function croppedAvatarBlob(): Promise<Blob> {
       </div>
       <div class="flex justify-end border-t border-slate-100 bg-slate-50/70 px-5 py-4"><button class="btn btn-primary">Change password</button></div>
     </form>
+    <div v-if="quoteEnabled" class="card overflow-hidden p-0">
+      <div class="border-b border-slate-100 bg-slate-50/70 px-5 py-4">
+        <h2 class="font-extrabold">Daily Quote Themes</h2>
+        <p class="text-sm font-medium text-slate-500">
+          Personalise the topics of your daily quote. Leave on global default to use what the admin has configured.
+        </p>
+      </div>
+      <div class="p-5">
+        <p v-if="!quoteHasCustom" class="mb-3 rounded-lg border border-sky-100 bg-sky-50 px-3 py-2 text-xs font-semibold text-sky-700 dark:border-sky-900/40 dark:bg-sky-900/20 dark:text-sky-300">
+          Using global default themes. Add your own below to override.
+        </p>
+        <p v-else class="mb-3 rounded-lg border border-teal-100 bg-teal-50 px-3 py-2 text-xs font-semibold text-teal-700 dark:border-teal-900/40 dark:bg-teal-900/20 dark:text-teal-300">
+          Using your custom themes.
+        </p>
+        <div class="flex flex-wrap items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 focus-within:border-teal-400 focus-within:ring-2 focus-within:ring-teal-100 dark:border-zinc-700 dark:bg-zinc-900">
+          <span v-for="theme in quoteThemes" :key="theme" class="pill flex items-center gap-1">
+            {{ theme }}
+            <button type="button" class="ml-0.5 text-slate-400 hover:text-red-500" :disabled="quoteThemes.length <= 1" @click="removeQuoteTag(theme)">×</button>
+          </span>
+          <input
+            v-model="quoteTagInput"
+            class="min-w-24 flex-1 bg-transparent text-sm outline-none placeholder:text-slate-400"
+            placeholder="Add theme, press Enter…"
+            @keydown="onQuoteTagKey"
+            @blur="addQuoteTag"
+          />
+        </div>
+        <p class="mt-2 text-xs font-medium text-slate-400">e.g. stoic, productivity, mindfulness, humor</p>
+      </div>
+      <div class="flex items-center justify-between border-t border-slate-100 bg-slate-50/70 px-5 py-4">
+        <button v-if="quoteHasCustom" type="button" class="btn btn-muted text-xs" :disabled="quoteSaving" @click="resetQuoteThemes">Reset to global default</button>
+        <span v-else></span>
+        <button type="button" class="btn btn-primary" :disabled="quoteSaving" @click="saveQuoteThemes">Save themes</button>
+      </div>
+    </div>
     </div>
   </div>
   <div v-if="cropOpen" class="fixed inset-0 z-50 grid place-items-center bg-slate-950/50 p-4 backdrop-blur-[2px]" role="dialog" aria-modal="true" aria-labelledby="avatar-crop-title">

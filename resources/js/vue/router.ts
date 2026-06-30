@@ -32,6 +32,7 @@ import Minesweeper from './views/Minesweeper.vue';
 import Sudoku from './views/Sudoku.vue';
 import Journals from './views/Journals.vue';
 import JournalShow from './views/JournalShow.vue';
+import AdminUsers from './views/AdminUsers.vue';
 
 export const router = createRouter({
   history: createWebHistory(),
@@ -40,13 +41,12 @@ export const router = createRouter({
     { path: '/forgot-password', component: ForgotPassword, meta: { guest: true } },
     { path: '/share/doc/:token', component: DocShare, meta: { public: true } },
     { path: '/reset-password/:token', component: ResetPassword, meta: { guest: true } },
-    { path: '/', redirect: '/dashboard' },
+    { path: '/', redirect: () => (useAuthStore().isAdmin ? '/admin/users' : '/dashboard') },
     { path: '/dashboard', component: Dashboard },
     { path: '/analytics', redirect: '/activity' },
     { path: '/weekly-review', redirect: '/reports/weekly' },
     { path: '/search', component: Search },
     { path: '/profile', component: Profile },
-    { path: '/configuration', component: Configuration },
     { path: '/projects', component: Projects },
     { path: '/projects/:id', component: ProjectShow },
     { path: '/daily-progress', component: Records, props: { type: 'daily-progress' } },
@@ -91,12 +91,27 @@ export const router = createRouter({
     { path: '/games/minesweeper', component: Minesweeper },
     { path: '/games/2048', component: Game2048 },
     { path: '/games/memory', component: MemoryMatch },
+
+    { path: '/admin/users', component: AdminUsers, meta: { admin: true } },
+    { path: '/configuration', component: Configuration, meta: { admin: true } },
   ],
 });
 
 router.beforeEach(async (to) => {
   const auth = useAuthStore();
   if (!auth.booted) await auth.boot();
-  if (to.meta.guest && auth.user) return '/dashboard';
+
+  if (to.meta.guest && auth.user) {
+    return auth.isAdmin ? '/admin/users' : '/dashboard';
+  }
   if (!to.meta.guest && !to.meta.public && !auth.user) return '/login';
+
+  // Admin hanya boleh akses /admin/* dan /profile
+  if (auth.user && auth.isAdmin && !to.meta.admin && to.path !== '/profile') {
+    return '/admin/users';
+  }
+  // User biasa tidak boleh akses /admin/*
+  if (auth.user && !auth.isAdmin && to.meta.admin) {
+    return '/dashboard';
+  }
 });

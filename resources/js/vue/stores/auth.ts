@@ -6,6 +6,9 @@ export const useAuthStore = defineStore('auth', {
     user: null as any,
     booted: false,
   }),
+  getters: {
+    isAdmin: (state) => state.user?.is_admin === true,
+  },
   actions: {
     async boot() {
       try {

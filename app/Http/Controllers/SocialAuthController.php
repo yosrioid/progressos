@@ -49,13 +49,7 @@ class SocialAuthController extends Controller
 
     private function applyGoogleConfig(): void
     {
-        // Single-user app: read Google OAuth credentials from the first user's configuration.
-        $user = User::first();
-        if (! $user) {
-            return;
-        }
-
-        $config = Configuration::getValue($user, 'auth', 'google_oauth');
+        $config = Configuration::getValue(null, 'auth', 'google_oauth');
         if (! is_array($config)) {
             return;
         }

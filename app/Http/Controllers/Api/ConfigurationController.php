@@ -16,19 +16,17 @@ class ConfigurationController extends Controller
 {
     public function show(Request $request)
     {
-        $user = $request->user();
-
         return ApiResponse::ok([
             'configuration' => [
                 'app_version' => config('app.version'),
                 'available_modules' => Configuration::SYNC_MODULES,
                 'frequencies' => Configuration::SYNC_FREQUENCIES,
-                'groups' => $this->groups($request),
-                'auth_config' => $this->authConfigPayload($request),
-                'mail_config' => $this->mailConfigPayload($request),
-                'connection' => $this->connectionPayload($this->googleConnection($request)),
-                'syncs' => collect($this->syncs($request))->map(fn (array $sync) => $this->syncPayload($sync))->values(),
-                'runs' => BackupRun::ownedBy($user)->latest()->limit(12)->get()->map(fn (BackupRun $run) => $this->runPayload($run)),
+                'groups' => $this->groups(),
+                'auth_config' => $this->authConfigPayload(),
+                'mail_config' => $this->mailConfigPayload(),
+                'connection' => $this->connectionPayload($this->googleConnection()),
+                'syncs' => collect($this->syncs())->map(fn (array $sync) => $this->syncPayload($sync))->values(),
+                'runs' => BackupRun::latest()->limit(12)->get()->map(fn (BackupRun $run) => $this->runPayload($run)),
             ],
         ]);
     }
@@ -41,7 +39,7 @@ class ConfigurationController extends Controller
             'client_secret' => ['nullable', 'string', 'max:500'],
         ]);
 
-        $existing = Configuration::getValue($request->user(), 'auth', 'google_oauth', []);
+        $existing = Configuration::getValue(null, 'auth', 'google_oauth', []);
         $config = array_merge(is_array($existing) ? $existing : [], [
             'enabled' => $data['google_sso_enabled'] ?? ($existing['enabled'] ?? false),
             'client_id' => $data['client_id'] ?? ($existing['client_id'] ?? ''),
@@ -50,9 +48,9 @@ class ConfigurationController extends Controller
             $config['client_secret'] = $data['client_secret'];
         }
 
-        Configuration::setValue($request->user(), 'auth', 'google_oauth', $config, encrypted: true);
+        Configuration::setValue(null, 'auth', 'google_oauth', $config, encrypted: true);
 
-        return ApiResponse::ok(['auth_config' => $this->authConfigPayload($request)], 'Google SSO settings saved.');
+        return ApiResponse::ok(['auth_config' => $this->authConfigPayload()], 'Google SSO settings saved.');
     }
 
     public function updateMailConfig(Request $request)
@@ -68,7 +66,7 @@ class ConfigurationController extends Controller
             'password' => ['nullable', 'string', 'max:255'],
         ]);
 
-        $existing = Configuration::getValue($request->user(), 'mail', 'smtp', []);
+        $existing = Configuration::getValue(null, 'mail', 'smtp', []);
         $config = array_merge(is_array($existing) ? $existing : [], [
             'mailer' => $data['mailer'],
             'from_address' => $data['from_address'] ?? ($existing['from_address'] ?? ''),
@@ -84,9 +82,9 @@ class ConfigurationController extends Controller
             $config['password'] = $data['password'] ?? ($existing['password'] ?? '');
         }
 
-        Configuration::setValue($request->user(), 'mail', 'smtp', $config, encrypted: true);
+        Configuration::setValue(null, 'mail', 'smtp', $config, encrypted: true);
 
-        return ApiResponse::ok(['mail_config' => $this->mailConfigPayload($request)], 'Email settings saved.');
+        return ApiResponse::ok(['mail_config' => $this->mailConfigPayload()], 'Email settings saved.');
     }
 
     public function updateSettings(Request $request)
@@ -104,11 +102,11 @@ class ConfigurationController extends Controller
 
         foreach (['general', 'appearance', 'notifications'] as $group) {
             if (array_key_exists($group, $data)) {
-                Configuration::setValue($request->user(), $group, 'settings', array_replace($this->defaultGroupSettings($group), $data[$group]));
+                Configuration::setValue(null, $group, 'settings', array_replace($this->defaultGroupSettings($group), $data[$group]));
             }
         }
 
-        return ApiResponse::ok(['groups' => $this->groups($request)], 'Configuration settings saved.');
+        return ApiResponse::ok(['groups' => $this->groups()], 'Configuration settings saved.');
     }
 
     public function updateConnection(Request $request)
@@ -119,7 +117,7 @@ class ConfigurationController extends Controller
             'credentials_json' => ['nullable', 'string'],
         ]);
 
-        $connection = $this->googleConnection($request);
+        $connection = $this->googleConnection();
         $credentials = $connection['credentials'] ?? null;
         if (! empty($data['credentials_json'])) {
             $credentials = json_decode($data['credentials_json'], true);
@@ -137,14 +135,14 @@ class ConfigurationController extends Controller
             'last_verified_at' => null,
         ];
 
-        Configuration::setValue($request->user(), 'sync', 'google_sheets', $connection, true);
+        Configuration::setValue(null, 'sync', 'google_sheets', $connection, true);
 
         return ApiResponse::item('connection', $this->connectionPayload($connection), 200, 'Backup connection saved.');
     }
 
     public function verifyConnection(Request $request)
     {
-        $connection = $this->googleConnection($request);
+        $connection = $this->googleConnection();
         if (! $connection) {
             return ApiResponse::ok([], 'Add a connection before testing it.', 422);
         }
@@ -157,7 +155,7 @@ class ConfigurationController extends Controller
 
         $connection['status'] = $valid ? 'verified' : 'error';
         $connection['last_verified_at'] = $valid ? now()->toISOString() : null;
-        Configuration::setValue($request->user(), 'sync', 'google_sheets', $connection, true);
+        Configuration::setValue(null, 'sync', 'google_sheets', $connection, true);
 
         return ApiResponse::item(
             'connection',
@@ -170,7 +168,7 @@ class ConfigurationController extends Controller
     public function storeSync(Request $request, BackupExportService $exports)
     {
         $data = $this->validateSync($request);
-        $syncs = $this->syncs($request);
+        $syncs = $this->syncs();
         $sync = [
             ...$data,
             'id' => (string) Str::uuid(),
@@ -178,7 +176,7 @@ class ConfigurationController extends Controller
             'last_run_at' => null,
         ];
         $syncs[] = $sync;
-        $this->saveSyncs($request, $syncs);
+        $this->saveSyncs($syncs);
 
         return ApiResponse::item('sync', $this->syncPayload($sync), 201, 'Backup sync created.');
     }
@@ -186,7 +184,7 @@ class ConfigurationController extends Controller
     public function updateSync(Request $request, string $sync, BackupExportService $exports)
     {
         $data = $this->validateSync($request);
-        $syncs = $this->syncs($request);
+        $syncs = $this->syncs();
         $index = $this->syncIndex($syncs, $sync);
         abort_if($index === null, 404);
 
@@ -195,32 +193,32 @@ class ConfigurationController extends Controller
             ...$data,
             'next_run_at' => $syncs[$index]['next_run_at'] ?? $exports->nextRunAt($data['frequency'])->toISOString(),
         ];
-        $this->saveSyncs($request, $syncs);
+        $this->saveSyncs($syncs);
 
         return ApiResponse::item('sync', $this->syncPayload($syncs[$index]), 200, 'Backup sync updated.');
     }
 
     public function destroySync(Request $request, string $sync)
     {
-        $syncs = $this->syncs($request);
+        $syncs = $this->syncs();
         $index = $this->syncIndex($syncs, $sync);
         abort_if($index === null, 404);
         array_splice($syncs, $index, 1);
-        $this->saveSyncs($request, $syncs);
+        $this->saveSyncs($syncs);
 
         return response()->noContent();
     }
 
     public function runSync(Request $request, string $sync, BackupExportService $exports)
     {
-        $syncs = $this->syncs($request);
+        $syncs = $this->syncs();
         $index = $this->syncIndex($syncs, $sync);
         abort_if($index === null, 404);
 
-        $run = $exports->run($request->user(), $syncs[$index], $this->googleConnection($request));
+        $run = $exports->run($request->user(), $syncs[$index], $this->googleConnection()); // admin user initiates the run
         $syncs[$index]['last_run_at'] = now()->toISOString();
         $syncs[$index]['next_run_at'] = $exports->nextRunAt($syncs[$index]['frequency'] ?? 'daily')->toISOString();
-        $this->saveSyncs($request, $syncs);
+        $this->saveSyncs($syncs);
 
         return ApiResponse::item('run', $this->runPayload($run), 201, $run->status === 'completed' ? 'Backup completed.' : 'Backup failed.');
     }
@@ -236,12 +234,12 @@ class ConfigurationController extends Controller
         ]);
     }
 
-    private function groups(Request $request): array
+    private function groups(): array
     {
         return collect(Configuration::GROUPS)
-            ->mapWithKeys(function (string $group) use ($request) {
+            ->mapWithKeys(function (string $group) {
                 $defaults = $this->defaultGroupSettings($group);
-                $stored = Configuration::getValue($request->user(), $group, 'settings', []);
+                $stored = Configuration::getValue(null, $group, 'settings', []);
 
                 return [$group => array_replace($defaults, is_array($stored) ? $stored : [])];
             })
@@ -269,23 +267,23 @@ class ConfigurationController extends Controller
         };
     }
 
-    private function googleConnection(Request $request): ?array
+    private function googleConnection(): ?array
     {
-        $connection = Configuration::getValue($request->user(), 'sync', 'google_sheets');
+        $connection = Configuration::getValue(null, 'sync', 'google_sheets');
 
         return is_array($connection) ? $connection : null;
     }
 
-    private function syncs(Request $request): array
+    private function syncs(): array
     {
-        $syncs = Configuration::getValue($request->user(), 'sync', 'backup_schedules', []);
+        $syncs = Configuration::getValue(null, 'sync', 'backup_schedules', []);
 
         return is_array($syncs) ? array_values($syncs) : [];
     }
 
-    private function saveSyncs(Request $request, array $syncs): void
+    private function saveSyncs(array $syncs): void
     {
-        Configuration::setValue($request->user(), 'sync', 'backup_schedules', array_values($syncs));
+        Configuration::setValue(null, 'sync', 'backup_schedules', array_values($syncs));
     }
 
     private function syncIndex(array $syncs, string $id): ?int
@@ -343,9 +341,9 @@ class ConfigurationController extends Controller
         ];
     }
 
-    private function authConfigPayload(Request $request): array
+    private function authConfigPayload(): array
     {
-        $config = Configuration::getValue($request->user(), 'auth', 'google_oauth', []);
+        $config = Configuration::getValue(null, 'auth', 'google_oauth', []);
         $config = is_array($config) ? $config : [];
 
         return [
@@ -355,9 +353,9 @@ class ConfigurationController extends Controller
         ];
     }
 
-    private function mailConfigPayload(Request $request): array
+    private function mailConfigPayload(): array
     {
-        $config = Configuration::getValue($request->user(), 'mail', 'smtp', []);
+        $config = Configuration::getValue(null, 'mail', 'smtp', []);
         $config = is_array($config) ? $config : [];
 
         return [

@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Route;
 
 require __DIR__.'/api/auth.php';
 require __DIR__.'/api/tokens.php';
+require __DIR__.'/api/admin.php';
 require __DIR__.'/api/v1.php';
 
 Route::prefix('share')->group(function () {

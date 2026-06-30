@@ -73,7 +73,7 @@ class ChatController extends Controller
         ]);
 
         $user = $request->user();
-        $config = Configuration::getValue($user, 'quote', 'groq', []);
+        $config = Configuration::getValue(null, 'quote', 'groq', []);
         $apiKey = is_array($config) ? ($config['api_key'] ?? null) : null;
 
         if (! $apiKey) {
@@ -99,7 +99,7 @@ class ChatController extends Controller
             ->limit(self::HISTORY_LIMIT)
             ->get()
             ->reverse()
-            ->map(fn ($m) => ['role' => $m->role, 'content' => $m->content])
+            ->map(fn (ChatMessage $m) => ['role' => $m->role, 'content' => $m->content])
             ->values()
             ->toArray();
 
@@ -132,7 +132,7 @@ class ChatController extends Controller
 
     private function buildSystemPrompt(string $contextType, $user): string
     {
-        $base = "Kamu adalah asisten pribadi yang cerdas dan suportif untuk pengguna ini. Balas dalam bahasa Indonesia kecuali diminta lain. Jawab dengan ringkas dan natural, tidak perlu terlalu formal.";
+        $base = 'Kamu adalah asisten pribadi yang cerdas dan suportif untuk pengguna ini. Balas dalam bahasa Indonesia kecuali diminta lain. Jawab dengan ringkas dan natural, tidak perlu terlalu formal.';
 
         if ($contextType === 'journal') {
             $journals = Journal::ownedBy($user)
@@ -143,15 +143,16 @@ class ChatController extends Controller
                 ->get(['date', 'mood', 'tema', 'body']);
 
             if ($journals->isEmpty()) {
-                return $base . "\n\nPengguna belum memiliki jurnal yang dianalisa dalam 30 hari terakhir.";
+                return $base."\n\nPengguna belum memiliki jurnal yang dianalisa dalam 30 hari terakhir.";
             }
 
             $lines = $journals->map(function ($j) {
                 $first = mb_substr($j->body, 0, 80);
+
                 return "- {$j->date} | mood: {$j->mood} | tema: {$j->tema} | \"{$first}\"";
             })->join("\n");
 
-            return $base . "\n\nKonteks: Pengguna ingin membahas jurnal hariannya. Berikut ringkasan 30 hari terakhir:\n{$lines}\n\nGunakan konteks ini untuk menjawab pertanyaan tentang pola, kebiasaan, perasaan, atau hal lain dari jurnal mereka.";
+            return $base."\n\nKonteks: Pengguna ingin membahas jurnal hariannya. Berikut ringkasan 30 hari terakhir:\n{$lines}\n\nGunakan konteks ini untuk menjawab pertanyaan tentang pola, kebiasaan, perasaan, atau hal lain dari jurnal mereka.";
         }
 
         if ($contextType === 'project') {
@@ -162,14 +163,15 @@ class ChatController extends Controller
                 ->get(['id', 'name', 'status', 'description']);
 
             if ($projects->isEmpty()) {
-                return $base . "\n\nPengguna belum memiliki proyek.";
+                return $base."\n\nPengguna belum memiliki proyek.";
             }
 
-            $lines = $projects->map(function ($p) {
+            $lines = $projects->map(function (Project $p) {
+                // @phpstan-ignore property.notFound, property.notFound
                 return "- {$p->name} (status: {$p->status}, open tasks: {$p->open_tasks_count})";
             })->join("\n");
 
-            return $base . "\n\nKonteks: Pengguna ingin membahas proyek-proyeknya. Daftar proyek:\n{$lines}";
+            return $base."\n\nKonteks: Pengguna ingin membahas proyek-proyeknya. Daftar proyek:\n{$lines}";
         }
 
         return $base;

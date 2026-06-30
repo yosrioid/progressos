@@ -33,6 +33,7 @@ const quickForm = ref({ type: 'task', title: '', project_name: '', duration_minu
 const habitList = ref<{ id: number; name: string; icon: string }[]>([]);
 const selectedHabitId = ref<number | null>(null);
 const isGuest = computed(() => !auth.user);
+const isAdmin = computed(() => auth.isAdmin);
 const navGroups = [
   {
     label: 'Overview',
@@ -365,6 +366,7 @@ function isActive(href: string) {
 
 watch(() => auth.user, async (user) => {
   if (!user) return;
+  if (isAdmin.value) return;
   try {
     await configuration.load();
   } catch {
@@ -374,7 +376,7 @@ watch(() => auth.user, async (user) => {
   loadNotifications();
   loadProjectNames();
 }, { immediate: true });
-watch(() => route.fullPath, () => { if (auth.user) { loadOverdueCount(); loadNotifications(); } });
+watch(() => route.fullPath, () => { if (auth.user && !isAdmin.value) { loadOverdueCount(); loadNotifications(); } });
 watch(activeTheme, (theme) => applyTheme(theme || 'system'), { immediate: true });
 watch(() => configuration.appearance.favicon_url, (url) => applyFavicon(url), { immediate: true });
 watch(() => configuration.appName, (name) => {
@@ -416,7 +418,7 @@ onUnmounted(() => {
   <div v-else class="min-h-screen text-slate-950 dark:text-zinc-100 lg:flex">
     <!-- Desktop sidebar -->
     <aside class="hidden flex-col border-r border-slate-200 bg-white/95 shadow-[12px_0_40px_rgb(15_23_42/0.035)] backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/95 dark:shadow-[12px_0_40px_rgb(0_0_0/0.3)] lg:fixed lg:inset-y-0 lg:flex lg:w-72">
-      <RouterLink to="/dashboard" class="shrink-0 px-4 pb-4 pt-5 flex items-center gap-3">
+      <RouterLink :to="isAdmin ? '/admin/users' : '/dashboard'" class="shrink-0 px-4 pb-4 pt-5 flex items-center gap-3">
         <span class="grid h-10 w-10 place-items-center rounded-2xl bg-teal-700 text-white shadow-lg shadow-teal-900/10">
           <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" viewBox="0 0 24 24"><path v-for="path in icons.spark" :key="path" :d="path" /></svg>
         </span>
@@ -426,7 +428,29 @@ onUnmounted(() => {
         </span>
       </RouterLink>
       <nav class="flex-1 space-y-1 overflow-y-auto px-4 pb-2">
-        <section v-for="group in navGroups" :key="group.label" class="mb-1">
+        <template v-if="isAdmin">
+          <RouterLink
+            to="/admin/users"
+            class="group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-bold text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900 dark:text-zinc-400 dark:hover:bg-zinc-800/60 dark:hover:text-zinc-100"
+            :class="isActive('/admin/users') ? 'bg-teal-50 text-teal-800 ring-1 ring-teal-200/60 dark:bg-teal-500/12 dark:text-teal-300 dark:ring-teal-500/20' : ''"
+          >
+            <span class="grid h-8 w-8 place-items-center rounded-lg" :class="isActive('/admin/users') ? 'bg-teal-100 text-teal-700 dark:bg-teal-500/25 dark:text-teal-300' : 'bg-slate-100 text-slate-500 dark:bg-zinc-800 dark:text-zinc-500'">
+              <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            </span>
+            <span class="flex-1">User Management</span>
+          </RouterLink>
+          <RouterLink
+            to="/configuration"
+            class="group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-bold text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900 dark:text-zinc-400 dark:hover:bg-zinc-800/60 dark:hover:text-zinc-100"
+            :class="isActive('/configuration') ? 'bg-teal-50 text-teal-800 ring-1 ring-teal-200/60 dark:bg-teal-500/12 dark:text-teal-300 dark:ring-teal-500/20' : ''"
+          >
+            <span class="grid h-8 w-8 place-items-center rounded-lg" :class="isActive('/configuration') ? 'bg-teal-100 text-teal-700 dark:bg-teal-500/25 dark:text-teal-300' : 'bg-slate-100 text-slate-500 dark:bg-zinc-800 dark:text-zinc-500'">
+              <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" viewBox="0 0 24 24"><path v-for="path in icons.settings" :key="path" :d="path" /></svg>
+            </span>
+            <span class="flex-1">Configuration</span>
+          </RouterLink>
+        </template>
+        <section v-else v-for="group in navGroups" :key="group.label" class="mb-1">
           <button
             class="mb-0.5 flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-[11px] font-extrabold uppercase text-slate-400 transition hover:bg-slate-50 hover:text-slate-600 dark:hover:bg-zinc-800/40 dark:text-zinc-600 dark:hover:text-zinc-400"
             @click="toggleNavGroup(group.label)"
@@ -488,11 +512,11 @@ onUnmounted(() => {
             <kbd class="rounded border border-slate-200 bg-white px-1.5 py-0.5 text-[10px] font-bold text-slate-400 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-500" title="Command palette">⌘K</kbd>
           </div>
           <!-- Work timer -->
-          <div class="hidden xl:block">
+          <div v-if="!isAdmin" class="hidden xl:block">
             <WorkTimer @log="onTimerLog" />
           </div>
           <!-- Notification bell -->
-          <div class="relative">
+          <div v-if="!isAdmin" class="relative">
             <button
               @click="toggleNotif"
               class="relative grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-slate-200 bg-white text-slate-500 transition hover:border-amber-200 hover:text-amber-600 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:border-amber-600 dark:hover:text-amber-400"
@@ -558,7 +582,7 @@ onUnmounted(() => {
             <svg v-else class="h-4 w-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
           </button>
           <!-- Quick add -->
-          <button class="btn btn-primary px-3 sm:px-4" title="Quick add" aria-label="Quick add" @click="quick = true">
+          <button v-if="!isAdmin" class="btn btn-primary px-3 sm:px-4" title="Quick add" aria-label="Quick add" @click="quick = true">
             <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24"><path v-for="path in icons.plus" :key="path" :d="path" /></svg>
             <span class="hidden sm:inline">Quick Add</span>
           </button>
@@ -603,7 +627,7 @@ onUnmounted(() => {
       <button class="absolute inset-0 bg-slate-950/40 backdrop-blur-[2px]" aria-label="Close menu" @click="mobileMenu = false"></button>
       <aside class="relative h-full w-[min(22rem,88vw)] overflow-y-auto border-r border-slate-200 bg-white p-4 shadow-2xl dark:border-zinc-800 dark:bg-zinc-900">
         <div class="mb-6 flex items-center justify-between">
-          <RouterLink to="/dashboard" class="flex items-center gap-3">
+          <RouterLink :to="isAdmin ? '/admin/users' : '/dashboard'" class="flex items-center gap-3">
             <span class="grid h-10 w-10 place-items-center rounded-2xl bg-teal-700 text-white">
               <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" viewBox="0 0 24 24"><path v-for="path in icons.spark" :key="path" :d="path" /></svg>
             </span>
@@ -614,7 +638,31 @@ onUnmounted(() => {
           </button>
         </div>
         <nav class="space-y-1">
-          <section v-for="group in navGroups" :key="group.label" class="mb-1">
+          <template v-if="isAdmin">
+            <RouterLink
+              to="/admin/users"
+              class="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-bold text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900 dark:text-zinc-400 dark:hover:bg-zinc-800"
+              :class="isActive('/admin/users') ? 'bg-teal-50 text-teal-800 ring-1 ring-teal-200/60 dark:bg-teal-500/12 dark:text-teal-300 dark:ring-teal-500/20' : ''"
+              @click="mobileMenu = false"
+            >
+              <span class="grid h-8 w-8 place-items-center rounded-lg" :class="isActive('/admin/users') ? 'bg-teal-100 text-teal-700 dark:bg-teal-500/25 dark:text-teal-300' : 'bg-slate-100 text-slate-500 dark:bg-zinc-800 dark:text-zinc-500'">
+                <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+              </span>
+              User Management
+            </RouterLink>
+            <RouterLink
+              to="/configuration"
+              class="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-bold text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900 dark:text-zinc-400 dark:hover:bg-zinc-800"
+              :class="isActive('/configuration') ? 'bg-teal-50 text-teal-800 ring-1 ring-teal-200/60 dark:bg-teal-500/12 dark:text-teal-300 dark:ring-teal-500/20' : ''"
+              @click="mobileMenu = false"
+            >
+              <span class="grid h-8 w-8 place-items-center rounded-lg" :class="isActive('/configuration') ? 'bg-teal-100 text-teal-700 dark:bg-teal-500/25 dark:text-teal-300' : 'bg-slate-100 text-slate-500 dark:bg-zinc-800 dark:text-zinc-500'">
+                <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" viewBox="0 0 24 24"><path v-for="path in icons.settings" :key="path" :d="path" /></svg>
+              </span>
+              Configuration
+            </RouterLink>
+          </template>
+          <section v-else v-for="group in navGroups" :key="group.label" class="mb-1">
             <button
               class="mb-0.5 flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-[11px] font-extrabold uppercase text-slate-400 transition hover:bg-slate-50 hover:text-slate-600 dark:hover:bg-zinc-800/40 dark:text-zinc-600 dark:hover:text-zinc-400"
               @click="toggleNavGroup(group.label)"
@@ -699,7 +747,7 @@ onUnmounted(() => {
     </button>
 
     <!-- Command palette -->
-    <div v-if="commandOpen" class="fixed inset-0 z-50 grid place-items-start bg-slate-950/50 p-3 pt-20 backdrop-blur-[2px] sm:p-6 sm:pt-24" role="dialog" aria-modal="true" aria-labelledby="command-title">
+    <div v-if="commandOpen && !isAdmin" class="fixed inset-0 z-50 grid place-items-start bg-slate-950/50 p-3 pt-20 backdrop-blur-[2px] sm:p-6 sm:pt-24" role="dialog" aria-modal="true" aria-labelledby="command-title">
       <button class="absolute inset-0 cursor-default" aria-label="Close command palette" @click="commandOpen = false"></button>
       <section class="relative mx-auto w-full max-w-2xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl shadow-slate-950/15 dark:border-zinc-800 dark:bg-zinc-900 dark:shadow-black/40">
         <div class="border-b border-slate-100 p-3 dark:border-zinc-800">

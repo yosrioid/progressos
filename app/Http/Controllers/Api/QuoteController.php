@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Configuration;
 use App\Support\ApiResponse;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
@@ -71,7 +72,7 @@ class QuoteController extends Controller
             'api_key' => ['nullable', 'string', 'max:200'],
         ]);
 
-        $existing = Configuration::getValue($request->user(), 'quote', 'groq', []);
+        $existing = Configuration::getValue(null, 'quote', 'groq', []);
         $existing = is_array($existing) ? $existing : [];
 
         $config = [
@@ -80,13 +81,10 @@ class QuoteController extends Controller
             'api_key' => filled($data['api_key'] ?? null) ? $data['api_key'] : ($existing['api_key'] ?? null),
         ];
 
-        Configuration::setValue($request->user(), 'quote', 'groq', $config, encrypted: true);
+        Configuration::setValue(null, 'quote', 'groq', $config, encrypted: true);
+        $this->bustQuoteCache($request->user());
 
-        // Bust cache so next load generates fresh with new settings
-        $today = Carbon::now()->toDateString();
-        Cache::forget("daily_quote_{$request->user()->id}_{$today}");
-
-        return ApiResponse::ok(['quote_config' => $this->buildPayload($config)], 'Quote settings saved.');
+        return ApiResponse::ok(['quote_config' => $this->buildPayload($this->quoteConfig($request->user()))], 'Quote settings saved.');
     }
 
     private function generate(string $apiKey, array $themes): ?array
@@ -139,7 +137,7 @@ class QuoteController extends Controller
         return null;
     }
 
-    public function usage(Request $request): \Illuminate\Http\JsonResponse
+    public function usage(Request $request): JsonResponse
     {
         $today = Carbon::now()->toDateString();
         $stored = Configuration::getValue($request->user(), 'groq', 'usage', []);
@@ -181,11 +179,38 @@ class QuoteController extends Controller
         // usage tracked per-request where user is available
     }
 
-    public function configPayload(Request $request): \Illuminate\Http\JsonResponse
+    public function configPayload(Request $request): JsonResponse
     {
         $config = $this->quoteConfig($request->user());
 
         return ApiResponse::ok(['quote_config' => $this->buildPayload($config)]);
+    }
+
+    public function saveUserThemes(Request $request)
+    {
+        $data = $request->validate([
+            'themes' => ['required', 'array', 'min:1'],
+            'themes.*' => ['string', 'max:60'],
+        ]);
+
+        Configuration::setValue($request->user(), 'quote', 'themes', $data['themes']);
+        $this->bustQuoteCache($request->user());
+
+        return ApiResponse::ok(['quote_config' => $this->buildPayload($this->quoteConfig($request->user()))], 'Quote themes saved.');
+    }
+
+    public function clearUserThemes(Request $request)
+    {
+        Configuration::where('user_id', $request->user()->id)->where('group', 'quote')->where('key', 'themes')->delete();
+        $this->bustQuoteCache($request->user());
+
+        return ApiResponse::ok(['quote_config' => $this->buildPayload($this->quoteConfig($request->user()))], 'Quote themes reset to global default.');
+    }
+
+    private function bustQuoteCache($user): void
+    {
+        $today = Carbon::now($user->timezone ?? 'Asia/Jakarta')->toDateString();
+        Cache::forget("daily_quote_{$user->id}_{$today}");
     }
 
     private function buildPayload(array $config): array
@@ -194,13 +219,23 @@ class QuoteController extends Controller
             'enabled' => $config['enabled'] ?? false,
             'themes' => $config['themes'] ?? ['motivation'],
             'has_api_key' => filled($config['api_key'] ?? null),
+            'has_custom_themes' => $config['has_custom_themes'] ?? false,
         ];
     }
 
     private function quoteConfig($user): array
     {
-        $stored = Configuration::getValue($user, 'quote', 'groq', []);
+        $global = Configuration::getValue(null, 'quote', 'groq', []);
+        $global = is_array($global) ? $global : [];
 
-        return is_array($stored) ? $stored : [];
+        $userThemes = Configuration::getValue($user, 'quote', 'themes');
+        if (is_array($userThemes) && count($userThemes) > 0) {
+            $global['themes'] = $userThemes;
+            $global['has_custom_themes'] = true;
+        } else {
+            $global['has_custom_themes'] = false;
+        }
+
+        return $global;
     }
 }
