@@ -41,4 +41,8 @@ return [
         'redirect' => env('GOOGLE_REDIRECT_URI', '/auth/google/callback'),
     ],
 
+    'tenor' => [
+        'key' => env('TENOR_API_KEY'),
+    ],
+
 ];

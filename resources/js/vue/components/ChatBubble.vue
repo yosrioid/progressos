@@ -16,6 +16,9 @@ const pendingFile = ref<File | null>(null);
 const pendingFilePreview = ref<string | null>(null);
 const messagesEl = ref<HTMLElement | null>(null);
 const showEmojiPicker = ref(false);
+const showGifPicker = ref(false);
+const gifSearch = ref('');
+const gifLoading = ref(false);
 const showNewChat = ref(false);
 const contextMenu = ref<{ x: number; y: number; messageId: number } | null>(null);
 
@@ -153,8 +156,32 @@ function avatarInitial(name: string) {
   return name ? name[0].toUpperCase() : '?';
 }
 
+async function openGifPicker() {
+  showEmojiPicker.value = false;
+  showGifPicker.value = !showGifPicker.value;
+  if (showGifPicker.value && !inbox.gifResults.length) {
+    gifLoading.value = true;
+    try { await inbox.searchGif(''); } finally { gifLoading.value = false; }
+  }
+}
+
+async function handleGifSearch() {
+  gifLoading.value = true;
+  try { await inbox.searchGif(gifSearch.value); } finally { gifLoading.value = false; }
+}
+
+async function selectGif(url: string) {
+  if (!inbox.activeId) return;
+  showGifPicker.value = false;
+  gifSearch.value = '';
+  await inbox.sendGif(inbox.activeId, url);
+  await nextTick();
+  scrollBottom();
+}
+
 function closeAll() {
   showEmojiPicker.value = false;
+  showGifPicker.value = false;
   contextMenu.value = null;
 }
 </script>
@@ -236,6 +263,7 @@ function closeAll() {
                 <template v-if="conv.last_message?.deleted">Pesan dihapus</template>
                 <template v-else-if="conv.last_message?.type === 'image'">📷 Gambar</template>
                 <template v-else-if="conv.last_message?.type === 'file'">📎 {{ conv.last_message.file_name }}</template>
+                <template v-else-if="conv.last_message?.type === 'gif'">🎞️ GIF</template>
                 <template v-else>{{ conv.last_message?.body ?? '' }}</template>
               </p>
             </div>
@@ -287,6 +315,7 @@ function closeAll() {
                   </template>
                   <template v-else>
                     <img v-if="msg.type === 'image'" :src="msg.file_url ?? ''" class="mb-1 max-w-full rounded-lg" />
+                    <img v-else-if="msg.type === 'gif'" :src="msg.body ?? ''" class="mb-1 max-w-[160px] rounded-lg" />
                     <a
                       v-else-if="msg.type === 'file'"
                       :href="msg.file_url ?? '#'"
@@ -297,7 +326,7 @@ function closeAll() {
                       <span class="truncate text-xs">{{ msg.file_name }}</span>
                       <span v-if="msg.file_size" class="shrink-0 text-[10px] opacity-70">{{ formatFileSize(msg.file_size) }}</span>
                     </a>
-                    <p v-if="msg.body" class="whitespace-pre-wrap break-words">{{ msg.body }}</p>
+                    <p v-if="msg.body && msg.type !== 'gif'" class="whitespace-pre-wrap break-words">{{ msg.body }}</p>
                   </template>
                   <!-- Timestamp + status indicator -->
                   <span class="mt-0.5 flex items-center justify-end gap-1 text-[10px] opacity-60">
@@ -334,11 +363,36 @@ function closeAll() {
             >{{ emoji }}</button>
           </div>
 
+          <!-- GIF picker -->
+          <div v-if="showGifPicker" class="border-t border-slate-100 p-2 dark:border-zinc-800" @click.stop>
+            <input
+              v-model="gifSearch"
+              class="field mb-2 py-1 text-xs"
+              placeholder="Cari GIF..."
+              @input="handleGifSearch"
+            />
+            <div v-if="gifLoading" class="py-4 text-center text-xs text-slate-400">Memuat...</div>
+            <div v-else-if="!inbox.gifResults.length" class="py-4 text-center text-xs text-slate-400">
+              {{ gifSearch ? 'GIF tidak ditemukan' : 'Tambahkan TENOR_API_KEY di .env untuk GIF' }}
+            </div>
+            <div v-else class="grid grid-cols-3 gap-1 max-h-40 overflow-y-auto">
+              <button
+                v-for="gif in inbox.gifResults"
+                :key="gif.id"
+                class="overflow-hidden rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
+                @click.stop="selectGif(gif.url)"
+              >
+                <img :src="gif.url" :alt="gif.title" class="h-16 w-full object-cover" loading="lazy" />
+              </button>
+            </div>
+          </div>
+
           <!-- Input bar -->
           <div class="flex items-end gap-2 border-t border-slate-100 px-3 py-2 dark:border-zinc-800">
-            <button class="shrink-0 p-1 text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300" @click.stop="showEmojiPicker = !showEmojiPicker">
+            <button class="shrink-0 p-1 text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300" :class="showEmojiPicker ? 'text-teal-500' : ''" @click.stop="showEmojiPicker = !showEmojiPicker; showGifPicker = false">
               <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M8 13s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
             </button>
+            <button class="shrink-0 p-1 text-[10px] font-extrabold leading-none text-slate-400 hover:text-teal-500" :class="showGifPicker ? 'text-teal-500' : ''" @click.stop="openGifPicker">GIF</button>
             <label class="shrink-0 cursor-pointer p-1 text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300">
               <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
               <input ref="fileInput" type="file" class="sr-only" @change="handleFileSelect" />

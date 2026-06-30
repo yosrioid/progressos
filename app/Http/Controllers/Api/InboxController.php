@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 
 class InboxController extends Controller
@@ -62,6 +63,7 @@ class InboxController extends Controller
 
         $request->validate([
             'body' => 'nullable|string|max:5000',
+            'gif_url' => 'nullable|string|max:2000',
             'file' => ['nullable', 'file', 'max:20480', function ($attr, $value, $fail) {
                 $allowed = [
                     'image/', 'video/', 'audio/',
@@ -81,8 +83,19 @@ class InboxController extends Controller
             }],
         ]);
 
-        if (! $request->filled('body') && ! $request->hasFile('file')) {
+        if (! $request->filled('body') && ! $request->hasFile('file') && ! $request->filled('gif_url')) {
             return ApiResponse::ok([], 'Pesan tidak boleh kosong.', 422);
+        }
+
+        if ($request->filled('gif_url')) {
+            $message = $conversation->messages()->create([
+                'sender_id' => $request->user()->id,
+                'body' => $request->input('gif_url'),
+                'type' => 'gif',
+            ]);
+            $conversation->update(['last_message_at' => now()]);
+
+            return ApiResponse::item('message', $this->messagePayload($message->load('sender:id,name,avatar_path')), 201);
         }
 
         $type = 'text';
@@ -111,6 +124,39 @@ class InboxController extends Controller
         $conversation->update(['last_message_at' => now()]);
 
         return ApiResponse::item('message', $this->messagePayload($message->load('sender:id,name,avatar_path')), 201);
+    }
+
+    public function searchGif(Request $request): JsonResponse
+    {
+        $q = trim((string) $request->query('q', 'trending'));
+        $key = config('services.tenor.key');
+
+        if (! $key) {
+            return ApiResponse::collection('gifs', []);
+        }
+
+        $response = Http::get('https://tenor.googleapis.com/v2/search', [
+            'q' => $q,
+            'key' => $key,
+            'limit' => 16,
+            'media_filter' => 'tinygif',
+            'contentfilter' => 'medium',
+        ]);
+
+        if (! $response->ok()) {
+            return ApiResponse::collection('gifs', []);
+        }
+
+        $gifs = collect($response->json('results', []))
+            ->map(fn ($r) => [
+                'id' => $r['id'],
+                'url' => $r['media_formats']['tinygif']['url'] ?? null,
+                'title' => $r['title'] ?? '',
+            ])
+            ->filter(fn ($g) => ! empty($g['url']))
+            ->values();
+
+        return ApiResponse::collection('gifs', $gifs);
     }
 
     public function deleteMessage(Request $request, InboxMessage $message): JsonResponse

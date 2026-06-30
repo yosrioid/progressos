@@ -11,7 +11,7 @@ export type InboxMessage = {
   sender_name: string | null;
   sender_avatar: string | null;
   body: string | null;
-  type: 'text' | 'image' | 'file';
+  type: 'text' | 'image' | 'file' | 'gif';
   file_name: string | null;
   file_size: number | null;
   file_mime: string | null;
@@ -20,6 +20,7 @@ export type InboxMessage = {
   created_at: string;
   pending?: boolean;
 };
+export type GifResult = { id: string; url: string; title: string };
 export type InboxConversation = {
   id: number;
   other_user: InboxUser;
@@ -36,6 +37,7 @@ export const useInboxStore = defineStore('inbox', () => {
   const unreadTotal = ref(0);
   const loadingMessages = ref(false);
   const searchResults = ref<InboxUser[]>([]);
+  const gifResults = ref<GifResult[]>([]);
 
   const activeConversation = computed(() =>
     conversations.value.find((c) => c.id === activeId.value) ?? null,
@@ -176,6 +178,61 @@ export const useInboxStore = defineStore('inbox', () => {
     }
   }
 
+  async function searchGif(q: string) {
+    const data = await api.get('/api/v1/inbox/gif', { params: { q: q || 'trending' } }).then(unwrap);
+    gifResults.value = data.gifs ?? [];
+  }
+
+  async function sendGif(conversationId: number, gifUrl: string) {
+    const auth = useAuthStore();
+    const tempId = -Date.now();
+    const optimistic: InboxMessage = {
+      id: tempId,
+      conversation_id: conversationId,
+      sender_id: auth.user!.id,
+      sender_name: null,
+      sender_avatar: null,
+      body: gifUrl,
+      type: 'gif',
+      file_name: null,
+      file_size: null,
+      file_mime: null,
+      file_url: null,
+      deleted: false,
+      created_at: new Date().toISOString(),
+      pending: true,
+    };
+    messages.value.push(optimistic);
+
+    try {
+      const form = new FormData();
+      form.append('gif_url', gifUrl);
+      const data = await api.post(
+        `/api/v1/inbox/conversations/${conversationId}/messages`,
+        form,
+        { headers: { 'Content-Type': 'multipart/form-data' } },
+      ).then(unwrap);
+
+      const idx = messages.value.findIndex((m) => m.id === tempId);
+      if (idx !== -1) messages.value.splice(idx, 1, { ...data.message, pending: false });
+
+      const conv = conversations.value.find((c) => c.id === conversationId);
+      if (conv) {
+        conv.last_message = data.message;
+        conv.last_message_at = data.message.created_at;
+        const pos = conversations.value.indexOf(conv);
+        if (pos > 0) {
+          conversations.value.splice(pos, 1);
+          conversations.value.unshift(conv);
+        }
+      }
+    } catch (err) {
+      const idx = messages.value.findIndex((m) => m.id === tempId);
+      if (idx !== -1) messages.value.splice(idx, 1);
+      throw err;
+    }
+  }
+
   async function deleteMessage(messageId: number) {
     const data = await api.delete(`/api/v1/inbox/messages/${messageId}`).then(unwrap);
     const idx = messages.value.findIndex((m) => m.id === messageId);
@@ -199,9 +256,9 @@ export const useInboxStore = defineStore('inbox', () => {
 
   return {
     open, conversations, activeId, messages, unreadTotal, loadingMessages,
-    searchResults, activeConversation,
+    searchResults, gifResults, activeConversation,
     loadConversations, loadUnread, openConversation, refreshMessages,
-    startConversation, sendMessage, deleteMessage, searchUsers,
+    startConversation, sendMessage, sendGif, deleteMessage, searchUsers, searchGif,
     closeConversation, togglePanel,
   };
 });

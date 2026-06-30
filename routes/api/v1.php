@@ -212,5 +212,6 @@ Route::middleware(['auth:sanctum', 'not.admin'])->prefix('v1')->group(function (
         Route::get('messages/{message}/file', [InboxController::class, 'serveFile'])->middleware('throttle:api-read');
         Route::get('unread', [InboxController::class, 'unread'])->middleware('throttle:api-read');
         Route::get('users', [InboxController::class, 'searchUsers'])->middleware('throttle:api-read');
+        Route::get('gif', [InboxController::class, 'searchGif'])->middleware('throttle:api-read');
     });
 });
