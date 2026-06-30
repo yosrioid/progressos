@@ -194,11 +194,32 @@ class AuthController extends Controller
         return ApiResponse::ok(['ok' => true], 'Logged out.');
     }
 
+    public function disconnectGoogle(Request $request): \Illuminate\Http\JsonResponse
+    {
+        $user = $request->user();
+
+        if (! $user->google_id) {
+            return ApiResponse::ok([], 'Google not linked.', 422);
+        }
+
+        if (! $user->password) {
+            return ApiResponse::ok([], 'Set a password first before disconnecting Google.', 422);
+        }
+
+        $user->update(['google_id' => null]);
+
+        return ApiResponse::item('user', $this->userPayload($user->fresh()));
+    }
+
     private function userPayload(User $user): array
     {
+        $googleConfig = \App\Models\Configuration::getValue(null, 'auth', 'google_oauth', []);
+
         return $user->toArray() + [
             'avatar_url' => $user->avatar_path ? '/storage/'.$user->avatar_path : null,
             'is_admin' => $user->isAdmin(),
+            'has_google' => (bool) $user->google_id,
+            'google_sso_enabled' => (bool) (is_array($googleConfig) ? ($googleConfig['enabled'] ?? false) : false),
         ];
     }
 }

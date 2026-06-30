@@ -377,8 +377,11 @@ onMounted(load);
               <p class="text-xs font-semibold text-slate-500">{{ authConfig.has_client_secret ? 'Already saved. Fill in to replace.' : 'Not set.' }}</p>
             </div>
             <div class="relative">
-              <input v-model="authForm.client_secret" :type="showClientSecret ? 'text' : 'password'" class="field pr-20" placeholder="GOCSPX-..." autocomplete="new-password" />
-              <button type="button" class="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-slate-700 dark:hover:text-zinc-300" @click="showClientSecret = !showClientSecret">{{ showClientSecret ? 'Sembunyikan' : 'Tampilkan' }}</button>
+              <input v-model="authForm.client_secret" :type="showClientSecret ? 'text' : 'password'" class="field pr-9" placeholder="GOCSPX-..." autocomplete="new-password" />
+              <button type="button" class="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300" @click="showClientSecret = !showClientSecret">
+                <svg v-if="!showClientSecret" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>
+                <svg v-else class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+              </button>
             </div>
           </div>
         </div>
@@ -445,8 +448,11 @@ onMounted(load);
                 <p class="text-xs font-semibold text-slate-500">{{ mailConfig.has_api_key ? 'Already saved. Fill in to replace.' : 'Not set.' }}</p>
               </div>
               <div class="relative">
-                <input v-model="mailForm.api_key" :type="showMailApiKey ? 'text' : 'password'" class="field pr-20" placeholder="re_xxxxxxxxxxxx" autocomplete="new-password" />
-                <button type="button" class="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-slate-700 dark:hover:text-zinc-300" @click="showMailApiKey = !showMailApiKey">{{ showMailApiKey ? 'Sembunyikan' : 'Tampilkan' }}</button>
+                <input v-model="mailForm.api_key" :type="showMailApiKey ? 'text' : 'password'" class="field pr-9" placeholder="re_xxxxxxxxxxxx" autocomplete="new-password" />
+                <button type="button" class="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300" @click="showMailApiKey = !showMailApiKey">
+                  <svg v-if="!showMailApiKey" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>
+                  <svg v-else class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                </button>
               </div>
             </div>
           </template>
@@ -471,8 +477,11 @@ onMounted(load);
                 <p class="text-xs font-semibold text-slate-500">{{ mailConfig.has_password ? 'Already saved. Fill in to replace.' : 'Not set.' }}</p>
               </div>
               <div class="relative">
-                <input v-model="mailForm.password" :type="showSmtpPassword ? 'text' : 'password'" class="field pr-20" autocomplete="new-password" />
-                <button type="button" class="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-slate-700 dark:hover:text-zinc-300" @click="showSmtpPassword = !showSmtpPassword">{{ showSmtpPassword ? 'Sembunyikan' : 'Tampilkan' }}</button>
+                <input v-model="mailForm.password" :type="showSmtpPassword ? 'text' : 'password'" class="field pr-9" autocomplete="new-password" />
+                <button type="button" class="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300" @click="showSmtpPassword = !showSmtpPassword">
+                  <svg v-if="!showSmtpPassword" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>
+                  <svg v-else class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                </button>
               </div>
             </div>
           </template>
@@ -703,10 +712,13 @@ onMounted(load);
               <input
                 v-model="quoteForm.api_key"
                 :type="showGroqApiKey ? 'text' : 'password'"
-                class="field pr-20"
+                class="field pr-9"
                 :placeholder="quoteConfig.has_api_key ? 'Kosongkan jika tidak ingin mengganti' : 'gsk_xxxxxxxxxxxxxxxxxxxxxxxx'"
               />
-              <button type="button" class="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-slate-700 dark:hover:text-zinc-300" @click="showGroqApiKey = !showGroqApiKey">{{ showGroqApiKey ? 'Sembunyikan' : 'Tampilkan' }}</button>
+              <button type="button" class="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300" @click="showGroqApiKey = !showGroqApiKey">
+                <svg v-if="!showGroqApiKey" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>
+                <svg v-else class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+              </button>
             </div>
           </label>
           <p class="mt-1 text-xs text-slate-400 dark:text-zinc-500">

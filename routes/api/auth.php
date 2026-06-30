@@ -15,5 +15,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::patch('profile', [AuthController::class, 'updateProfile'])->middleware(['ability:write', 'throttle:api-write']);
     Route::post('profile/avatar', [AuthController::class, 'updateAvatar'])->middleware(['ability:write', 'throttle:api-write']);
     Route::put('profile/password', [AuthController::class, 'updatePassword'])->middleware(['ability:write', 'throttle:api-write']);
+    Route::delete('profile/google', [AuthController::class, 'disconnectGoogle'])->middleware(['ability:write', 'throttle:api-write']);
     Route::post('logout', [AuthController::class, 'logout']);
 });
