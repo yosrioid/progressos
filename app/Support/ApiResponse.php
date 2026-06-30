@@ -9,11 +9,13 @@ class ApiResponse
 {
     public static function item(string $key, mixed $data, int $status = 200, ?string $message = null, array $extra = []): JsonResponse
     {
-        return response()->json(array_filter([
-            'data' => $data,
-            $key => $data,
-            'message' => $message,
-        ], fn ($value) => $value !== null) + $extra, $status);
+        // Build body without array-literal key collision when $key === 'message'.
+        $body = ['data' => $data, $key => $data];
+        if ($message !== null) {
+            $body['message'] = $message;
+        }
+
+        return response()->json($body + $extra, $status);
     }
 
     public static function collection(string $key, mixed $data, int $status = 200, ?string $message = null, array $extra = []): JsonResponse
