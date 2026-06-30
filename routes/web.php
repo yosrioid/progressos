@@ -6,8 +6,13 @@ use Symfony\Component\Yaml\Yaml;
 
 Route::middleware('guest')->group(function () {
     Route::get('/auth/google', [SocialAuthController::class, 'googleRedirect'])->name('auth.google');
-    Route::get('/auth/google/callback', [SocialAuthController::class, 'googleCallback'])->name('auth.google.callback');
 });
+
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/auth/google/connect', [SocialAuthController::class, 'googleConnect'])->name('auth.google.connect');
+});
+
+Route::get('/auth/google/callback', [SocialAuthController::class, 'googleCallback'])->name('auth.google.callback');
 
 Route::get('/api-docs', function () {
     $spec = json_encode(Yaml::parseFile(base_path('docs/openapi.yaml')), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
