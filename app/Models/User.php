@@ -156,6 +156,7 @@ class User extends Authenticatable
             'password' => 'hashed',
             'dashboard_layout' => 'array',
             'notification_preferences' => 'array',
+            'google_connected' => 'boolean',
         ];
     }
 }
