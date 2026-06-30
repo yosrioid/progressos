@@ -178,11 +178,11 @@ function closeAll() {
     <!-- Desktop floating panel -->
     <div
       v-if="inbox.open"
-      class="fixed bottom-24 right-6 z-50 hidden h-[540px] w-[440px] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-zinc-700 dark:bg-zinc-900 md:flex"
+      class="fixed bottom-24 right-6 z-50 hidden h-[560px] w-[640px] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-zinc-700 dark:bg-zinc-900 md:flex"
       @click="closeAll"
     >
       <!-- Conversation list -->
-      <div class="flex w-44 shrink-0 flex-col border-r border-slate-100 dark:border-zinc-800">
+      <div class="flex w-52 shrink-0 flex-col border-r border-slate-100 dark:border-zinc-800">
         <!-- Header -->
         <div class="flex items-center justify-between border-b border-slate-100 px-3 py-3 dark:border-zinc-800">
           <span class="text-sm font-extrabold text-slate-800 dark:text-zinc-200">Pesan</span>

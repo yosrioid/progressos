@@ -66,7 +66,18 @@ export const useInboxStore = defineStore('inbox', () => {
   async function refreshMessages() {
     if (!activeId.value) return;
     const data = await api.get(`/api/v1/inbox/conversations/${activeId.value}/messages`).then(unwrap);
-    messages.value = data.messages ?? [];
+    const incoming: InboxMessage[] = data.messages ?? [];
+    const existingIds = new Set(messages.value.map((m) => m.id));
+    for (const msg of incoming) {
+      if (existingIds.has(msg.id)) {
+        const idx = messages.value.findIndex((m) => m.id === msg.id);
+        if (idx !== -1 && messages.value[idx].deleted !== msg.deleted) {
+          messages.value[idx] = msg;
+        }
+      } else {
+        messages.value.push(msg);
+      }
+    }
     const conv = conversations.value.find((c) => c.id === activeId.value);
     if (conv) conv.unread_count = 0;
   }
