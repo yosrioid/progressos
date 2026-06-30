@@ -380,7 +380,7 @@ async function croppedAvatarBlob(): Promise<Blob> {
           <p class="text-sm font-extrabold text-slate-800 dark:text-zinc-200">{{ auth.user?.has_google ? 'Terhubung' : 'Belum terhubung' }}</p>
           <p class="text-xs font-semibold text-slate-500 dark:text-zinc-500">{{ auth.user?.has_google ? 'Kamu bisa login dengan Google.' : 'Hubungkan supaya bisa login tanpa password.' }}</p>
         </div>
-        <a v-if="!auth.user?.has_google" href="/auth/google" class="btn btn-muted text-sm">Hubungkan</a>
+        <a v-if="!auth.user?.has_google" href="/auth/google/connect" class="btn btn-muted text-sm">Hubungkan</a>
         <button v-else type="button" class="btn btn-muted text-sm text-red-600 dark:text-red-400" @click="handleDisconnectGoogle">Putuskan</button>
       </div>
     </div>
