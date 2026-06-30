@@ -165,30 +165,25 @@ onMounted(load);
 
     <!-- Modal: Buat User -->
     <div v-if="showCreate" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-[2px]" @click.self="showCreate = false">
-      <div class="card w-full max-w-md">
-        <h2 class="mb-4 text-base font-extrabold text-slate-900 dark:text-zinc-100">Buat User Baru</h2>
-        <form class="space-y-3" @submit.prevent="createUser">
-          <div class="field">
-            <label class="field-label">Nama</label>
-            <input v-model="createForm.name" class="field-input" required />
-          </div>
-          <div class="field">
-            <label class="field-label">Email</label>
-            <input v-model="createForm.email" type="email" class="field-input" required />
-          </div>
-          <div class="field">
-            <label class="field-label">Password</label>
-            <input v-model="createForm.password" type="password" class="field-input" required />
-          </div>
-          <div class="field">
-            <label class="field-label">Konfirmasi Password</label>
-            <input v-model="createForm.password_confirmation" type="password" class="field-input" required />
-          </div>
-          <div class="field">
-            <label class="field-label">Timezone</label>
-            <input v-model="createForm.timezone" class="field-input" />
-          </div>
-          <div class="flex justify-end gap-2 pt-2">
+      <div class="card w-full max-w-md overflow-hidden p-0">
+        <div class="border-b border-slate-100 bg-slate-50/70 px-5 py-4 dark:border-zinc-800 dark:bg-zinc-800/50">
+          <h2 class="font-extrabold">Buat User Baru</h2>
+        </div>
+        <form class="grid gap-4 p-5 sm:grid-cols-2" @submit.prevent="createUser">
+          <label class="sm:col-span-2"><span class="label mb-1">Nama</span><input v-model="createForm.name" class="field" required /></label>
+          <label class="sm:col-span-2"><span class="label mb-1">Email</span><input v-model="createForm.email" type="email" class="field" required /></label>
+          <label><span class="label mb-1">Password</span><input v-model="createForm.password" type="password" class="field" required /></label>
+          <label><span class="label mb-1">Konfirmasi Password</span><input v-model="createForm.password_confirmation" type="password" class="field" required /></label>
+          <label class="sm:col-span-2">
+            <span class="label mb-1">Timezone</span>
+            <select v-model="createForm.timezone" class="field">
+              <option value="Asia/Jakarta">Asia/Jakarta</option>
+              <option value="Asia/Makassar">Asia/Makassar</option>
+              <option value="Asia/Jayapura">Asia/Jayapura</option>
+              <option value="UTC">UTC</option>
+            </select>
+          </label>
+          <div class="flex justify-end gap-2 sm:col-span-2">
             <button type="button" class="btn btn-muted" @click="showCreate = false">Batal</button>
             <button type="submit" class="btn btn-primary">Buat</button>
           </div>
@@ -198,22 +193,23 @@ onMounted(load);
 
     <!-- Modal: Edit User -->
     <div v-if="editTarget" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-[2px]" @click.self="editTarget = null">
-      <div class="card w-full max-w-md">
-        <h2 class="mb-4 text-base font-extrabold text-slate-900 dark:text-zinc-100">Edit User</h2>
-        <form class="space-y-3" @submit.prevent="saveEdit">
-          <div class="field">
-            <label class="field-label">Nama</label>
-            <input v-model="editForm.name" class="field-input" required />
-          </div>
-          <div class="field">
-            <label class="field-label">Email</label>
-            <input v-model="editForm.email" type="email" class="field-input" required />
-          </div>
-          <div class="field">
-            <label class="field-label">Timezone</label>
-            <input v-model="editForm.timezone" class="field-input" />
-          </div>
-          <div class="flex justify-end gap-2 pt-2">
+      <div class="card w-full max-w-md overflow-hidden p-0">
+        <div class="border-b border-slate-100 bg-slate-50/70 px-5 py-4 dark:border-zinc-800 dark:bg-zinc-800/50">
+          <h2 class="font-extrabold">Edit User</h2>
+        </div>
+        <form class="grid gap-4 p-5 sm:grid-cols-2" @submit.prevent="saveEdit">
+          <label><span class="label mb-1">Nama</span><input v-model="editForm.name" class="field" required /></label>
+          <label><span class="label mb-1">Email</span><input v-model="editForm.email" type="email" class="field" required /></label>
+          <label class="sm:col-span-2">
+            <span class="label mb-1">Timezone</span>
+            <select v-model="editForm.timezone" class="field">
+              <option value="Asia/Jakarta">Asia/Jakarta</option>
+              <option value="Asia/Makassar">Asia/Makassar</option>
+              <option value="Asia/Jayapura">Asia/Jayapura</option>
+              <option value="UTC">UTC</option>
+            </select>
+          </label>
+          <div class="flex justify-end gap-2 sm:col-span-2">
             <button type="button" class="btn btn-muted" @click="editTarget = null">Batal</button>
             <button type="submit" class="btn btn-primary">Simpan</button>
           </div>
@@ -223,18 +219,15 @@ onMounted(load);
 
     <!-- Modal: Reset Password -->
     <div v-if="resetTarget" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-[2px]" @click.self="resetTarget = null">
-      <div class="card w-full max-w-md">
-        <h2 class="mb-4 text-base font-extrabold text-slate-900 dark:text-zinc-100">Reset Password — {{ resetTarget.name }}</h2>
-        <form class="space-y-3" @submit.prevent="saveResetPassword">
-          <div class="field">
-            <label class="field-label">Password Baru</label>
-            <input v-model="resetForm.password" type="password" class="field-input" required />
-          </div>
-          <div class="field">
-            <label class="field-label">Konfirmasi Password</label>
-            <input v-model="resetForm.password_confirmation" type="password" class="field-input" required />
-          </div>
-          <div class="flex justify-end gap-2 pt-2">
+      <div class="card w-full max-w-sm overflow-hidden p-0">
+        <div class="border-b border-slate-100 bg-slate-50/70 px-5 py-4 dark:border-zinc-800 dark:bg-zinc-800/50">
+          <h2 class="font-extrabold">Reset Password</h2>
+          <p class="mt-0.5 text-sm font-medium text-slate-500">{{ resetTarget.name }}</p>
+        </div>
+        <form class="grid gap-4 p-5" @submit.prevent="saveResetPassword">
+          <label><span class="label mb-1">Password Baru</span><input v-model="resetForm.password" type="password" class="field" required /></label>
+          <label><span class="label mb-1">Konfirmasi Password</span><input v-model="resetForm.password_confirmation" type="password" class="field" required /></label>
+          <div class="flex justify-end gap-2">
             <button type="button" class="btn btn-muted" @click="resetTarget = null">Batal</button>
             <button type="submit" class="btn btn-primary">Reset</button>
           </div>
