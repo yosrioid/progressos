@@ -90,12 +90,6 @@ const navGroups = [
       { label: 'Games', href: '/games', icon: 'games', hint: 'Mini-games untuk istirahat otak — Sudoku, Minesweeper, 2048, Memory Match, Pitch Trainer' },
     ],
   },
-  {
-    label: 'System',
-    items: [
-      { label: 'Configuration', href: '/configuration', icon: 'settings', hint: 'Pengaturan aplikasi — notifikasi Telegram, PIN privacy, token API, dan preferensi lainnya' },
-    ],
-  },
 ];
 function loadCollapsed(): Record<string, boolean> {
   try {
@@ -145,7 +139,6 @@ const commandItems = computed(() => [
   { label: 'New Milestone', href: '/milestones/create', icon: 'target', group: 'Create', action: 'navigate' },
   { label: 'Open Quick Add', href: '#quick-add', icon: 'plus', group: 'Action', action: 'quick' },
   { label: 'Weekly Review', href: '/weekly-review', icon: 'chart', group: 'Review', action: 'navigate' },
-  { label: 'Configuration', href: '/configuration', icon: 'settings', group: 'System', action: 'navigate' },
   { label: 'Profile Settings', href: '/profile', icon: 'user', group: 'Account', action: 'navigate' },
 ]);
 const filteredCommands = computed(() => {
