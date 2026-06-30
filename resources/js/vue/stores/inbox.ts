@@ -1,6 +1,7 @@
 import { ref, computed } from 'vue';
 import { defineStore } from 'pinia';
 import { api, unwrap } from '../api';
+import { useAuthStore } from './auth';
 
 export type InboxUser = { id: number; name: string; email?: string; avatar_url: string | null };
 export type InboxMessage = {
@@ -17,6 +18,7 @@ export type InboxMessage = {
   file_url: string | null;
   deleted: boolean;
   created_at: string;
+  pending?: boolean;
 };
 export type InboxConversation = {
   id: number;
@@ -41,7 +43,33 @@ export const useInboxStore = defineStore('inbox', () => {
 
   async function loadConversations() {
     const data = await api.get('/api/v1/inbox/conversations').then(unwrap);
-    conversations.value = data.conversations ?? [];
+    const fresh: InboxConversation[] = data.conversations ?? [];
+
+    if (!conversations.value.length) {
+      conversations.value = fresh;
+      return;
+    }
+
+    // Merge in-place so array reference stays stable (no re-render)
+    const freshMap = new Map(fresh.map((c) => [c.id, c]));
+    for (const existing of conversations.value) {
+      const fc = freshMap.get(existing.id);
+      if (fc) {
+        existing.unread_count = fc.unread_count;
+        existing.last_message = fc.last_message;
+        existing.last_message_at = fc.last_message_at;
+        freshMap.delete(existing.id);
+      }
+    }
+    // Append brand-new conversations
+    for (const nc of freshMap.values()) conversations.value.push(nc);
+
+    // Re-sort in-place by last_message_at desc
+    conversations.value.sort((a, b) => {
+      const ta = a.last_message_at ? new Date(a.last_message_at).getTime() : 0;
+      const tb = b.last_message_at ? new Date(b.last_message_at).getTime() : 0;
+      return tb - ta;
+    });
   }
 
   async function loadUnread() {
@@ -92,18 +120,59 @@ export const useInboxStore = defineStore('inbox', () => {
   }
 
   async function sendMessage(conversationId: number, body: string, file?: File) {
-    const form = new FormData();
-    if (body.trim()) form.append('body', body.trim());
-    if (file) form.append('file', file);
-    const data = await api.post(`/api/v1/inbox/conversations/${conversationId}/messages`, form, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    }).then(unwrap);
-    messages.value.push(data.message);
-    const conv = conversations.value.find((c) => c.id === conversationId);
-    if (conv) {
-      conv.last_message = data.message;
-      conv.last_message_at = data.message.created_at;
-      conversations.value = [conv, ...conversations.value.filter((c) => c.id !== conversationId)];
+    const auth = useAuthStore();
+    const tempId = -Date.now();
+
+    // Optimistic: push immediately so UI is instant, no component blink
+    const optimistic: InboxMessage = {
+      id: tempId,
+      conversation_id: conversationId,
+      sender_id: auth.user!.id,
+      sender_name: null,
+      sender_avatar: null,
+      body: body.trim() || null,
+      type: file ? (file.type.startsWith('image/') ? 'image' : 'file') : 'text',
+      file_name: file?.name ?? null,
+      file_size: file?.size ?? null,
+      file_mime: file?.type ?? null,
+      file_url: null,
+      deleted: false,
+      created_at: new Date().toISOString(),
+      pending: true,
+    };
+    messages.value.push(optimistic);
+
+    try {
+      const form = new FormData();
+      if (body.trim()) form.append('body', body.trim());
+      if (file) form.append('file', file);
+      const data = await api.post(
+        `/api/v1/inbox/conversations/${conversationId}/messages`,
+        form,
+        { headers: { 'Content-Type': 'multipart/form-data' } },
+      ).then(unwrap);
+
+      // Replace optimistic message in-place with confirmed one
+      const idx = messages.value.findIndex((m) => m.id === tempId);
+      if (idx !== -1) messages.value.splice(idx, 1, { ...data.message, pending: false });
+
+      // Update conversation in-place — never replace the array
+      const conv = conversations.value.find((c) => c.id === conversationId);
+      if (conv) {
+        conv.last_message = data.message;
+        conv.last_message_at = data.message.created_at;
+        // Move to top via splice (mutates in-place, no new array)
+        const pos = conversations.value.indexOf(conv);
+        if (pos > 0) {
+          conversations.value.splice(pos, 1);
+          conversations.value.unshift(conv);
+        }
+      }
+    } catch (err) {
+      // Remove optimistic message on failure
+      const idx = messages.value.findIndex((m) => m.id === tempId);
+      if (idx !== -1) messages.value.splice(idx, 1);
+      throw err;
     }
   }
 
