@@ -3,10 +3,12 @@ import { ref, watch, onMounted, onUnmounted, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
 import { useInboxStore, type InboxUser } from '../stores/inbox';
 import { useAuthStore } from '../stores/auth';
+import { useConversationSession } from '../composables/useConversationSession';
 
 const inbox = useInboxStore();
 const auth = useAuthStore();
 const router = useRouter();
+const session = useConversationSession();
 
 const searchQuery = ref('');
 const searching = ref(false);
@@ -43,14 +45,14 @@ onUnmounted(() => {
   if (convInterval) clearInterval(convInterval);
 });
 
-watch(() => inbox.activeId, (id) => {
+watch(() => session.activeId.value, (id) => {
   if (pollInterval) clearInterval(pollInterval);
   if (id) {
-    pollInterval = setInterval(() => inbox.refreshMessages(), 5_000);
+    pollInterval = setInterval(() => session.refreshMessages(), 5_000);
   }
 });
 
-watch(() => inbox.messages.length, async () => {
+watch(() => session.messages.value.length, async () => {
   await nextTick();
   scrollBottom();
 });
@@ -63,14 +65,18 @@ function handleBubbleClick() {
   if (window.innerWidth < 768) {
     router.push('/inbox');
   } else {
-    inbox.togglePanel();
-    if (inbox.open) inbox.loadConversations();
+    inbox.open = !inbox.open;
+    if (inbox.open) {
+      inbox.loadConversations();
+    } else {
+      session.closeConversation();
+    }
   }
 }
 
 async function selectConversation(id: number) {
   showNewChat.value = false;
-  await inbox.openConversation(id);
+  await session.openConversation(id);
   await nextTick();
   scrollBottom();
 }
@@ -109,14 +115,13 @@ function removePendingFile() {
 }
 
 async function handleSend() {
-  if ((!bodyInput.value.trim() && !pendingFile.value) || !inbox.activeId) return;
+  if ((!bodyInput.value.trim() && !pendingFile.value) || !session.activeId.value) return;
   const body = bodyInput.value;
   const file = pendingFile.value ?? undefined;
-  // Clear input immediately (optimistic)
   bodyInput.value = '';
   removePendingFile();
   showEmojiPicker.value = false;
-  await inbox.sendMessage(inbox.activeId, body, file);
+  await session.sendMessage(session.activeId.value, body, file);
   await nextTick();
   scrollBottom();
 }
@@ -128,32 +133,6 @@ function handleKeydown(e: KeyboardEvent) {
 function insertEmoji(emoji: string) {
   bodyInput.value += emoji;
   showEmojiPicker.value = false;
-}
-
-function openContextMenu(e: MouseEvent, messageId: number, senderId: number) {
-  if (senderId !== auth.user?.id) return;
-  e.preventDefault();
-  contextMenu.value = { x: e.clientX, y: e.clientY, messageId };
-}
-
-async function handleDelete() {
-  if (!contextMenu.value) return;
-  await inbox.deleteMessage(contextMenu.value.messageId);
-  contextMenu.value = null;
-}
-
-function formatTime(iso: string) {
-  return new Date(iso).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
-}
-
-function formatFileSize(bytes: number) {
-  if (bytes < 1024) return bytes + ' B';
-  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-  return (bytes / 1024 / 1024).toFixed(1) + ' MB';
-}
-
-function avatarInitial(name: string) {
-  return name ? name[0].toUpperCase() : '?';
 }
 
 async function openGifPicker() {
@@ -171,12 +150,38 @@ async function handleGifSearch() {
 }
 
 async function selectGif(url: string) {
-  if (!inbox.activeId) return;
+  if (!session.activeId.value) return;
   showGifPicker.value = false;
   gifSearch.value = '';
-  await inbox.sendGif(inbox.activeId, url);
+  await session.sendGif(session.activeId.value, url);
   await nextTick();
   scrollBottom();
+}
+
+function openContextMenu(e: MouseEvent, messageId: number, senderId: number) {
+  if (senderId !== auth.user?.id) return;
+  e.preventDefault();
+  contextMenu.value = { x: e.clientX, y: e.clientY, messageId };
+}
+
+async function handleDelete() {
+  if (!contextMenu.value) return;
+  await session.deleteMessage(contextMenu.value.messageId);
+  contextMenu.value = null;
+}
+
+function formatTime(iso: string) {
+  return new Date(iso).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+}
+
+function formatFileSize(bytes: number) {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+  return (bytes / 1024 / 1024).toFixed(1) + ' MB';
+}
+
+function avatarInitial(name: string) {
+  return name ? name[0].toUpperCase() : '?';
 }
 
 function closeAll() {
@@ -247,7 +252,7 @@ function closeAll() {
             v-for="conv in inbox.conversations"
             :key="conv.id"
             class="flex w-full items-center gap-2 px-3 py-2.5 text-left transition hover:bg-slate-50 dark:hover:bg-zinc-800"
-            :class="inbox.activeId === conv.id ? 'bg-teal-50/70 dark:bg-teal-900/10' : ''"
+            :class="session.activeId.value === conv.id ? 'bg-teal-50/70 dark:bg-teal-900/10' : ''"
             @click.stop="selectConversation(conv.id)"
           >
             <div class="relative shrink-0">
@@ -274,28 +279,28 @@ function closeAll() {
 
       <!-- Chat area -->
       <div class="flex flex-1 flex-col">
-        <template v-if="inbox.activeConversation">
+        <template v-if="session.activeConversation.value">
           <!-- Chat header -->
           <div class="flex items-center gap-3 border-b border-slate-100 px-4 py-3 dark:border-zinc-800">
-            <img v-if="inbox.activeConversation.other_user.avatar_url" :src="inbox.activeConversation.other_user.avatar_url" class="h-7 w-7 rounded-full object-cover" />
+            <img v-if="session.activeConversation.value.other_user.avatar_url" :src="session.activeConversation.value.other_user.avatar_url" class="h-7 w-7 rounded-full object-cover" />
             <div v-else class="flex h-7 w-7 items-center justify-center rounded-full bg-teal-100 text-xs font-bold text-teal-700 dark:bg-teal-900/30 dark:text-teal-400">
-              {{ avatarInitial(inbox.activeConversation.other_user.name) }}
+              {{ avatarInitial(session.activeConversation.value.other_user.name) }}
             </div>
-            <span class="flex-1 text-sm font-extrabold text-slate-800 dark:text-zinc-200">{{ inbox.activeConversation.other_user.name }}</span>
-            <button class="text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300" @click.stop="inbox.refreshMessages">
+            <span class="flex-1 text-sm font-extrabold text-slate-800 dark:text-zinc-200">{{ session.activeConversation.value.other_user.name }}</span>
+            <button class="text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300" @click.stop="session.refreshMessages">
               <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
             </button>
-            <button class="text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300" @click.stop="inbox.closeConversation">
+            <button class="text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300" @click.stop="session.closeConversation">
               <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>
             </button>
           </div>
 
           <!-- Messages -->
           <div ref="messagesEl" class="flex-1 overflow-y-auto space-y-1 p-3">
-            <div v-if="inbox.loadingMessages" class="py-8 text-center text-xs text-slate-400">Memuat...</div>
+            <div v-if="session.loadingMessages.value" class="py-8 text-center text-xs text-slate-400">Memuat...</div>
             <template v-else>
               <div
-                v-for="msg in inbox.messages"
+                v-for="msg in session.messages.value"
                 :key="msg.id"
                 class="flex"
                 :class="msg.sender_id === auth.user?.id ? 'justify-end' : 'justify-start'"
@@ -328,13 +333,10 @@ function closeAll() {
                     </a>
                     <p v-if="msg.body && msg.type !== 'gif'" class="whitespace-pre-wrap break-words">{{ msg.body }}</p>
                   </template>
-                  <!-- Timestamp + status indicator -->
                   <span class="mt-0.5 flex items-center justify-end gap-1 text-[10px] opacity-60">
                     {{ formatTime(msg.created_at) }}
                     <template v-if="msg.sender_id === auth.user?.id && !msg.deleted">
-                      <!-- Pending: clock spinner -->
                       <svg v-if="msg.pending" class="h-3 w-3 animate-spin" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                      <!-- Sent: single checkmark -->
                       <svg v-else class="h-3 w-3" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
                     </template>
                   </span>

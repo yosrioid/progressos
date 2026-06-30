@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { ref, watch, onMounted, onUnmounted, nextTick } from 'vue';
-import { useRouter } from 'vue-router';
 import { useInboxStore, type InboxUser } from '../stores/inbox';
 import { useAuthStore } from '../stores/auth';
+import { useConversationSession } from '../composables/useConversationSession';
 
 const inbox = useInboxStore();
 const auth = useAuthStore();
-const router = useRouter();
+const session = useConversationSession();
 
 const searchQuery = ref('');
 const searching = ref(false);
@@ -38,14 +38,14 @@ onUnmounted(() => {
   if (convInterval) clearInterval(convInterval);
 });
 
-watch(() => inbox.activeId, (id) => {
+watch(() => session.activeId.value, (id) => {
   if (pollInterval) clearInterval(pollInterval);
   if (id) {
-    pollInterval = setInterval(() => inbox.refreshMessages(), 5_000);
+    pollInterval = setInterval(() => session.refreshMessages(), 5_000);
   }
 });
 
-watch(() => inbox.messages.length, async () => {
+watch(() => session.messages.value.length, async () => {
   await nextTick();
   scrollBottom();
 });
@@ -57,7 +57,7 @@ function scrollBottom() {
 async function selectConversation(id: number) {
   showNewChat.value = false;
   view.value = 'chat';
-  await inbox.openConversation(id);
+  await session.openConversation(id);
   await nextTick();
   scrollBottom();
 }
@@ -96,13 +96,13 @@ function removePendingFile() {
 }
 
 async function handleSend() {
-  if ((!bodyInput.value.trim() && !pendingFile.value) || !inbox.activeId) return;
+  if ((!bodyInput.value.trim() && !pendingFile.value) || !session.activeId.value) return;
   const body = bodyInput.value;
   const file = pendingFile.value ?? undefined;
   bodyInput.value = '';
   removePendingFile();
   showEmojiPicker.value = false;
-  await inbox.sendMessage(inbox.activeId, body, file);
+  await session.sendMessage(session.activeId.value, body, file);
   await nextTick();
   scrollBottom();
 }
@@ -114,18 +114,6 @@ function handleKeydown(e: KeyboardEvent) {
 function insertEmoji(emoji: string) {
   bodyInput.value += emoji;
   showEmojiPicker.value = false;
-}
-
-function openContextMenu(e: MouseEvent, messageId: number, senderId: number) {
-  if (senderId !== auth.user?.id) return;
-  e.preventDefault();
-  contextMenu.value = { x: e.clientX, y: e.clientY, messageId };
-}
-
-async function handleDelete() {
-  if (!contextMenu.value) return;
-  await inbox.deleteMessage(contextMenu.value.messageId);
-  contextMenu.value = null;
 }
 
 async function openGifPicker() {
@@ -143,16 +131,28 @@ async function handleGifSearch() {
 }
 
 async function selectGif(url: string) {
-  if (!inbox.activeId) return;
+  if (!session.activeId.value) return;
   showGifPicker.value = false;
   gifSearch.value = '';
-  await inbox.sendGif(inbox.activeId, url);
+  await session.sendGif(session.activeId.value, url);
   await nextTick();
   scrollBottom();
 }
 
+function openContextMenu(e: MouseEvent, messageId: number, senderId: number) {
+  if (senderId !== auth.user?.id) return;
+  e.preventDefault();
+  contextMenu.value = { x: e.clientX, y: e.clientY, messageId };
+}
+
+async function handleDelete() {
+  if (!contextMenu.value) return;
+  await session.deleteMessage(contextMenu.value.messageId);
+  contextMenu.value = null;
+}
+
 function goBack() {
-  inbox.closeConversation();
+  session.closeConversation();
   view.value = 'list';
 }
 
@@ -245,28 +245,28 @@ function avatarInitial(name: string) {
     </template>
 
     <!-- Chat view -->
-    <template v-else-if="view === 'chat' && inbox.activeConversation">
+    <template v-else-if="view === 'chat' && session.activeConversation.value">
       <!-- Header -->
       <div class="flex items-center gap-3 border-b border-slate-100 px-3 py-3 dark:border-zinc-800">
         <button class="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-zinc-200" @click="goBack">
           <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>
         </button>
-        <img v-if="inbox.activeConversation.other_user.avatar_url" :src="inbox.activeConversation.other_user.avatar_url" class="h-9 w-9 rounded-full object-cover" />
+        <img v-if="session.activeConversation.value.other_user.avatar_url" :src="session.activeConversation.value.other_user.avatar_url" class="h-9 w-9 rounded-full object-cover" />
         <div v-else class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-teal-100 font-bold text-teal-700 dark:bg-teal-900/30 dark:text-teal-400">
-          {{ avatarInitial(inbox.activeConversation.other_user.name) }}
+          {{ avatarInitial(session.activeConversation.value.other_user.name) }}
         </div>
-        <span class="flex-1 font-extrabold text-slate-800 dark:text-zinc-100">{{ inbox.activeConversation.other_user.name }}</span>
-        <button class="p-1 text-slate-400 hover:text-teal-600" @click="inbox.refreshMessages">
+        <span class="flex-1 font-extrabold text-slate-800 dark:text-zinc-100">{{ session.activeConversation.value.other_user.name }}</span>
+        <button class="p-1 text-slate-400 hover:text-teal-600" @click="session.refreshMessages">
           <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
         </button>
       </div>
 
       <!-- Messages -->
       <div ref="messagesEl" class="max-h-[calc(100svh-16rem)] overflow-y-auto space-y-1 p-3">
-        <div v-if="inbox.loadingMessages" class="py-8 text-center text-sm text-slate-400">Memuat pesan...</div>
+        <div v-if="session.loadingMessages.value" class="py-8 text-center text-sm text-slate-400">Memuat pesan...</div>
         <template v-else>
           <div
-            v-for="msg in inbox.messages"
+            v-for="msg in session.messages.value"
             :key="msg.id"
             class="flex"
             :class="msg.sender_id === auth.user?.id ? 'justify-end' : 'justify-start'"
