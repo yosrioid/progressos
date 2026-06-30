@@ -9,6 +9,7 @@ const auth = useAuthStore();
 const configuration = useConfigurationStore();
 const profile = ref({ name: auth.user?.name || '', email: auth.user?.email || '', timezone: auth.user?.timezone || configuration.timezone || 'Asia/Jakarta' });
 const password = ref({ current_password: '', password: '', password_confirmation: '' });
+const showPassword = ref(false);
 const avatar = ref<File | null>(null);
 const avatarPreview = ref('');
 const avatarLoadFailed = ref(false);
@@ -289,9 +290,27 @@ async function croppedAvatarBlob(): Promise<Blob> {
         <p class="text-sm font-medium text-slate-500">Use a strong password and update it when access changes.</p>
       </div>
       <div class="grid gap-4 p-5 md:grid-cols-3">
-        <label><span class="label mb-1">Current password</span><input v-model="password.current_password" class="field" type="password" required /></label>
-        <label><span class="label mb-1">New password</span><input v-model="password.password" class="field" type="password" required /></label>
-        <label><span class="label mb-1">Confirm new password</span><input v-model="password.password_confirmation" class="field" type="password" required /></label>
+        <div>
+          <span class="label mb-1">Current password</span>
+          <div class="relative">
+            <input v-model="password.current_password" :type="showPassword ? 'text' : 'password'" class="field pr-20" required />
+            <button type="button" class="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-slate-700 dark:hover:text-zinc-300" @click="showPassword = !showPassword">{{ showPassword ? 'Sembunyikan' : 'Tampilkan' }}</button>
+          </div>
+        </div>
+        <div>
+          <span class="label mb-1">New password</span>
+          <div class="relative">
+            <input v-model="password.password" :type="showPassword ? 'text' : 'password'" class="field pr-20" required />
+            <button type="button" class="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-slate-700 dark:hover:text-zinc-300" @click="showPassword = !showPassword">{{ showPassword ? 'Sembunyikan' : 'Tampilkan' }}</button>
+          </div>
+        </div>
+        <div>
+          <span class="label mb-1">Confirm new password</span>
+          <div class="relative">
+            <input v-model="password.password_confirmation" :type="showPassword ? 'text' : 'password'" class="field pr-20" required />
+            <button type="button" class="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-slate-700 dark:hover:text-zinc-300" @click="showPassword = !showPassword">{{ showPassword ? 'Sembunyikan' : 'Tampilkan' }}</button>
+          </div>
+        </div>
       </div>
       <div class="flex justify-end border-t border-slate-100 bg-slate-50/70 px-5 py-4"><button class="btn btn-primary">Change password</button></div>
     </form>

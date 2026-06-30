@@ -6,6 +6,7 @@ import { useAuthStore } from '../stores/auth';
 const auth = useAuthStore();
 const router = useRouter();
 const error = ref('');
+const showPassword = ref(false);
 const form = ref({ name: '', email: '', password: '', password_confirmation: '', timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC' });
 
 async function submit() {
@@ -27,8 +28,20 @@ async function submit() {
       <label><span class="label mb-1">Name</span><input v-model="form.name" class="field" required /></label>
       <label><span class="label mb-1">Email</span><input v-model="form.email" class="field" type="email" required /></label>
       <label><span class="label mb-1">Timezone</span><input v-model="form.timezone" class="field" /></label>
-      <label><span class="label mb-1">Password</span><input v-model="form.password" class="field" type="password" required /></label>
-      <label><span class="label mb-1">Confirm password</span><input v-model="form.password_confirmation" class="field" type="password" required /></label>
+      <div>
+        <span class="label mb-1">Password</span>
+        <div class="relative">
+          <input v-model="form.password" :type="showPassword ? 'text' : 'password'" class="field pr-20" required />
+          <button type="button" class="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-slate-700 dark:hover:text-zinc-300" @click="showPassword = !showPassword">{{ showPassword ? 'Sembunyikan' : 'Tampilkan' }}</button>
+        </div>
+      </div>
+      <div>
+        <span class="label mb-1">Confirm password</span>
+        <div class="relative">
+          <input v-model="form.password_confirmation" :type="showPassword ? 'text' : 'password'" class="field pr-20" required />
+          <button type="button" class="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-slate-700 dark:hover:text-zinc-300" @click="showPassword = !showPassword">{{ showPassword ? 'Sembunyikan' : 'Tampilkan' }}</button>
+        </div>
+      </div>
       <button class="btn btn-primary w-full">Register</button>
       <RouterLink to="/login" class="block text-center text-sm font-semibold text-teal-700">Back to login</RouterLink>
     </form>

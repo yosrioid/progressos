@@ -37,6 +37,10 @@ const quoteTagInput = ref('');
 const quoteSaving = ref(false);
 const groqUsage = ref<{ requests: number; tokens: number; request_limit: number } | null>(null);
 const privacy = usePrivacyStore();
+const showClientSecret = ref(false);
+const showMailApiKey = ref(false);
+const showSmtpPassword = ref(false);
+const showGroqApiKey = ref(false);
 const pinInput = ref('');
 const pinConfirm = ref('');
 const pinError = ref('');
@@ -397,7 +401,10 @@ onMounted(load);
               <span class="font-extrabold text-slate-800">Google Client Secret</span>
               <p class="text-xs font-semibold text-slate-500">{{ authConfig.has_client_secret ? 'Already saved. Fill in to replace.' : 'Not set.' }}</p>
             </div>
-            <input v-model="authForm.client_secret" class="field" type="password" placeholder="GOCSPX-..." autocomplete="new-password" />
+            <div class="relative">
+              <input v-model="authForm.client_secret" :type="showClientSecret ? 'text' : 'password'" class="field pr-20" placeholder="GOCSPX-..." autocomplete="new-password" />
+              <button type="button" class="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-slate-700 dark:hover:text-zinc-300" @click="showClientSecret = !showClientSecret">{{ showClientSecret ? 'Sembunyikan' : 'Tampilkan' }}</button>
+            </div>
           </div>
         </div>
         <div class="flex justify-end border-t border-slate-100 bg-slate-50/70 px-5 py-4">
@@ -462,7 +469,10 @@ onMounted(load);
                 </div>
                 <p class="text-xs font-semibold text-slate-500">{{ mailConfig.has_api_key ? 'Already saved. Fill in to replace.' : 'Not set.' }}</p>
               </div>
-              <input v-model="mailForm.api_key" class="field" type="password" placeholder="re_xxxxxxxxxxxx" autocomplete="new-password" />
+              <div class="relative">
+                <input v-model="mailForm.api_key" :type="showMailApiKey ? 'text' : 'password'" class="field pr-20" placeholder="re_xxxxxxxxxxxx" autocomplete="new-password" />
+                <button type="button" class="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-slate-700 dark:hover:text-zinc-300" @click="showMailApiKey = !showMailApiKey">{{ showMailApiKey ? 'Sembunyikan' : 'Tampilkan' }}</button>
+              </div>
             </div>
           </template>
 
@@ -485,7 +495,10 @@ onMounted(load);
                 <span class="font-extrabold text-slate-800">Password</span>
                 <p class="text-xs font-semibold text-slate-500">{{ mailConfig.has_password ? 'Already saved. Fill in to replace.' : 'Not set.' }}</p>
               </div>
-              <input v-model="mailForm.password" class="field" type="password" autocomplete="new-password" />
+              <div class="relative">
+                <input v-model="mailForm.password" :type="showSmtpPassword ? 'text' : 'password'" class="field pr-20" autocomplete="new-password" />
+                <button type="button" class="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-slate-700 dark:hover:text-zinc-300" @click="showSmtpPassword = !showSmtpPassword">{{ showSmtpPassword ? 'Sembunyikan' : 'Tampilkan' }}</button>
+              </div>
             </div>
           </template>
         </div>
@@ -761,12 +774,15 @@ onMounted(load);
               Groq API Key
               <span v-if="quoteConfig.has_api_key" class="ml-2 rounded-full bg-teal-100 px-2 py-0.5 text-[10px] font-extrabold text-teal-700 dark:bg-teal-900/30 dark:text-teal-400">Terkonfigurasi</span>
             </span>
-            <input
-              v-model="quoteForm.api_key"
-              type="password"
-              class="field"
-              :placeholder="quoteConfig.has_api_key ? 'Kosongkan jika tidak ingin mengganti' : 'gsk_xxxxxxxxxxxxxxxxxxxxxxxx'"
-            />
+            <div class="relative">
+              <input
+                v-model="quoteForm.api_key"
+                :type="showGroqApiKey ? 'text' : 'password'"
+                class="field pr-20"
+                :placeholder="quoteConfig.has_api_key ? 'Kosongkan jika tidak ingin mengganti' : 'gsk_xxxxxxxxxxxxxxxxxxxxxxxx'"
+              />
+              <button type="button" class="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-slate-700 dark:hover:text-zinc-300" @click="showGroqApiKey = !showGroqApiKey">{{ showGroqApiKey ? 'Sembunyikan' : 'Tampilkan' }}</button>
+            </div>
           </label>
           <p class="mt-1 text-xs text-slate-400 dark:text-zinc-500">
             Daftar gratis di <span class="font-semibold text-teal-600">console.groq.com</span> → API Keys → Create API Key

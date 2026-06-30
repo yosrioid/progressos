@@ -12,6 +12,7 @@ const error = ref(
   route.query.error === 'google_failed' ? 'Google login failed. Try again.' : ''
 );
 const form = ref({ email: '', password: '', remember: true });
+const showPassword = ref(false);
 
 async function submit() {
   error.value = '';
@@ -63,7 +64,13 @@ function loginWithGoogle() {
 
         <form class="space-y-4" @submit.prevent="submit">
           <label><span class="label mb-1">Email</span><input v-model="form.email" class="field" type="email" autocomplete="email" required /></label>
-          <label><span class="label mb-1">Password</span><input v-model="form.password" class="field" type="password" autocomplete="current-password" required /></label>
+          <div>
+            <span class="label mb-1">Password</span>
+            <div class="relative">
+              <input v-model="form.password" :type="showPassword ? 'text' : 'password'" class="field pr-20" autocomplete="current-password" required />
+              <button type="button" class="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-slate-700 dark:hover:text-zinc-300" @click="showPassword = !showPassword">{{ showPassword ? 'Sembunyikan' : 'Tampilkan' }}</button>
+            </div>
+          </div>
           <label class="flex items-center gap-2 text-sm"><input v-model="form.remember" type="checkbox" /> Remember this device</label>
           <button class="btn btn-primary w-full">Masuk</button>
         </form>
