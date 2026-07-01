@@ -63,19 +63,19 @@ function loginWithGoogle() {
         </div>
 
         <form class="space-y-5" @submit.prevent="submit">
-          <label><span class="label mb-1">Email</span><input v-model="form.email" class="field" type="email" autocomplete="email" required /></label>
-          <div class="flex flex-col gap-1.5">
-            <span class="label">Password</span>
+          <label class="block"><span class="label mb-2">Email</span><input v-model="form.email" class="field w-full" type="email" autocomplete="email" required /></label>
+          <div class="flex flex-col gap-3">
+            <span class="label mb-1">Password</span>
             <div class="relative">
-              <input v-model="form.password" :type="showPassword ? 'text' : 'password'" class="field pr-9" autocomplete="current-password" required />
+              <input v-model="form.password" :type="showPassword ? 'text' : 'password'" class="field w-full pr-9" autocomplete="current-password" required />
               <button type="button" class="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300" @click="showPassword = !showPassword">
                 <svg v-if="!showPassword" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>
                 <svg v-else class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
               </button>
             </div>
           </div>
-          <label class="flex items-center gap-2 text-sm">
-            <input v-model="form.remember" type="checkbox" /> Remember this device
+          <label class="mt-4 flex items-center gap-2 text-sm font-medium text-zinc-700 dark:text-zinc-300">
+            <input v-model="form.remember" type="checkbox" class="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500" /> Remember this device
           </label>
           <button class="btn btn-primary w-full">Masuk</button>
         </form>
