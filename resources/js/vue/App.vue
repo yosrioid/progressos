@@ -53,12 +53,12 @@ const navGroups = [
       { label: 'Projects', href: '/projects', icon: 'folder', hint: 'Kelola proyek aktif dan lihat breakdown tasks serta progres per proyek' },
     ],
   },
-  // {
-  //   label: 'Journal & AI',
-  //   items: [
-  //     { label: 'Journal', href: '/journal', icon: 'docs', hint: 'Tulis jurnal harian — AI analisa mood, tema, insight, dan saran dari tulisanmu' },
-  //   ],
-  // },
+  {
+    label: 'Journal & AI',
+    items: [
+      { label: 'Journal', href: '/journal', icon: 'docs', hint: 'Tulis jurnal harian — AI analisa mood, tema, insight, dan saran dari tulisanmu' },
+    ],
+  },
   {
     label: 'Learning & Goals',
     items: [
