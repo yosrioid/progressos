@@ -3,6 +3,7 @@ import { ref, watch, onMounted, onUnmounted, nextTick } from 'vue';
 import { useInboxStore, type InboxUser } from '../stores/inbox';
 import { useAuthStore } from '../stores/auth';
 import { useConversationSession } from '../composables/useConversationSession';
+import { useClickOutside } from '../composables/useClickOutside';
 
 const inbox = useInboxStore();
 const auth = useAuthStore();
@@ -22,6 +23,20 @@ const gifLoading = ref(false);
 const showNewChat = ref(false);
 const contextMenu = ref<{ x: number; y: number; messageId: number } | null>(null);
 const view = ref<'list' | 'chat'>('list');
+
+// Click-outside for panels that live inside the inbox root
+const inboxRoot = ref<HTMLElement | null>(null);
+useClickOutside(inboxRoot, () => {
+  showEmojiPicker.value = false;
+  showGifPicker.value = false;
+});
+
+// Separate refs for each detachable panel
+const newChatPanel = ref<HTMLDivElement | null>(null);
+useClickOutside(newChatPanel, () => { if (showNewChat.value) showNewChat.value = false; });
+
+const contextMenuRef = ref<HTMLDivElement | null>(null);
+useClickOutside(contextMenuRef, () => { contextMenu.value = null; });
 
 let pollInterval: ReturnType<typeof setInterval> | null = null;
 let convInterval: ReturnType<typeof setInterval> | null = null;
@@ -172,7 +187,7 @@ function avatarInitial(name: string) {
 </script>
 
 <template>
-  <div @click="contextMenu = null">
+  <div ref="inboxRoot" @click="contextMenu = null">
     <!-- Conversation list -->
     <template v-if="view === 'list'">
       <div class="flex items-center justify-between border-b border-slate-100 px-4 py-3 dark:border-zinc-800">
@@ -183,7 +198,7 @@ function avatarInitial(name: string) {
       </div>
 
       <!-- New chat search -->
-      <div v-if="showNewChat" class="border-b border-slate-100 p-3 dark:border-zinc-800">
+      <div v-if="showNewChat" ref="newChatPanel" class="border-b border-slate-100 p-3 dark:border-zinc-800">
         <input
           v-model="searchQuery"
           class="field"
@@ -385,6 +400,7 @@ function avatarInitial(name: string) {
     <!-- Context menu -->
     <div
       v-if="contextMenu"
+      ref="contextMenuRef"
       class="fixed z-50 rounded-xl border border-slate-200 bg-white py-1 shadow-lg dark:border-zinc-700 dark:bg-zinc-900"
       :style="{ top: contextMenu.y + 'px', left: contextMenu.x + 'px' }"
     >

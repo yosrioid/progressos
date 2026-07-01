@@ -12,6 +12,7 @@ import { useAuthStore } from './stores/auth';
 import { useConfigurationStore } from './stores/configuration';
 import { useInboxStore } from './stores/inbox';
 import { usePrivacyStore } from './stores/privacy';
+import { useClickOutside } from './composables/useClickOutside';
 
 const auth = useAuthStore();
 const configuration = useConfigurationStore();
@@ -28,6 +29,10 @@ const notifOpen = ref(false);
 const notifUnread = ref(0);
 const notifications = ref<any[]>([]);
 const profileMenu = ref(false);
+const notifPopoverRef = ref<HTMLDivElement | null>(null);
+const profilePopoverRef = ref<HTMLDivElement | null>(null);
+useClickOutside(notifPopoverRef, () => { if (notifOpen.value) notifOpen.value = false; });
+useClickOutside(profilePopoverRef, () => { if (profileMenu.value) profileMenu.value = false; });
 const commandOpen = ref(false);
 const commandQuery = ref('');
 const searchInput = ref<HTMLInputElement | null>(null);
@@ -513,7 +518,7 @@ onUnmounted(() => {
             <WorkTimer @log="onTimerLog" />
           </div>
           <!-- Notification bell -->
-          <div v-if="!isAdmin" class="relative">
+          <div v-if="!isAdmin" class="relative" ref="notifPopoverRef">
             <button
               @click="toggleNotif"
               class="relative grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-slate-200 bg-white text-slate-500 transition hover:border-amber-200 hover:text-amber-600 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:border-amber-600 dark:hover:text-amber-400"
@@ -522,7 +527,6 @@ onUnmounted(() => {
               <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0"/></svg>
               <span v-if="notifUnread > 0" class="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-extrabold text-white">{{ notifUnread > 9 ? '9+' : notifUnread }}</span>
             </button>
-            <button v-if="notifOpen" class="fixed inset-0 z-10 cursor-default" tabindex="-1" @click="notifOpen = false"></button>
             <div v-if="notifOpen" class="fixed inset-x-3 top-[4.5rem] z-20 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl shadow-slate-900/10 dark:border-zinc-800 dark:bg-zinc-900 dark:shadow-black/30 sm:absolute sm:inset-auto sm:right-0 sm:top-full sm:mt-2 sm:w-80">
               <div class="flex items-center justify-between border-b border-slate-100 px-4 py-3 dark:border-zinc-800">
                 <span class="text-sm font-extrabold text-slate-900 dark:text-zinc-100">Notifications</span>
@@ -584,13 +588,12 @@ onUnmounted(() => {
             <span class="hidden sm:inline">Quick Add</span>
           </button>
           <!-- Profile -->
-          <div class="relative">
+          <div ref="profilePopoverRef">
             <button class="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-2.5 text-sm font-bold text-slate-700 shadow-sm transition hover:border-teal-200 hover:text-teal-800 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:border-teal-700 dark:hover:text-teal-300" aria-label="Open profile menu" aria-haspopup="menu" :aria-expanded="profileMenu" @click="profileMenu = !profileMenu">
               <img v-if="auth.user?.avatar_url" :src="auth.user.avatar_url" class="h-8 w-8 rounded-lg object-cover" alt="" />
               <span v-else class="grid h-8 w-8 place-items-center rounded-lg bg-slate-900 text-xs font-extrabold text-white dark:bg-zinc-700">{{ initials }}</span>
               <span class="hidden max-w-32 truncate md:block">{{ auth.user?.name || 'Profile' }}</span>
             </button>
-            <button v-if="profileMenu" class="fixed inset-0 z-10 cursor-default" tabindex="-1" aria-label="Close profile menu" @click="profileMenu = false"></button>
             <div v-if="profileMenu" class="absolute right-0 z-20 mt-2 w-64 overflow-hidden rounded-2xl border border-slate-200 bg-white p-2 shadow-2xl shadow-slate-900/10 dark:border-zinc-800 dark:bg-zinc-900 dark:shadow-black/30" role="menu">
               <div class="border-b border-slate-100 px-3 py-3 dark:border-zinc-800">
                 <div class="flex items-center gap-3">
