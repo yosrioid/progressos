@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Configuration;
 use App\Models\User;
 use App\Support\ApiResponse;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -194,7 +195,7 @@ class AuthController extends Controller
         return ApiResponse::ok(['ok' => true], 'Logged out.');
     }
 
-    public function disconnectGoogle(Request $request): \Illuminate\Http\JsonResponse
+    public function disconnectGoogle(Request $request): JsonResponse
     {
         $user = $request->user();
 
@@ -213,7 +214,7 @@ class AuthController extends Controller
 
     private function userPayload(User $user): array
     {
-        $googleConfig = \App\Models\Configuration::getValue(null, 'auth', 'google_oauth', []);
+        $googleConfig = Configuration::getValue(null, 'auth', 'google_oauth', []);
 
         return $user->toArray() + [
             'avatar_url' => $user->avatar_path ? '/storage/'.$user->avatar_path : null,

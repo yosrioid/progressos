@@ -1,7 +1,6 @@
 <?php
 
 use App\Http\Controllers\Api\ActivityController;
-use App\Http\Controllers\Api\InboxController;
 use App\Http\Controllers\Api\AnalyticsController;
 use App\Http\Controllers\Api\BillController;
 use App\Http\Controllers\Api\CaptureController;
@@ -14,6 +13,7 @@ use App\Http\Controllers\Api\DocFileController;
 use App\Http\Controllers\Api\GameController;
 use App\Http\Controllers\Api\GoalController;
 use App\Http\Controllers\Api\HabitController;
+use App\Http\Controllers\Api\InboxController;
 use App\Http\Controllers\Api\JournalController;
 use App\Http\Controllers\Api\LearningController;
 use App\Http\Controllers\Api\MilestoneController;
