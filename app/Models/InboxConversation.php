@@ -36,9 +36,11 @@ class InboxConversation extends Model
         return $this->hasMany(InboxMessage::class, 'conversation_id');
     }
 
+    /** @return User */
     public function otherUser(int $myId): User
     {
-        return $this->user_one_id === $myId ? $this->userTwo : $this->userOne;
+        $other = $this->user_one_id === $myId ? $this->userTwo : $this->userOne; // phpstan-ignore-line
+        return $other instanceof User ? $other : abort(404);
     }
 
     public static function between(int $a, int $b): self

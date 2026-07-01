@@ -237,14 +237,14 @@ class InboxController extends Controller
 
         return [
             'id' => $c->id,
-            'other_user' => [
+            'other_user' => $other ? [
                 'id' => $other->id,
                 'name' => $other->name,
                 'avatar_url' => $other->avatar_path ? '/storage/'.$other->avatar_path : null,
-            ],
+            ] : null,
             'last_message' => $last ? $this->messagePayload($last) : null,
             'unread_count' => $c->unreadCount($myId),
-            'last_message_at' => $c->last_message_at?->toISOString(),
+            'last_message_at' => $c->last_message_at ? $c->last_message_at->toISOString() : null, // @phpstan-ignore method.nonObject
         ];
     }
 
@@ -260,12 +260,16 @@ class InboxController extends Controller
             ];
         }
 
+        $sender = $m->relationLoaded('sender') ? $m->getRelation('sender') : null;
+        $senderName = $sender instanceof User ? $sender->name : null;
+        $senderAvatar = ($sender instanceof User && $sender->avatar_path) ? '/storage/'.$sender->avatar_path : null;
+
         return [
             'id' => $m->id,
             'conversation_id' => $m->conversation_id,
             'sender_id' => $m->sender_id,
-            'sender_name' => $m->relationLoaded('sender') ? $m->sender->name : null,
-            'sender_avatar' => $m->relationLoaded('sender') && $m->sender->avatar_path ? '/storage/'.$m->sender->avatar_path : null,
+            'sender_name' => $senderName,
+            'sender_avatar' => $senderAvatar,
             'body' => $m->body,
             'type' => $m->type,
             'file_name' => $m->file_name,
