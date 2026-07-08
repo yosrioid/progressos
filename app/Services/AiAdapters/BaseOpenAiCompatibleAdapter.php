@@ -159,6 +159,20 @@ abstract class BaseOpenAiCompatibleAdapter
                     ->withOptions(['stream' => true])
                     ->post(static::baseUrl().'/chat/completions', $payload);
             } catch (\Throwable $e) {
+                // If the client closed the connection (Stop button, tab close, etc.),
+                // short-circuit retry attempts — no point hitting the upstream when
+                // nobody is listening.
+                if (function_exists('connection_aborted') && connection_aborted() !== 0) {
+                    yield [
+                        'type' => 'error',
+                        'status' => 499,
+                        'error_code' => 'client_closed',
+                        'error_message' => 'Client closed the connection',
+                    ];
+
+                    return;
+                }
+
                 $lastError = $e;
                 Log::warning('AI stream handshake exception', [
                     'provider' => static::providerName(),
