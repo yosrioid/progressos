@@ -27,4 +27,10 @@ Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function ()
     Route::delete('configuration/backup-syncs/{sync}', [ConfigurationController::class, 'destroySync']);
     Route::post('configuration/backup-syncs/{sync}/run', [ConfigurationController::class, 'runSync']);
     Route::put('configuration/quote', [QuoteController::class, 'saveConfig']);
+    
+    // AI configuration (admin-only)
+    Route::get('configuration/ai', [ConfigurationController::class, 'getAiConfig']);
+    Route::put('configuration/ai', [ConfigurationController::class, 'saveAiConfig']);
+    Route::put('configuration/feature-providers', [ConfigurationController::class, 'saveFeatureProviders']);
+    Route::get('configuration/ai/usage', [ConfigurationController::class, 'getAiUsage']);
 });

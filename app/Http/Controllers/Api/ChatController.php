@@ -8,13 +8,19 @@ use App\Models\ChatSession;
 use App\Models\Configuration;
 use App\Models\Journal;
 use App\Models\Project;
+use App\Services\AiProviderManager;
+use App\Services\QuotaNotificationService;
 use App\Support\ApiResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Http;
 
 class ChatController extends Controller
 {
     private const HISTORY_LIMIT = 12;
+
+    public function __construct(
+        private AiProviderManager $aiManager,
+        private QuotaNotificationService $quotaNotifier,
+    ) {}
 
     public function index(Request $request)
     {
@@ -73,14 +79,30 @@ class ChatController extends Controller
         ]);
 
         $user = $request->user();
-        $config = Configuration::getValue(null, 'quote', 'groq', []);
-        $apiKey = is_array($config) ? ($config['api_key'] ?? null) : null;
+        $provider = $this->aiManager->resolveProvider('chat');
+        $aiConfig = Configuration::getValue(null, 'ai', 'provider_config', []);
+        $aiConfig = is_array($aiConfig) ? $aiConfig : [];
 
-        if (! $apiKey) {
-            return ApiResponse::ok(['error' => 'no_api_key'], 'Groq API key belum dikonfigurasi.', 422);
+        $apiKey = null;
+        $model = 'llama-3.1-8b-instant';
+
+        if ($provider === 'adacode') {
+            $apiKey = $aiConfig['api_key'] ?? null;
+            $model = $aiConfig['model'] ?? config('ai.providers.adacode.chat_model', 'claude-sonnet-4-6');
         }
 
-        // Save user message
+        if (! $apiKey && $provider === 'adacode') {
+            $provider = 'groq';
+            $groqConfig = Configuration::getValue(null, 'quote', 'groq', []);
+            $groqConfig = is_array($groqConfig) ? $groqConfig : [];
+            $apiKey = $groqConfig['api_key'] ?? null;
+            $model = config('ai.providers.groq.chat_model', 'llama-3.1-8b-instant');
+        }
+
+        if (! $apiKey) {
+            return ApiResponse::ok(['error' => 'no_api_key'], 'AI API key belum dikonfigurasi.', 422);
+        }
+
         $userMsg = ChatMessage::create([
             'session_id' => $chatSession->id,
             'role' => 'user',
@@ -88,12 +110,10 @@ class ChatController extends Controller
             'tokens' => 0,
         ]);
 
-        // Auto-title from first message
         if ($chatSession->messages()->count() === 1) {
             $chatSession->update(['title' => mb_substr($data['content'], 0, 60)]);
         }
 
-        // Build messages for Groq: last 12 (including the one just saved)
         $history = $chatSession->messages()
             ->orderByDesc('created_at')
             ->limit(self::HISTORY_LIMIT)
@@ -105,15 +125,49 @@ class ChatController extends Controller
 
         $systemPrompt = $this->buildSystemPrompt($chatSession->context_type, $user);
 
-        $result = $this->callGroq($apiKey, $systemPrompt, $history);
+        $result = $this->aiManager->call($provider, [
+            'apiKey' => $apiKey,
+            'model' => $model,
+            'messages' => $history,
+            'maxTokens' => 600,
+            'temperature' => 0.8,
+            'systemPrompt' => $systemPrompt,
+        ]);
 
-        if (! $result) {
+        if ($result['success'] === false && $this->aiManager->isQuotaExceeded($result)) {
+            $this->quotaNotifier->notifyQuotaExceeded($user, $provider);
+            $userMsg->delete();
+
+            return ApiResponse::ok(
+                ['error' => 'quota_exceeded'],
+                "Kuota {$provider} habis. Silakan upgrade atau beralih provider.",
+                403
+            );
+        }
+
+        if (! $result['success'] && $provider === 'adacode') {
+            $groqConfig = Configuration::getValue(null, 'quote', 'groq', []);
+            $groqConfig = is_array($groqConfig) ? $groqConfig : [];
+            $groqApiKey = $groqConfig['api_key'] ?? null;
+
+            if ($groqApiKey) {
+                $result = $this->aiManager->call('groq', [
+                    'apiKey' => $groqApiKey,
+                    'model' => config('ai.providers.groq.chat_model', 'llama-3.1-8b-instant'),
+                    'messages' => $history,
+                    'maxTokens' => 600,
+                    'temperature' => 0.8,
+                    'systemPrompt' => $systemPrompt,
+                ]);
+            }
+        }
+
+        if (! $result['success']) {
             $userMsg->delete();
 
             return ApiResponse::ok(['error' => 'ai_failed'], 'Gagal mendapat respons dari AI. Coba lagi.', 503);
         }
 
-        // Save assistant message
         $assistantMsg = ChatMessage::create([
             'session_id' => $chatSession->id,
             'role' => 'assistant',
@@ -122,7 +176,7 @@ class ChatController extends Controller
         ]);
 
         $chatSession->touch();
-        QuoteController::trackUsageFor($user, $result['tokens']);
+        $this->aiManager->trackUsage($user, $result['tokens']);
 
         return ApiResponse::ok([
             'message' => $this->formatMessage($assistantMsg),
@@ -130,7 +184,7 @@ class ChatController extends Controller
         ]);
     }
 
-    private function buildSystemPrompt(string $contextType, $user): string
+    private function buildSystemPrompt(string $contextType, $user): ?string
     {
         $base = 'Kamu adalah asisten pribadi yang cerdas dan suportif untuk pengguna ini. Balas dalam bahasa Indonesia kecuali diminta lain. Jawab dengan ringkas dan natural, tidak perlu terlalu formal.';
 
@@ -175,37 +229,6 @@ class ChatController extends Controller
         }
 
         return $base;
-    }
-
-    private function callGroq(string $apiKey, string $systemPrompt, array $messages): ?array
-    {
-        try {
-            $response = Http::timeout(30)
-                ->withHeaders([
-                    'Authorization' => "Bearer {$apiKey}",
-                    'Content-Type' => 'application/json',
-                ])
-                ->post('https://api.groq.com/openai/v1/chat/completions', [
-                    'model' => 'llama-3.1-8b-instant',
-                    'max_tokens' => 600,
-                    'temperature' => 0.8,
-                    'messages' => array_merge(
-                        [['role' => 'system', 'content' => $systemPrompt]],
-                        $messages
-                    ),
-                ]);
-
-            if (! $response->successful()) {
-                return null;
-            }
-
-            return [
-                'content' => $response->json('choices.0.message.content', ''),
-                'tokens' => $response->json('usage.total_tokens', 0),
-            ];
-        } catch (\Throwable) {
-            return null;
-        }
     }
 
     private function formatSession(ChatSession $session): array

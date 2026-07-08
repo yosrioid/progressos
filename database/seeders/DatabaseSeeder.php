@@ -31,5 +31,8 @@ class DatabaseSeeder extends Seeder
         LearningEntry::factory(22)->for($user)->create();
         Milestone::factory(8)->for($user)->create();
         Task::factory(24)->for($user)->create();
+        
+        $this->call(AiConfigSeeder::class);
+        $this->call(AdminSeeder::class);
     }
 }

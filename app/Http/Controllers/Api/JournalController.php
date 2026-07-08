@@ -213,7 +213,7 @@ PROMPT;
                 return null;
             }
 
-            QuoteController::trackUsageFor($this->currentUser, $response->json('usage.total_tokens', 0));
+            app(\App\Services\AiProviderManager::class)->trackUsage($this->currentUser, $response->json('usage.total_tokens', 0), 1);
 
             $content = $response->json('choices.0.message.content', '');
 

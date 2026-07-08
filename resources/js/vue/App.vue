@@ -6,6 +6,8 @@ import ChatBubble from './components/ChatBubble.vue';
 import DailyQuote from './components/DailyQuote.vue';
 import DatePicker from './components/DatePicker.vue';
 import WorkTimer from './components/WorkTimer.vue';
+import QuotaExceededBanner from './components/QuotaExceededBanner.vue';
+import AiQuotaStatus from './components/AiQuotaStatus.vue';
 import { dismissToast, feedback, resolveConfirm, toast } from './feedback';
 import { pasteLinkOverSelection } from './linkPaste';
 import { useAuthStore } from './stores/auth';
@@ -38,6 +40,9 @@ const commandQuery = ref('');
 const searchInput = ref<HTMLInputElement | null>(null);
 const query = ref('');
 const quickForm = ref({ type: 'task', title: '', project_name: '', duration_minutes: 30, notes: '', date: new Date().toISOString().slice(0, 10) });
+const themeReady = ref(false);
+const prefersDarkMedia = window.matchMedia('(prefers-color-scheme: dark)');
+const storageKey = 'progressos-theme';
 const habitList = ref<{ id: number; name: string; icon: string }[]>([]);
 const selectedHabitId = ref<number | null>(null);
 const isGuest = computed(() => !auth.user);
@@ -138,7 +143,34 @@ const icons: Record<string, string[]> = {
   money: ['M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2', 'M12 6v12M9 9a3 3 0 0 1 6 0c0 1.5-1.5 2-3 3-1.5 1-3 1.5-3 3a3 3 0 0 0 6 0'],
 };
 const initials = computed(() => (auth.user?.name || 'U').split(' ').map((part) => part[0]).join('').slice(0, 2).toUpperCase());
-const activeTheme = computed(() => configuration.appearance.theme || auth.user?.theme || 'system');
+// Local override so the icon and classList reflect the user's click
+// immediately, even before the server round-trip lands. This is the
+// single source of truth for the toggle UI.
+const themeOverride = ref<string | null>(null);
+const activeTheme = computed(() => {
+  if (themeOverride.value) return themeOverride.value;
+  if (!themeReady.value) return readStoredTheme() || 'system';
+  return readStoredTheme()
+    || configuration.appearance.theme
+    || auth.user?.theme
+    || 'system';
+});
+
+function readStoredTheme(): string | null {
+  try {
+    const value = localStorage.getItem(storageKey);
+    if (value === 'light' || value === 'dark' || value === 'system') return value;
+  } catch {
+    // localStorage may be unavailable in private mode.
+  }
+  return null;
+}
+
+function writeStoredTheme(value: string) {
+  try { localStorage.setItem(storageKey, value); } catch {
+    // localStorage may be unavailable in private mode; safe to ignore.
+  }
+}
 const commandItems = computed(() => [
   ...navGroups.flatMap((group) => group.items.map((item) => ({ ...item, group: group.label, action: 'navigate' }))),
   { label: 'New Daily Progress', href: '/daily-progress/create', icon: 'calendar', group: 'Create', action: 'navigate' },
@@ -294,15 +326,26 @@ function handleQuickNotesPaste(event: ClipboardEvent) {
 }
 
 function applyTheme(theme?: string) {
-  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-  document.documentElement.classList.toggle('dark', theme === 'dark' || (theme === 'system' && prefersDark));
+  const prefersDark = prefersDarkMedia.matches;
+  const isDark = theme === 'dark' || (theme === 'system' && prefersDark);
+  document.documentElement.classList.toggle('dark', isDark);
 }
 
 async function cycleTheme() {
   const next: Record<string, string> = { system: 'light', light: 'dark', dark: 'system' };
   const newTheme = next[activeTheme.value] ?? 'system';
+  // Update local override first so the icon swaps instantly.
+  themeOverride.value = newTheme;
+  writeStoredTheme(newTheme);
+  applyTheme(newTheme);
   configuration.applyGroups({ appearance: { ...configuration.appearance, theme: newTheme } });
-  api.put('/api/v1/configuration/settings', { appearance: { theme: newTheme } }).catch(() => {});
+  // Persist to the user profile so the value survives across browsers and devices.
+  // Admins use the global appearance.theme; non-admins use their personal user theme.
+  if (isAdmin.value) {
+    api.put('/api/admin/configuration/settings', { appearance: { theme: newTheme } }).catch(() => {});
+  } else if (auth.user) {
+    auth.updateProfile({ name: auth.user.name, email: auth.user.email, timezone: auth.user.timezone || 'UTC', theme: newTheme }).catch(() => {});
+  }
 }
 
 function applyFavicon(url?: string) {
@@ -374,12 +417,45 @@ watch(() => auth.user, async (user) => {
   } catch {
     // Configuration is non-critical for shell boot.
   }
+  // If the user already picked a theme in this browser, mirror it into
+  // the configuration so other consumers (e.g. the Profile screen) see
+  // the same value. Otherwise, persist whatever the server returned so
+  // subsequent refreshes stay in sync.
+  const stored = readStoredTheme();
+  if (stored) {
+    configuration.applyGroups({ appearance: { ...configuration.appearance, theme: stored } });
+  } else {
+    const serverTheme = configuration.appearance.theme || auth.user?.theme;
+    if (serverTheme) writeStoredTheme(serverTheme);
+  }
+  themeReady.value = true;
+  // Drop any stale override so the computed reflects the resolved value.
+  themeOverride.value = null;
   loadOverdueCount();
   loadNotifications();
   loadProjectNames();
 }, { immediate: true });
 watch(() => route.fullPath, () => { if (auth.user && !isAdmin.value) { loadOverdueCount(); loadNotifications(); } });
-watch(activeTheme, (theme) => applyTheme(theme || 'system'), { immediate: true });
+watch(activeTheme, (theme) => {
+  applyTheme(theme || 'system');
+  // Persist changes that did not originate from a click (e.g. when
+  // configuration loads from the server and resolves a stored value).
+  if (themeOverride.value !== theme) {
+    writeStoredTheme(theme || 'system');
+  }
+});
+
+onMounted(() => {
+  // Apply whatever we already know at mount time so the page does not flash
+  // the wrong mode. The activeTheme computed already prefers the localStorage
+  // value when themeReady is false, so this picks up the user's previous pick.
+  applyTheme(activeTheme.value);
+
+  // React to system preference changes so 'system' mode stays in sync.
+  prefersDarkMedia.addEventListener('change', () => {
+    if (activeTheme.value === 'system') applyTheme('system');
+  });
+});
 watch(() => configuration.appearance.favicon_url, (url) => applyFavicon(url), { immediate: true });
 watch(() => configuration.appName, (name) => {
   document.title = name || 'ProgressOS';
@@ -587,6 +663,8 @@ onUnmounted(() => {
             <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24"><path v-for="path in icons.plus" :key="path" :d="path" /></svg>
             <span class="hidden sm:inline">Quick Add</span>
           </button>
+          <!-- AI Quota Status -->
+          <AiQuotaStatus v-if="!isAdmin" />
           <!-- Profile -->
           <div ref="profilePopoverRef">
             <button class="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-2.5 text-sm font-bold text-slate-700 shadow-sm transition hover:border-teal-200 hover:text-teal-800 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:border-teal-700 dark:hover:text-teal-300" aria-label="Open profile menu" aria-haspopup="menu" :aria-expanded="profileMenu" @click="profileMenu = !profileMenu">
@@ -814,6 +892,8 @@ onUnmounted(() => {
         </div>
       </section>
     </div>
+    <!-- Quota exceeded banner -->
+    <QuotaExceededBanner />
     <!-- Confirm dialog -->
     <Transition name="confirm-dialog">
       <div
