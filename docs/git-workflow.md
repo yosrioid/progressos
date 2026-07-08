@@ -128,6 +128,108 @@ Codebase pakai English untuk kode dan dokumentasi user-facing. Pesan commit kons
 
 ---
 
+## Anomaly Detection
+
+Sebelum commit, AI assistant (atau developer) wajib cek perubahan yang **tidak related** ke scope commit. Tujuannya supaya:
+
+- Commit tidak ikut membawa file random/aneh.
+- Reviewer tidak bingung kenapa file X berubah.
+- History tetap mudah di-trace per fitur.
+
+### Pola yang Wajib Di-flag
+
+**1. File konfigurasi lokal / IDE**
+
+- `.env`, `.env.local`, `.env.*` (kecuali `.env.example`)
+- `.idea/`, `.vscode/`, `.cursor/`, `.zed/`, `.nova/`
+- `*.swp`, `*.swo`, `*.bak`, `*.tmp`, `*.orig`, `*.rej`
+- `Thumbs.db`, `.DS_Store`
+
+Tindakan: pastikan masuk `.gitignore`, jangan di-stage.
+
+**2. Generated files**
+
+- `public/build/*` (Vite output)
+- `node_modules/`, `vendor/`
+- `bootstrap/cache/*.php` (kecuali yang memang tracked)
+- `public/storage/`, `public/hot`
+- `storage/framework/cache/data/*`, `storage/framework/views/*.php` (compiled Blade)
+- `storage/logs/*.log`
+- `public/fonts-manifest.dev.json`
+
+Tindakan: pastikan masuk `.gitignore`. Kalau muncul di `git status`, jangan commit.
+
+**3. File yang tidak nyambung dengan pesan commit**
+
+Contoh anomali:
+- Commit pesan `fix(theme): persist user theme` tapi ada file `app/Services/AiProviderManager.php` yang ikut berubah.
+- Commit pesan `feat(auth): add login rate limit` tapi ada `resources/js/vue/components/AiQuotaStatus.vue` yang baru di-add.
+
+Tindakan: pisah jadi commit terpisah, atau `--reset` file tersebut lalu tanya developer.
+
+**4. File yang Boleh tapi Wajib Di-sadari**
+
+Tidak semua file unexpected itu salah. Beberapa kasus legitimate:
+
+- `.env.example` modify untuk tambah env var baru — OK, tapi verify tidak ada key asli yang tertinggal.
+- `.gitignore` modify untuk ignore file baru — OK.
+- `.valetignore` / `Homestead.yaml` untuk konfigurasi local dev environment — OK, tapi verify isinya sensible.
+- `composer.json` / `composer.lock` / `package.json` / `package-lock.json` untuk dependency baru — OK, tapi cek apakah lock file up-to-date.
+- `database/migrations/*` untuk migration baru — OK.
+
+**5. File sensitif / secret**
+
+- API key, token, password yang ke-commit (lihat di diff)
+- Private key, certificate
+- File dengan data user / production data
+- File `auth.json` Composer (Pest/Heroku tokens)
+
+Tindakan: **JANGAN COMMIT**. Kalau sudah terlanjur, follow "Salah commit ke main" di bawah (revert + rotate secret).
+
+### Cara AI Membantu Deteksi
+
+Sebelum commit, AI wajib menjalankan checklist ini dan report ke developer:
+
+```bash
+# 1. Lihat semua perubahan
+git status --short
+
+# 2. Filter file mencurigakan
+git status --short | grep -E '\.(env|swp|swo|bak|orig|rej|log|sqlite)$|^(.idea|.vscode|.cursor|.zed|.nova)/|Thumbs\.db|\.DS_Store|public/build/|node_modules/|vendor/'
+
+# 3. Cek staged file apakah sesuai dengan scope commit
+git diff --cached --name-only
+
+# 4. Verifikasi tidak ada secret di staged diff
+git diff --cached | grep -iE 'password|api[_-]?key|secret|token' | head
+```
+
+Kalau ada yang ke-flag:
+1. Tampilkan ke developer dengan konteks: file apa, kenapa mencurigakan, apa yang harus dilakukan.
+2. Tanya konfirmasi: commit terpisah, exclude, atau ignore.
+3. Jangan auto-commit file anomali tanpa konfirmasi.
+
+### Template Laporan Anomali
+
+Saat AI mendeteksi file mencurigakan, gunakan format ini:
+
+```
+⚠️ Anomali Terdeteksi
+
+File-file berikut berubah tapi tidak related dengan scope commit saat ini:
+
+- .valetignore (new) — Valet/Herd config, OK to commit tapi bukan bagian dari feat
+- .env.example (modified) — Tambah env var untuk AI provider, OK tapi verify no real key
+
+Rekomendasi:
+- Pisahkan .valetignore ke commit terpisah: chore(dev): add .valetignore
+- Keep .env.example di commit utama karena terkait AI provider config
+
+Lanjut dengan rekomendasi ini, atau adjust?
+```
+
+---
+
 ## Push Rules
 
 ### Sebelum Push
