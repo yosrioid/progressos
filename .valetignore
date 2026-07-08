@@ -1,0 +1,11 @@
+app/
+bootstrap/
+config/
+database/
+docs/
+node_modules/
+resources/
+routes/
+storage/
+tests/
+vendor/

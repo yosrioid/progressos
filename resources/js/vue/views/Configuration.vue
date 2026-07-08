@@ -27,14 +27,17 @@ const loadError = ref('');
 const googleHelpOpen = ref(false);
 const googleSsoHelpOpen = ref(false);
 const resendHelpOpen = ref(false);
-const openGroups = ref({ general: true, appearance: false, auth: true, mail: true, google_oauth: false, sync_data: false, notifications: false, history: false, quote: false });
-const quoteConfig = ref<{ enabled: boolean; themes: string[]; has_api_key: boolean }>({
-  enabled: false, themes: ['motivation'], has_api_key: false,
+const openGroups = ref({ general: true, appearance: false, auth: true, mail: true, google_oauth: false, sync_data: false, notifications: false, history: false, quote: false, ai: false });
+const aiForm = ref({ provider: 'groq', model: 'claude-sonnet-4-6', api_key: '', groq_api_key: '' });
+const aiSaving = ref(false);
+const featureProviderSaving = ref(false);
+const featureProviders = ref({ chat: 'groq', journal: 'groq', quote: 'groq' });
+const quoteConfig = ref<{ enabled: boolean; themes: string[] }>({
+  enabled: false, themes: ['motivation'],
 });
-const quoteForm = ref({ enabled: false, themes: ['motivation'], api_key: '' });
+const quoteForm = ref({ enabled: false, themes: ['motivation'] });
 const quoteTagInput = ref('');
 const quoteSaving = ref(false);
-const groqUsage = ref<{ requests: number; tokens: number; request_limit: number } | null>(null);
 const showClientSecret = ref(false);
 const showMailApiKey = ref(false);
 const showSmtpPassword = ref(false);
@@ -81,17 +84,30 @@ async function load() {
     authForm.value = { ...authForm.value, google_sso_enabled: authConfig.value.google_sso_enabled, client_id: authConfig.value.client_id, client_secret: '' };
     mailConfig.value = config.mail_config || mailConfig.value;
     mailForm.value = { ...mailForm.value, mailer: mailConfig.value.mailer, from_address: mailConfig.value.from_address, from_name: mailConfig.value.from_name, host: mailConfig.value.host, port: mailConfig.value.port, username: mailConfig.value.username, api_key: '', password: '' };
+    // Load AI config
+    const aiConfig = config.ai_config || {};
+    aiForm.value = {
+      provider: aiConfig.provider || 'groq',
+      model: aiConfig.model || 'claude-sonnet-4-6',
+      api_key: '',
+      groq_api_key: aiConfig.groq_api_key_set ? '***already_set***' : '',
+      groq_api_key_set: !!aiConfig.groq_api_key_set,
+      api_key_set: !!aiConfig.api_key_set,
+    };
     // Load quote config separately
     try {
       const qData: any = await api.get('/api/v1/quote/config').then(unwrap);
       if (qData.quote_config) {
         quoteConfig.value = { ...quoteConfig.value, ...qData.quote_config };
-        quoteForm.value = { enabled: quoteConfig.value.enabled, themes: [...quoteConfig.value.themes], api_key: '' };
+        quoteForm.value = { enabled: quoteConfig.value.enabled, themes: [...quoteConfig.value.themes] };
       }
-      const uData: any = await api.get('/api/v1/quote/usage').then(unwrap);
-      if (uData.usage) groqUsage.value = uData.usage;
     } catch {
       // non-critical
+    }
+
+    // Initialize feature providers from aiConfig
+    if (aiConfig.value?.feature_providers) {
+      featureProviders.value = { ...featureProviders.value, ...aiConfig.value.feature_providers };
     }
   } catch (error: any) {
     loadError.value = error.response?.data?.message || 'Could not load configuration. Please refresh or sign in again.';
@@ -252,12 +268,53 @@ async function saveQuoteConfig() {
   try {
     const data: any = await api.put('/api/admin/configuration/quote', quoteForm.value).then(unwrap);
     quoteConfig.value = { ...quoteConfig.value, ...data.quote_config };
-    quoteForm.value.api_key = '';
     toast({ tone: 'success', title: 'Quote settings saved', message: quoteConfig.value.enabled ? 'Daily quote aktif.' : 'Daily quote dinonaktifkan.' });
   } catch (e: any) {
     toast({ tone: 'error', title: 'Gagal menyimpan', message: e?.response?.data?.message ?? 'Terjadi kesalahan.' });
   } finally {
     quoteSaving.value = false;
+  }
+}
+
+async function saveAiConfig() {
+  aiSaving.value = true;
+  try {
+    const payload: any = {
+      provider: aiForm.value.provider,
+      model: aiForm.value.model,
+    };
+    
+    // Only send API key if provided (to avoid clearing existing key)
+    if (aiForm.value.provider === 'groq' && aiForm.value.groq_api_key) {
+      payload.groq_api_key = aiForm.value.groq_api_key;
+    } else if (aiForm.value.provider === 'adacode' && aiForm.value.api_key) {
+      payload.api_key = aiForm.value.api_key;
+    }
+    
+    const res = await api.put('/api/admin/configuration/ai', payload);
+    unwrap(res);
+    configuration.applyGroups({ ai: { ...aiForm.value, groq_api_key: configuration.ai?.groq_api_key || '' } });
+    await configuration.fetchUsage(aiForm.value.provider);
+    toast({ tone: 'success', title: 'AI settings saved' });
+  } catch (e: any) {
+    toast({ tone: 'error', title: 'Failed to save', message: e?.response?.data?.message ?? e?.response?.data?.errors ?? 'Terjadi kesalahan.' });
+  } finally {
+    aiSaving.value = false;
+  }
+}
+
+async function saveFeatureProviders() {
+  featureProviderSaving.value = true;
+  try {
+    const res = await api.put('/api/admin/configuration/feature-providers', {
+      feature_providers: featureProviders.value,
+    });
+    unwrap(res);
+    toast({ tone: 'success', title: 'Provider settings saved' });
+  } catch (e: any) {
+    toast({ tone: 'error', title: 'Failed to save', message: e?.response?.data?.message ?? e?.response?.data?.errors ?? 'Terjadi kesalahan.' });
+  } finally {
+    featureProviderSaving.value = false;
   }
 }
 
@@ -701,51 +758,6 @@ onMounted(load);
           </label>
         </div>
 
-        <!-- API Key -->
-        <div class="pt-4">
-          <label class="block">
-            <span class="label mb-1">
-              Groq API Key
-              <span v-if="quoteConfig.has_api_key" class="ml-2 rounded-full bg-teal-100 px-2 py-0.5 text-[10px] font-extrabold text-teal-700 dark:bg-teal-900/30 dark:text-teal-400">Terkonfigurasi</span>
-            </span>
-            <div class="relative">
-              <input
-                v-model="quoteForm.api_key"
-                :type="showGroqApiKey ? 'text' : 'password'"
-                class="field pr-9"
-                :placeholder="quoteConfig.has_api_key ? 'Kosongkan jika tidak ingin mengganti' : 'gsk_xxxxxxxxxxxxxxxxxxxxxxxx'"
-              />
-              <button type="button" class="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300" @click="showGroqApiKey = !showGroqApiKey">
-                <svg v-if="!showGroqApiKey" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>
-                <svg v-else class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
-              </button>
-            </div>
-          </label>
-          <p class="mt-1 text-xs text-slate-400 dark:text-zinc-500">
-            Daftar gratis di <span class="font-semibold text-teal-600">console.groq.com</span> → API Keys → Create API Key
-          </p>
-          <!-- Usage stats -->
-          <div v-if="groqUsage" class="mt-3 rounded-xl bg-slate-50 px-4 py-3 dark:bg-zinc-800/50">
-            <p class="text-xs font-extrabold uppercase tracking-wide text-slate-400 dark:text-zinc-500 mb-2">Penggunaan Hari Ini</p>
-            <div class="flex flex-wrap gap-4 text-sm">
-              <div>
-                <span class="font-extrabold text-slate-800 dark:text-zinc-200">{{ groqUsage.requests.toLocaleString('id-ID') }}</span>
-                <span class="text-slate-400 dark:text-zinc-500"> / {{ groqUsage.request_limit.toLocaleString('id-ID') }} request</span>
-              </div>
-              <div>
-                <span class="font-extrabold text-slate-800 dark:text-zinc-200">{{ groqUsage.tokens.toLocaleString('id-ID') }}</span>
-                <span class="text-slate-400 dark:text-zinc-500"> token</span>
-              </div>
-            </div>
-            <div class="mt-2 h-1.5 w-full rounded-full bg-slate-200 dark:bg-zinc-700">
-              <div
-                class="h-1.5 rounded-full bg-teal-500 transition-all"
-                :style="{ width: Math.min(100, (groqUsage.requests / groqUsage.request_limit) * 100) + '%' }"
-              />
-            </div>
-          </div>
-        </div>
-
         <!-- Theme tag input -->
         <div class="pt-4">
           <p class="label mb-2">Tema quote <span class="font-normal text-slate-400">(ketik bebas, Enter untuk tambah)</span></p>
@@ -779,6 +791,125 @@ onMounted(load);
         <div class="pt-2 flex justify-end">
           <button class="btn btn-primary" :disabled="quoteSaving" @click="saveQuoteConfig">
             {{ quoteSaving ? 'Menyimpan...' : 'Simpan Quote Settings' }}
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── AI Provider ── -->
+    <section class="card overflow-hidden p-0">
+      <button type="button" class="flex w-full items-center justify-between gap-4 border-b border-slate-100 bg-slate-50/70 px-5 py-4 text-left" :aria-expanded="openGroups.ai" @click="toggleGroup('ai')">
+        <div>
+          <p class="font-extrabold text-slate-900 dark:text-zinc-100">AI Provider</p>
+          <span class="mt-1 block text-sm font-medium text-slate-500 dark:text-zinc-400">Pilih provider untuk setiap fitur. Journaling bisa diubah ke AdaCode.ai.</span>
+        </div>
+        <span class="grid h-8 w-8 place-items-center rounded-xl border border-slate-200 bg-white text-slate-500 transition dark:border-zinc-700 dark:bg-zinc-900" :class="openGroups.ai ? 'rotate-180' : ''">
+          <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>
+        </span>
+      </button>
+      <div v-if="openGroups.ai" class="divide-y divide-slate-100 dark:divide-zinc-800 p-5 space-y-4">
+        <!-- Feature Providers -->
+        <div class="space-y-3">
+          <p class="text-sm font-bold text-slate-700 dark:text-zinc-300">Provider per Fitur</p>
+          
+          <div class="grid gap-2 md:grid-cols-[16rem_1fr] md:items-center">
+            <span class="text-sm font-semibold text-slate-600 dark:text-zinc-400">Chat</span>
+            <select v-model="featureProviders.chat" class="field">
+              <option value="groq">Groq</option>
+              <option value="adacode">AdaCode.ai</option>
+            </select>
+          </div>
+
+          <div class="grid gap-2 md:grid-cols-[16rem_1fr] md:items-center">
+            <span class="text-sm font-semibold text-slate-600 dark:text-zinc-400">Journal</span>
+            <select v-model="featureProviders.journal" class="field">
+              <option value="groq">Groq</option>
+              <option value="adacode">AdaCode.ai</option>
+            </select>
+          </div>
+
+          <div class="grid gap-2 md:grid-cols-[16rem_1fr] md:items-center">
+            <span class="text-sm font-semibold text-slate-600 dark:text-zinc-400">Daily Quote</span>
+            <select v-model="featureProviders.quote" class="field">
+              <option value="groq">Groq</option>
+              <option value="adacode">AdaCode.ai</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Global Provider (legacy) -->
+        <div class="pt-2">
+          <p class="text-xs text-slate-400 dark:text-zinc-500 mb-2">Provider utama (fallback untuk fitur lama)</p>
+          <div class="grid gap-3 md:grid-cols-[16rem_1fr] md:items-center">
+            <span class="font-extrabold text-slate-800 dark:text-zinc-200">Provider</span>
+            <select v-model="aiForm.provider" class="field">
+              <option value="groq">Groq (default, untuk journaling & chat)</option>
+              <option value="adacode">AdaCode.ai (Claude Sonnet, GPT-5.3, dll)</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Groq API Key -->
+        <div v-if="aiForm.provider === 'groq'" class="grid gap-3 md:grid-cols-[16rem_1fr] md:items-center">
+          <div>
+            <span class="font-extrabold text-slate-800 dark:text-zinc-200">Groq API Key</span>
+            <p class="text-xs font-semibold text-slate-500 dark:text-zinc-500">{{ aiForm.groq_api_key_set ? 'Already saved. Fill in to replace.' : 'Not set.' }}</p>
+          </div>
+          <div class="relative">
+            <input
+              v-model="aiForm.groq_api_key"
+              :type="showGroqApiKey ? 'text' : 'password'"
+              class="field pr-9"
+              placeholder="gsk_xxxxxxxxxxxxxxxxxxxxxxxx"
+              autocomplete="new-password"
+            />
+            <button type="button" class="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300" @click="showGroqApiKey = !showGroqApiKey">
+              <svg v-if="!showGroqApiKey" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>
+              <svg v-else class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+            </button>
+          </div>
+        </div>
+        <p v-if="aiForm.provider === 'groq' && aiForm.groq_api_key_set" class="text-xs font-semibold text-teal-600 dark:text-teal-400 ml-3">
+          ✓ API key sudah dikonfigurasi
+        </p>
+        <p v-if="aiForm.provider === 'groq' && !aiForm.groq_api_key_set" class="text-xs font-semibold text-slate-400 dark:text-zinc-500 ml-3">
+          Daftar gratis di <span class="font-semibold text-teal-600">console.groq.com</span> → API Keys → Create API Key
+        </p>
+
+        <!-- AdaCode API Key -->
+        <div v-if="aiForm.provider === 'adacode'" class="grid gap-3 md:grid-cols-[16rem_1fr] md:items-center">
+          <div>
+            <span class="font-extrabold text-slate-800 dark:text-zinc-200">AdaCode API Key</span>
+            <p class="text-xs font-semibold text-slate-500 dark:text-zinc-500">{{ aiForm.api_key_set ? 'Already saved. Fill in to replace.' : 'Not set.' }}</p>
+          </div>
+          <input v-model="aiForm.api_key" class="field" type="password" placeholder="sk-ac-..." autocomplete="new-password" />
+        </div>
+
+        <!-- Model selector (AdaCode only) -->
+        <div v-if="aiForm.provider === 'adacode'" class="grid gap-3 md:grid-cols-[16rem_1fr] md:items-center">
+          <span class="font-extrabold text-slate-800 dark:text-zinc-200">Model</span>
+          <select v-model="aiForm.model" class="field">
+            <option value="claude-sonnet-4-6">Claude Sonnet 4.6 (recommended)</option>
+            <option value="gpt-5.3">GPT-5.3</option>
+            <option value="gemini-3-flash">Gemini 3 Flash</option>
+            <option value="glm-4.7">GLM 4.7</option>
+            <option value="claude-haiku-3-5">Claude Haiku 3.5</option>
+            <option value="qwen3.6-flash">Qwen 3.6 Flash</option>
+          </select>
+        </div>
+
+        <!-- Info box -->
+        <div class="rounded-xl bg-blue-50 px-4 py-3 text-sm font-medium text-blue-700 dark:bg-blue-900/20 dark:text-blue-400">
+          Setiap fitur bisa menggunakan provider berbeda. API key harus tersedia untuk provider yang dipilih per fitur.
+        </div>
+
+        <!-- Save button -->
+        <div class="flex items-center justify-end gap-3 pt-2">
+          <button class="btn btn-secondary" :disabled="featureProviderSaving" @click="saveFeatureProviders">
+            {{ featureProviderSaving ? 'Saving...' : 'Save Provider Per Fitur' }}
+          </button>
+          <button class="btn btn-primary" :disabled="aiSaving" @click="saveAiConfig">
+            {{ aiSaving ? 'Saving...' : 'Save AI Settings' }}
           </button>
         </div>
       </div>

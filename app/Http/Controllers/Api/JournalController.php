@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Configuration;
 use App\Models\Journal;
+use App\Services\AiProviderManager;
 use App\Support\ApiResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
@@ -213,7 +214,7 @@ PROMPT;
                 return null;
             }
 
-            QuoteController::trackUsageFor($this->currentUser, $response->json('usage.total_tokens', 0));
+            app(AiProviderManager::class)->trackUsage($this->currentUser, $response->json('usage.total_tokens', 0), 1);
 
             $content = $response->json('choices.0.message.content', '');
 

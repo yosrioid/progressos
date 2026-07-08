@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\BackupRun;
 use App\Models\Configuration;
+use App\Services\AiProviderManager;
+use App\Services\AiQuotaService;
 use App\Services\BackupExportService;
 use App\Support\ApiResponse;
 use Illuminate\Http\Request;
@@ -14,6 +16,10 @@ use Illuminate\Validation\Rule;
 
 class ConfigurationController extends Controller
 {
+    public function __construct(
+        protected AiQuotaService $quotaService
+    ) {}
+
     public function show(Request $request)
     {
         return ApiResponse::ok([
@@ -27,6 +33,7 @@ class ConfigurationController extends Controller
                 'connection' => $this->connectionPayload($this->googleConnection()),
                 'syncs' => collect($this->syncs())->map(fn (array $sync) => $this->syncPayload($sync))->values(),
                 'runs' => BackupRun::latest()->limit(12)->get()->map(fn (BackupRun $run) => $this->runPayload($run)),
+                'ai_config' => $this->aiConfigPayload(),
             ],
         ]);
     }
@@ -373,5 +380,168 @@ class ConfigurationController extends Controller
     private function iso(mixed $value): ?string
     {
         return $value instanceof Carbon ? $value->toISOString() : null;
+    }
+
+    public function getAiConfig(Request $request)
+    {
+        $user = $request->user();
+        $provider = $request->query('provider', 'groq');
+
+        // Get usage for this provider
+        $usage = app(AiProviderManager::class)->getUsage($user, $provider);
+
+        return ApiResponse::ok([
+            'usage' => $usage,
+        ]);
+    }
+
+    public function saveAiConfig(Request $request)
+    {
+        $user = $request->user();
+
+        $data = $request->validate([
+            'provider' => ['required', 'in:groq,adacode'],
+            'groq_api_key' => ['nullable', 'string', 'max:500'],
+            'api_key' => ['nullable', 'string', 'max:500'],
+            'model' => ['nullable', 'string', 'max:100'],
+        ]);
+
+        // Store global AI provider config (for system-wide settings)
+        $globalAiConfig = Configuration::getValue(null, 'ai', 'provider_config', []);
+        $globalAiConfig = is_array($globalAiConfig) ? $globalAiConfig : [];
+        $globalAiConfig['provider'] = $data['provider'];
+
+        if ($data['provider'] === 'groq' && filled($data['groq_api_key'])) {
+            $globalAiConfig['groq_api_key'] = $data['groq_api_key'];
+        }
+
+        if ($data['provider'] === 'adacode' && filled($data['api_key'])) {
+            $globalAiConfig['api_key'] = $data['api_key'];
+        }
+
+        if (filled($data['model'])) {
+            $globalAiConfig['model'] = $data['model'];
+        }
+
+        Configuration::setValue(null, 'ai', 'provider_config', $globalAiConfig, encrypted: true);
+
+        $aiConfigPayload = $this->aiConfigPayload();
+
+        return ApiResponse::ok($aiConfigPayload, 'AI settings saved.');
+    }
+
+    public function saveFeatureProviders(Request $request)
+    {
+        $data = $request->validate([
+            'feature_providers' => ['required', 'array'],
+            'feature_providers.chat' => ['required', 'in:groq,adacode'],
+            'feature_providers.journal' => ['required', 'in:groq,adacode'],
+            'feature_providers.quote' => ['required', 'in:groq,adacode'],
+        ]);
+
+        $featureProviders = $data['feature_providers'];
+
+        // Persist the complete map so AiProviderManager::resolveProvider() can
+        // resolve 'chat', 'journal' and 'quote' from the same source.
+        $globalAiConfig = Configuration::getValue(null, 'ai', 'provider_config', []);
+        $globalAiConfig = is_array($globalAiConfig) ? $globalAiConfig : [];
+        $globalAiConfig['feature_providers'] = $featureProviders;
+        // Keep the legacy 'provider' field aligned with the chat feature so
+        // older code paths that read $aiConfig['provider'] continue to work.
+        $globalAiConfig['provider'] = $featureProviders['chat'];
+        Configuration::setValue(null, 'ai', 'provider_config', $globalAiConfig, encrypted: true);
+
+        // Mirror the quote provider into the quote config bucket. The quote
+        // pipeline reads its provider from quote/groq.provider, so we keep
+        // that side-channel updated for back-compat.
+        $quoteConfig = Configuration::getValue(null, 'quote', 'groq', []);
+        $quoteConfig = is_array($quoteConfig) ? $quoteConfig : [];
+        $quoteConfig['provider'] = $featureProviders['quote'];
+        Configuration::setValue(null, 'quote', 'groq', $quoteConfig);
+
+        return ApiResponse::ok($this->aiConfigPayload(), 'Feature providers saved.');
+    }
+
+    private function aiConfigPayload(): array
+    {
+        $aiConfig = Configuration::getValue(null, 'ai', 'provider_config', []);
+        $aiConfig = is_array($aiConfig) ? $aiConfig : [];
+
+        $quoteConfig = Configuration::getValue(null, 'quote', 'groq', []);
+        $quoteConfig = is_array($quoteConfig) ? $quoteConfig : [];
+
+        // Resolve the active provider per feature from the single source of truth.
+        $featureProviders = is_array($aiConfig['feature_providers'] ?? null)
+            ? $aiConfig['feature_providers']
+            : [];
+        $defaultProvider = $aiConfig['provider'] ?? 'groq';
+        $chatProvider = $featureProviders['chat'] ?? $defaultProvider;
+        $journalProvider = $featureProviders['journal'] ?? $defaultProvider;
+        $quoteProvider = $featureProviders['quote'] ?? $quoteConfig['provider'] ?? $defaultProvider;
+
+        // Pick the model for the default (chat) provider so the payload never
+        // lies about model/provider alignment.
+        $model = $this->resolveModelForProvider($chatProvider, $aiConfig);
+
+        return [
+            'provider' => $chatProvider,
+            'model' => $model,
+            'groq_api_key_set' => ! empty($aiConfig['groq_api_key'] ?? null),
+            'api_key_set' => ! empty($aiConfig['api_key'] ?? null),
+            'feature_providers' => [
+                'chat' => $chatProvider,
+                'journal' => $journalProvider,
+                'quote' => $quoteProvider,
+            ],
+        ];
+    }
+
+    /**
+     * Return the model name appropriate for the active provider. AdaCode users
+     * get the configured AdaCode model (or the AdaCode default), Groq users
+     * get the Groq default. Previously this defaulted to 'claude-sonnet-4-6'
+     * regardless of provider, which misled users into thinking their Groq
+     * request was using a Claude model.
+     */
+    private function resolveModelForProvider(string $provider, array $aiConfig): string
+    {
+        if ($provider === 'adacode') {
+            return $aiConfig['model'] ?? config('ai.providers.adacode.chat_model', 'claude-sonnet-4-6');
+        }
+
+        // Groq: honour the env-backed config default. Allow admin to override
+        // via provider_config.groq_model if they have set one.
+        return $aiConfig['groq_model'] ?? config('ai.providers.groq.chat_model', 'llama-3.1-8b-instant');
+    }
+
+    public function checkQuota(Request $request)
+    {
+        $user = $request->user();
+
+        // Resolve which provider to inspect: 'chat' feature first (admin-set
+        // feature_providers[chat]), then legacy global provider, then default.
+        $globalAiConfig = Configuration::getValue(null, 'ai', 'provider_config', []);
+        $globalAiConfig = is_array($globalAiConfig) ? $globalAiConfig : [];
+        $provider = $globalAiConfig['feature_providers']['chat']
+            ?? $globalAiConfig['provider']
+            ?? 'groq';
+
+        $quotaInfo = $this->quotaService->checkQuota($user, $provider);
+
+        // If using AdaCode, optionally overlay real quota from the provider.
+        if ($provider === 'adacode') {
+            $apiKey = $globalAiConfig['api_key'] ?? '';
+            $externalQuota = $this->quotaService->fetchExternalQuota($apiKey);
+            if ($externalQuota) {
+                $quotaInfo['external_usage'] = $externalQuota['usage'];
+                $quotaInfo['external_limit'] = $externalQuota['limit'];
+                $quotaInfo['external_reset_at'] = $externalQuota['reset_at'];
+            }
+        }
+
+        return ApiResponse::ok([
+            'quota' => $quotaInfo,
+            'provider' => $provider,
+        ]);
     }
 }

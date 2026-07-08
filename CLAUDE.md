@@ -21,6 +21,10 @@ Use this file as the first context source when continuing work in this repositor
 - **Code standards**: `docs/code-standards.md` — aturan ApiResponse, unwrap, toast, bahasa, TypeScript.
 - **Scaffold modul baru**: `docs/new-module.md` — checklist lengkap dari migration sampai nav sidebar.
 - **UI patterns**: `docs/ui-patterns.md` — class `.card`, `.btn`, `.pill`, `.field`, dark mode, empty state, modal.
+- **Git workflow**: `docs/git-workflow.md` — branch naming, commit message convention, push rules.
+- **PR template**: `docs/pr-template.md` — template body PR yang terstruktur.
+- **PR review guide**: `docs/pr-review.md` — checklist dan format komentar untuk reviewer.
+- **PR resolve guide**: `docs/pr-resolve.md` — cara author merespons review dan resolve conversation.
 
 ## Stack Snapshot
 

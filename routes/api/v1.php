@@ -31,6 +31,24 @@ use App\Http\Controllers\Api\TodoListController;
 use App\Http\Controllers\Api\WorkLogController;
 use Illuminate\Support\Facades\Route;
 
+// Routes accessible by both admin and regular users (with different data scoping)
+Route::middleware(['auth:sanctum'])->prefix('v1')->group(function () {
+    // Configuration routes - accessible by admin too
+    Route::middleware(['ability:read', 'throttle:api-read'])->group(function () {
+        Route::get('configuration', [ConfigurationController::class, 'show']);
+        Route::post('ai/quota/check', [ConfigurationController::class, 'checkQuota']);
+        Route::get('ai/config', [ConfigurationController::class, 'getAiConfig']);
+        Route::get('quote/config', [QuoteController::class, 'configPayload']);
+        Route::get('quote/usage', [QuoteController::class, 'usage']);
+    });
+
+    Route::middleware(['throttle:api-write'])->group(function () {
+        Route::put('quote/config', [QuoteController::class, 'saveConfig']);
+        // AI configuration write removed — admin-only via /api/admin/configuration/ai
+    });
+});
+
+// Routes only for regular users (not admin)
 Route::middleware(['auth:sanctum', 'not.admin'])->prefix('v1')->group(function () {
     Route::middleware(['ability:read', 'throttle:api-read'])->group(function () {
         Route::get('dashboard', DashboardController::class);
@@ -46,11 +64,9 @@ Route::middleware(['auth:sanctum', 'not.admin'])->prefix('v1')->group(function (
         Route::get('search', SearchController::class);
         Route::get('activity', ActivityController::class);
         Route::get('activity/summary', [ActivityController::class, 'summary']);
-        Route::get('configuration', [ConfigurationController::class, 'show']);
         Route::get('chat-sessions', [ChatController::class, 'index']);
         Route::get('chat-sessions/{chatSession}', [ChatController::class, 'show']);
         Route::get('quote/daily', [QuoteController::class, 'daily']);
-        Route::get('quote/config', [QuoteController::class, 'configPayload']);
         Route::get('quote/usage', [QuoteController::class, 'usage']);
         Route::get('journals/profile', [JournalController::class, 'profile']);
         Route::apiResource('journals', JournalController::class)->only(['index', 'show']);
