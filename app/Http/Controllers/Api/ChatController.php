@@ -268,16 +268,69 @@ class ChatController extends Controller
                 }
             };
 
+            // Tracks whether the user already hit Stop. Checked before persisting
+            // any assistant message so a partial stream never ends up in history.
+            $aborted = false;
+            // Tracks whether the stream finished its happy path (user message
+            // + matching assistant message both persisted). The shutdown safety
+            // net below uses this to know whether to clean up or leave alone.
+            $completed = false;
+            $checkAbort = function () use (&$aborted): bool {
+                // ignore_user_abort is off by default; once the client closes the
+                // socket, connection_aborted() returns 1 and we stop touching DB.
+                if (function_exists('connection_aborted') && connection_aborted() !== 0) {
+                    $aborted = true;
+                }
+
+                return $aborted;
+            };
+
+            // Safety net for any path that didn't go through $failAndRollback:
+            // PHP fatal errors, timeout-driven kills, shutdown from `max_execution_time`,
+            // or anywhere we `return` without cleaning up. If the stream hasn't
+            // completed when the script is winding down, the user message is
+            // almost certainly orphaned (no assistant reply was ever persisted)
+            // so we drop it to keep the session history consistent.
+            register_shutdown_function(function () use ($userMsg, &$completed): void {
+                if ($completed) {
+                    return;
+                }
+                try {
+                    if ($userMsg->exists) {
+                        $userMsg->delete();
+                    }
+                } catch (\Throwable) {
+                    // Swallow — we're already in shutdown, nothing else we can do.
+                }
+            });
+
+            // Single source of truth for the "emit error event + roll back the
+            // user message + exit the stream" pattern. Centralising this means
+            // every new failure branch stays consistent (and we never leak a
+            // user message into the session when nothing useful came back).
+            $failAndRollback = function (string $code, string $providerName, string $message, int $status) use ($send, $userMsg, &$aborted, &$completed): void {
+                // Best-effort: if the client already went away, skip the SSE
+                // emit and just clean up the DB row.
+                if (! $aborted) {
+                    $send('error', [
+                        'code' => $code,
+                        'provider' => $providerName,
+                        'message' => $message,
+                        'status' => $status,
+                    ]);
+                }
+                if ($userMsg->exists) {
+                    $userMsg->delete();
+                }
+                // Mark completed so the shutdown safety net doesn't try to
+                // double-delete (the row is already gone).
+                $completed = true;
+            };
+
             // Surface config error early: no point opening an SSE connection
             // that will just emit a quota error 4 seconds in.
             if (! $apiKey) {
-                $send('error', [
-                    'code' => 'no_api_key',
-                    'provider' => $provider,
-                    'message' => "AI provider '{$provider}' belum dikonfigurasi. Hubungi admin.",
-                    'status' => 422,
-                ]);
-                $userMsg->delete();
+                $failAndRollback('no_api_key', $provider, "AI provider '{$provider}' belum dikonfigurasi. Hubungi admin.", 422);
 
                 return;
             }
@@ -287,13 +340,7 @@ class ChatController extends Controller
             $quota = $this->aiManager->getUsage($user, $provider);
             if ($quota['requests'] >= $quota['request_limit']) {
                 $this->quotaNotifier->notifyQuotaExceeded($user, $provider);
-                $send('error', [
-                    'code' => 'quota_exceeded',
-                    'provider' => $provider,
-                    'message' => "Kuota {$provider} habis.",
-                    'status' => 403,
-                ]);
-                $userMsg->delete();
+                $failAndRollback('quota_exceeded', $provider, "Kuota {$provider} habis.", 403);
 
                 return;
             }
@@ -314,6 +361,13 @@ class ChatController extends Controller
                     'temperature' => 0.8,
                     'systemPrompt' => $systemPrompt,
                 ]) as $event) {
+                    if ($checkAbort()) {
+                        // Stop button (or dropped socket): don't keep yielding,
+                        // don't persist anything. The 'finally' / shutdown below
+                        // handles DB cleanup.
+                        break;
+                    }
+
                     if (($event['type'] ?? null) === 'chunk') {
                         $assembled .= $event['content'];
                         $send('chunk', ['content' => $event['content']]);
@@ -350,6 +404,10 @@ class ChatController extends Controller
                                     'temperature' => 0.8,
                                     'systemPrompt' => $systemPrompt,
                                 ]) as $fallbackEvent) {
+                                    if ($checkAbort()) {
+                                        break 2;
+                                    }
+
                                     if (($fallbackEvent['type'] ?? null) === 'chunk') {
                                         $assembled .= $fallbackEvent['content'];
                                         $send('chunk', ['content' => $fallbackEvent['content']]);
@@ -357,13 +415,7 @@ class ChatController extends Controller
                                         $totalTokens = (int) ($fallbackEvent['tokens'] ?? 0);
                                         break 2;
                                     } elseif (($fallbackEvent['type'] ?? null) === 'error') {
-                                        $send('error', [
-                                            'code' => 'ai_failed',
-                                            'provider' => 'groq',
-                                            'message' => $fallbackEvent['error_message'] ?? 'AI fallback failed',
-                                            'status' => $fallbackEvent['status'] ?? 502,
-                                        ]);
-                                        $userMsg->delete();
+                                        $failAndRollback('ai_failed', 'groq', $fallbackEvent['error_message'] ?? 'AI fallback failed', $fallbackEvent['status'] ?? 502);
 
                                         return;
                                     }
@@ -373,25 +425,27 @@ class ChatController extends Controller
                             }
                         }
 
-                        $send('error', [
-                            'code' => 'ai_failed',
-                            'provider' => $executedProvider,
-                            'message' => $event['error_message'] ?? 'Gagal mendapat respons dari AI.',
-                            'status' => $event['status'] ?? 502,
-                        ]);
-                        $userMsg->delete();
+                        $failAndRollback('ai_failed', $executedProvider, $event['error_message'] ?? 'Gagal mendapat respons dari AI.', $event['status'] ?? 502);
 
                         return;
                     }
                 }
             } catch (\Throwable $e) {
-                $send('error', [
-                    'code' => 'stream_exception',
-                    'provider' => $executedProvider,
-                    'message' => $e->getMessage(),
-                    'status' => 500,
-                ]);
-                $userMsg->delete();
+                $failAndRollback('stream_exception', $executedProvider, $e->getMessage(), 500);
+
+                return;
+            }
+
+            // Stop semantics: if the client aborted mid-stream, drop both the
+            // user message and the partial assistant payload so the session
+            // doesn't end up with "pertanyaan tanpa jawaban" or a truncated
+            // reply that pollutes future prompts (history is loaded into the
+            // next request's context).
+            if ($checkAbort()) {
+                if ($userMsg->exists) {
+                    $userMsg->delete();
+                }
+                $completed = true;
 
                 return;
             }
@@ -400,13 +454,7 @@ class ChatController extends Controller
             // but possible on certain configs), don't persist an empty
             // assistant row — that's worse than no row.
             if (trim($assembled) === '') {
-                $send('error', [
-                    'code' => 'empty_response',
-                    'provider' => $executedProvider,
-                    'message' => 'AI mengembalikan respons kosong.',
-                    'status' => 502,
-                ]);
-                $userMsg->delete();
+                $failAndRollback('empty_response', $executedProvider, 'AI mengembalikan respons kosong.', 502);
 
                 return;
             }
@@ -425,6 +473,9 @@ class ChatController extends Controller
                 'message' => $this->formatMessage($assistantMsg),
                 'session' => $this->formatSession($chatSession->fresh()),
             ]);
+
+            // Both rows are persisted; tell the shutdown safety net we're done.
+            $completed = true;
         });
 
         $response->headers->set('Content-Type', 'text/event-stream');

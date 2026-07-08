@@ -405,7 +405,14 @@ class ConfigurationController extends Controller
         $groqAllowedModels = (array) config('ai.providers.groq.allowed_models', []);
         $adacodeAllowedModels = (array) config('ai.providers.adacode.allowed_models', []);
         $modelAllowed = array_merge($groqAllowedModels, $adacodeAllowedModels);
-        $modelRule = $modelAllowed === [] ? 'string|max:100' : 'in:'.implode(',', $modelAllowed);
+        // Fail fast on misconfiguration: if neither provider in config/ai.php
+        // declares an allowed_models list, accepting "any string|max:100"
+        // would let admins persist a model id we don't actually support.
+        // Better to 500 the request so the missing-config bug surfaces now.
+        if ($modelAllowed === []) {
+            abort(500, 'AI model allowlist is not configured. Check config/ai.php.');
+        }
+        $modelRule = 'in:'.implode(',', $modelAllowed);
 
         $data = $request->validate([
             'provider' => ['required', $providerRule],
