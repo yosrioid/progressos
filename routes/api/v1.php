@@ -99,6 +99,12 @@ Route::middleware(['auth:sanctum', 'not.admin'])->prefix('v1')->group(function (
         Route::post('chat-sessions', [ChatController::class, 'store']);
         Route::delete('chat-sessions/{chatSession}', [ChatController::class, 'destroy']);
         Route::post('chat-sessions/{chatSession}/messages', [ChatController::class, 'sendMessage']);
+        // Streaming uses its own throttle: SSE connections stay open for the
+        // full generation duration, so the standard 'api-write' bucket would
+        // burn through limits too quickly. 60 requests/minute per user is
+        // generous for chat and still protects the upstream provider.
+        Route::post('chat-sessions/{chatSession}/messages/stream', [ChatController::class, 'streamMessage'])
+            ->middleware('throttle:ai-stream');
         Route::apiResource('journals', JournalController::class)->only(['store', 'update', 'destroy']);
         Route::post('journals/{journal}/analyze', [JournalController::class, 'analyze']);
         Route::post('habits', [HabitController::class, 'store']);

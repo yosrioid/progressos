@@ -28,7 +28,37 @@ const googleHelpOpen = ref(false);
 const googleSsoHelpOpen = ref(false);
 const resendHelpOpen = ref(false);
 const openGroups = ref({ general: true, appearance: false, auth: true, mail: true, google_oauth: false, sync_data: false, notifications: false, history: false, quote: false, ai: false });
-const aiForm = ref({ provider: 'groq', model: 'claude-sonnet-4-6', api_key: '', groq_api_key: '' });
+const aiForm = ref({
+  provider: 'groq',
+  model: 'claude-sonnet-4-6',
+  api_key: '',
+  groq_api_key: '',
+  // Legacy flags from the backend so the UI can show "already saved"
+  // hints for the original two providers. These mirror
+  // `groq_api_key_set` / `api_key_set` returned by the API.
+  groq_api_key_set: false,
+  api_key_set: false,
+  // Generic key field keyed by provider id, populated when the admin
+  // switches to that provider. The legacy `api_key` and `groq_api_key`
+  // are kept for backwards compatibility.
+  provider_keys: {} as Record<string, string>,
+  // Mirrors *_set flags from the backend so the UI can show "already
+  // configured" hints. Also keyed by provider id.
+  provider_keys_set: {} as Record<string, boolean>,
+});
+// Each provider has its own show/hide toggle for the API key. We
+// track them in a single ref keyed by provider id.
+const showProviderApiKey = ref<Record<string, boolean>>({});
+
+interface ProviderMeta {
+  id: string;
+  label: string;
+  models: { id: string; label: string }[];
+}
+
+// Populated from the backend on mount so the admin UI doesn't
+// hardcode provider/model lists. Keys are provider ids.
+const availableProviders = ref<ProviderMeta[]>([]);
 const aiSaving = ref(false);
 const featureProviderSaving = ref(false);
 const featureProviders = ref({ chat: 'groq', journal: 'groq', quote: 'groq' });
@@ -93,7 +123,15 @@ async function load() {
       groq_api_key: aiConfig.groq_api_key_set ? '***already_set***' : '',
       groq_api_key_set: !!aiConfig.groq_api_key_set,
       api_key_set: !!aiConfig.api_key_set,
+      provider_keys: { ...(aiConfig.provider_keys || {}) },
+      provider_keys_set: { ...(aiConfig.provider_keys_set || {}) },
     };
+    // Update the dropdown options from the backend. The list of
+    // supported providers and their default models is now returned
+    // alongside ai_config so the admin UI never has to mirror it.
+    if (Array.isArray(aiConfig.providers)) {
+      availableProviders.value = aiConfig.providers as ProviderMeta[];
+    }
     // Load quote config separately
     try {
       const qData: any = await api.get('/api/v1/quote/config').then(unwrap);
@@ -254,6 +292,58 @@ function removeTheme(theme: string) {
   quoteForm.value.themes = quoteForm.value.themes.filter((t) => t !== theme);
 }
 
+// When the provider changes, reset the model to the first available
+// one for that provider so we never have a stale model value.
+function onProviderChange() {
+  const provider = availableProviders.value.find((p) => p.id === aiForm.value.provider);
+  if (provider && provider.models.length > 0) {
+    aiForm.value.model = provider.models[0].id;
+  }
+}
+
+// Generic API key helpers. The form stores keys in a single
+// provider_keys map, but we read them through computed getters so
+// the template stays clean and the legacy `groq_api_key` / `api_key`
+// fields keep working unchanged.
+const activeProviderKeyValue = computed(() => {
+  const p = aiForm.value.provider;
+  if (p === 'groq') return aiForm.value.groq_api_key || '';
+  if (p === 'adacode') return aiForm.value.api_key || '';
+  return aiForm.value.provider_keys[p] || '';
+});
+
+const activeProviderKeySet = computed(() => {
+  const p = aiForm.value.provider;
+  if (p === 'groq') return !!aiForm.value.groq_api_key_set;
+  if (p === 'adacode') return !!aiForm.value.api_key_set;
+  return !!aiForm.value.provider_keys_set[p];
+});
+
+const providerPlaceholder = computed(() => {
+  const p = aiForm.value.provider;
+  if (p === 'groq') return 'gsk_xxxxxxxxxxxxxxxxxxxxxxxx';
+  if (p === 'adacode') return 'sk-ac-...';
+  const provider = availableProviders.value.find((x) => x.id === p);
+  return provider?.id ? `${provider.id} API key` : '';
+});
+
+const providerSignUpUrl = computed(() => {
+  const p = aiForm.value.provider;
+  if (p === 'groq') return 'console.groq.com';
+  return '';
+});
+
+// v-model shim — Vue's `v-model` doesn't bind nicely into a map of
+// providers, so we wire it up via :value + @input.
+function onProviderKeyInput(e: Event) {
+  const target = e.target as HTMLInputElement;
+  const value = target.value;
+  const p = aiForm.value.provider;
+  if (p === 'groq') aiForm.value.groq_api_key = value;
+  else if (p === 'adacode') aiForm.value.api_key = value;
+  else aiForm.value.provider_keys = { ...aiForm.value.provider_keys, [p]: value };
+}
+
 function onThemeKeydown(e: KeyboardEvent) {
   if (e.key === 'Enter' || e.key === ',') {
     e.preventDefault();
@@ -283,14 +373,21 @@ async function saveAiConfig() {
       provider: aiForm.value.provider,
       model: aiForm.value.model,
     };
-    
-    // Only send API key if provided (to avoid clearing existing key)
+
+    // Only send API keys if a real (non-placeholder) value is given.
+    // This avoids accidentally wiping an existing key on a benign save.
     if (aiForm.value.provider === 'groq' && aiForm.value.groq_api_key) {
       payload.groq_api_key = aiForm.value.groq_api_key;
     } else if (aiForm.value.provider === 'adacode' && aiForm.value.api_key) {
       payload.api_key = aiForm.value.api_key;
     }
-    
+    // Pass through any keys for other providers the admin typed in.
+    // The backend will validate the id and reject unknown providers.
+    const dynamic = Object.entries(aiForm.value.provider_keys || {})
+      .filter(([, v]) => v && !v.startsWith('***'))
+      .reduce<Record<string, string>>((acc, [k, v]) => ({ ...acc, [k]: v }), {});
+    if (Object.keys(dynamic).length > 0) payload.provider_keys = dynamic;
+
     const res = await api.put('/api/admin/configuration/ai', payload);
     unwrap(res);
     configuration.applyGroups({ ai: { ...aiForm.value, groq_api_key: configuration.ai?.groq_api_key || '' } });
@@ -815,24 +912,21 @@ onMounted(load);
           <div class="grid gap-2 md:grid-cols-[16rem_1fr] md:items-center">
             <span class="text-sm font-semibold text-slate-600 dark:text-zinc-400">Chat</span>
             <select v-model="featureProviders.chat" class="field">
-              <option value="groq">Groq</option>
-              <option value="adacode">AdaCode.ai</option>
+              <option v-for="p in availableProviders" :key="p.id" :value="p.id">{{ p.label }}</option>
             </select>
           </div>
 
           <div class="grid gap-2 md:grid-cols-[16rem_1fr] md:items-center">
             <span class="text-sm font-semibold text-slate-600 dark:text-zinc-400">Journal</span>
             <select v-model="featureProviders.journal" class="field">
-              <option value="groq">Groq</option>
-              <option value="adacode">AdaCode.ai</option>
+              <option v-for="p in availableProviders" :key="p.id" :value="p.id">{{ p.label }}</option>
             </select>
           </div>
 
           <div class="grid gap-2 md:grid-cols-[16rem_1fr] md:items-center">
             <span class="text-sm font-semibold text-slate-600 dark:text-zinc-400">Daily Quote</span>
             <select v-model="featureProviders.quote" class="field">
-              <option value="groq">Groq</option>
-              <option value="adacode">AdaCode.ai</option>
+              <option v-for="p in availableProviders" :key="p.id" :value="p.id">{{ p.label }}</option>
             </select>
           </div>
         </div>
@@ -842,59 +936,68 @@ onMounted(load);
           <p class="text-xs text-slate-400 dark:text-zinc-500 mb-2">Provider utama (fallback untuk fitur lama)</p>
           <div class="grid gap-3 md:grid-cols-[16rem_1fr] md:items-center">
             <span class="font-extrabold text-slate-800 dark:text-zinc-200">Provider</span>
-            <select v-model="aiForm.provider" class="field">
-              <option value="groq">Groq (default, untuk journaling & chat)</option>
-              <option value="adacode">AdaCode.ai (Claude Sonnet, GPT-5.3, dll)</option>
+            <select v-model="aiForm.provider" class="field" @change="onProviderChange">
+              <option v-for="p in availableProviders" :key="p.id" :value="p.id">{{ p.label }} ({{ p.models.length }} model)</option>
             </select>
           </div>
         </div>
 
-        <!-- Groq API Key -->
-        <div v-if="aiForm.provider === 'groq'" class="grid gap-3 md:grid-cols-[16rem_1fr] md:items-center">
+        <!-- API Key (dynamic — one block works for any provider).
+             We resolve the field to the legacy `groq_api_key` / `api_key`
+             for backward compatibility, but fall back to a generic
+             provider_keys map for new providers. -->
+        <div
+          v-if="aiForm.provider"
+          class="grid gap-3 md:grid-cols-[16rem_1fr] md:items-center"
+        >
           <div>
-            <span class="font-extrabold text-slate-800 dark:text-zinc-200">Groq API Key</span>
-            <p class="text-xs font-semibold text-slate-500 dark:text-zinc-500">{{ aiForm.groq_api_key_set ? 'Already saved. Fill in to replace.' : 'Not set.' }}</p>
+            <span class="font-extrabold text-slate-800 dark:text-zinc-200">
+              {{ availableProviders.find(p => p.id === aiForm.provider)?.label ?? aiForm.provider }} API Key
+            </span>
+            <p class="text-xs font-semibold text-slate-500 dark:text-zinc-500">
+              {{ activeProviderKeySet ? 'Already saved. Fill in to replace.' : 'Not set.' }}
+            </p>
           </div>
           <div class="relative">
             <input
-              v-model="aiForm.groq_api_key"
-              :type="showGroqApiKey ? 'text' : 'password'"
+              :value="activeProviderKeyValue"
+              @input="onProviderKeyInput"
+              :type="showProviderApiKey[aiForm.provider] ? 'text' : 'password'"
               class="field pr-9"
-              placeholder="gsk_xxxxxxxxxxxxxxxxxxxxxxxx"
+              :placeholder="providerPlaceholder"
               autocomplete="new-password"
             />
-            <button type="button" class="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300" @click="showGroqApiKey = !showGroqApiKey">
-              <svg v-if="!showGroqApiKey" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>
+            <button
+              type="button"
+              class="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300"
+              @click="showProviderApiKey[aiForm.provider] = !showProviderApiKey[aiForm.provider]"
+            >
+              <svg v-if="!showProviderApiKey[aiForm.provider]" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>
               <svg v-else class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
             </button>
           </div>
         </div>
-        <p v-if="aiForm.provider === 'groq' && aiForm.groq_api_key_set" class="text-xs font-semibold text-teal-600 dark:text-teal-400 ml-3">
+        <p v-if="activeProviderKeySet" class="text-xs font-semibold text-teal-600 dark:text-teal-400 ml-3">
           ✓ API key sudah dikonfigurasi
         </p>
-        <p v-if="aiForm.provider === 'groq' && !aiForm.groq_api_key_set" class="text-xs font-semibold text-slate-400 dark:text-zinc-500 ml-3">
-          Daftar gratis di <span class="font-semibold text-teal-600">console.groq.com</span> → API Keys → Create API Key
+        <p v-if="!activeProviderKeySet && providerSignUpUrl" class="text-xs font-semibold text-slate-400 dark:text-zinc-500 ml-3">
+          Daftar di <span class="font-semibold text-teal-600">{{ providerSignUpUrl }}</span>
         </p>
 
-        <!-- AdaCode API Key -->
-        <div v-if="aiForm.provider === 'adacode'" class="grid gap-3 md:grid-cols-[16rem_1fr] md:items-center">
-          <div>
-            <span class="font-extrabold text-slate-800 dark:text-zinc-200">AdaCode API Key</span>
-            <p class="text-xs font-semibold text-slate-500 dark:text-zinc-500">{{ aiForm.api_key_set ? 'Already saved. Fill in to replace.' : 'Not set.' }}</p>
-          </div>
-          <input v-model="aiForm.api_key" class="field" type="password" placeholder="sk-ac-..." autocomplete="new-password" />
-        </div>
-
-        <!-- Model selector (AdaCode only) -->
-        <div v-if="aiForm.provider === 'adacode'" class="grid gap-3 md:grid-cols-[16rem_1fr] md:items-center">
+        <!-- Model selector — shown for any provider that exposes
+             more than one model, so the admin can pick Claude/GPT/etc.
+             for AdaCode without having to remember the model ids. -->
+        <div
+          v-if="(availableProviders.find(p => p.id === aiForm.provider)?.models.length ?? 0) > 1"
+          class="grid gap-3 md:grid-cols-[16rem_1fr] md:items-center"
+        >
           <span class="font-extrabold text-slate-800 dark:text-zinc-200">Model</span>
           <select v-model="aiForm.model" class="field">
-            <option value="claude-sonnet-4-6">Claude Sonnet 4.6 (recommended)</option>
-            <option value="gpt-5.3">GPT-5.3</option>
-            <option value="gemini-3-flash">Gemini 3 Flash</option>
-            <option value="glm-4.7">GLM 4.7</option>
-            <option value="claude-haiku-3-5">Claude Haiku 3.5</option>
-            <option value="qwen3.6-flash">Qwen 3.6 Flash</option>
+            <option
+              v-for="m in (availableProviders.find(p => p.id === aiForm.provider)?.models ?? [])"
+              :key="m.id"
+              :value="m.id"
+            >{{ m.label }}</option>
           </select>
         </div>
 

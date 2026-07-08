@@ -399,11 +399,31 @@ class ConfigurationController extends Controller
     {
         $user = $request->user();
 
+        // Allowlists are derived from config/ai.php so adding a new
+        // provider there automatically opens up validation here.
+        $providerRule = 'in:'.implode(',', array_keys((array) config('ai.providers', [])));
+        $groqAllowedModels = (array) config('ai.providers.groq.allowed_models', []);
+        $adacodeAllowedModels = (array) config('ai.providers.adacode.allowed_models', []);
+        $modelAllowed = array_merge($groqAllowedModels, $adacodeAllowedModels);
+        // Fail fast on misconfiguration: if neither provider in config/ai.php
+        // declares an allowed_models list, accepting "any string|max:100"
+        // would let admins persist a model id we don't actually support.
+        // Better to 500 the request so the missing-config bug surfaces now.
+        if ($modelAllowed === []) {
+            abort(500, 'AI model allowlist is not configured. Check config/ai.php.');
+        }
+        $modelRule = 'in:'.implode(',', $modelAllowed);
+
         $data = $request->validate([
-            'provider' => ['required', 'in:groq,adacode'],
+            'provider' => ['required', $providerRule],
             'groq_api_key' => ['nullable', 'string', 'max:500'],
             'api_key' => ['nullable', 'string', 'max:500'],
-            'model' => ['nullable', 'string', 'max:100'],
+            'model' => ['nullable', $modelRule],
+            // Dynamic per-provider keys. The keys of this map must
+            // match a provider id from config/ai.php — anything else
+            // is rejected below to keep the storage well-formed.
+            'provider_keys' => ['nullable', 'array'],
+            'provider_keys.*' => ['nullable', 'string', 'max:500'],
         ]);
 
         // Store global AI provider config (for system-wide settings)
@@ -419,7 +439,50 @@ class ConfigurationController extends Controller
             $globalAiConfig['api_key'] = $data['api_key'];
         }
 
+        // Persist any dynamic provider keys the admin submitted.
+        // We only accept provider ids that are known to the
+        // AiProviderManager so the storage can't be poisoned with
+        // junk keys (the legacy `groq_api_key` / `api_key` fields
+        // continue to work unchanged).
+        $existingProviderKeys = is_array($globalAiConfig['provider_keys'] ?? null)
+            ? $globalAiConfig['provider_keys']
+            : [];
+        $newProviderKeys = is_array($data['provider_keys'] ?? null) ? $data['provider_keys'] : [];
+        $allowedProviderIds = array_keys((array) config('ai.providers', []));
+        foreach ($newProviderKeys as $providerId => $key) {
+            if (! in_array($providerId, $allowedProviderIds, true)) {
+                return ApiResponse::ok(
+                    ['errors' => ['provider_keys' => ["Unknown AI provider '{$providerId}'."]]],
+                    'Unknown AI provider.',
+                    422,
+                );
+            }
+            if (filled($key)) {
+                $existingProviderKeys[$providerId] = $key;
+            }
+        }
+        $globalAiConfig['provider_keys'] = $existingProviderKeys;
+
         if (filled($data['model'])) {
+            // Double-check the model is allowed for the chosen provider. The
+            // 'modelRule' above allowed ANY model in the union, which is
+            // convenient when the admin hasn't picked a provider yet, but
+            // for storage we want provider-specific validation so a Groq
+            // admin can't accidentally write a Claude model into the
+            // provider_config and confuse later requests.
+            if (! app(AiProviderManager::class)->isAllowedModel($data['provider'], $data['model'])) {
+                return ApiResponse::ok(
+                    [
+                        'errors' => [
+                            'model' => [
+                                "Model '{$data['model']}' is not allowed for provider '{$data['provider']}'.",
+                            ],
+                        ],
+                    ],
+                    'Model not allowed for selected provider.',
+                    422,
+                );
+            }
             $globalAiConfig['model'] = $data['model'];
         }
 
@@ -432,11 +495,15 @@ class ConfigurationController extends Controller
 
     public function saveFeatureProviders(Request $request)
     {
+        // Allowlist derived from config/ai.php — adding a provider there
+        // automatically extends this validator's accepted values.
+        $providerRule = 'in:'.implode(',', array_keys((array) config('ai.providers', [])));
+
         $data = $request->validate([
             'feature_providers' => ['required', 'array'],
-            'feature_providers.chat' => ['required', 'in:groq,adacode'],
-            'feature_providers.journal' => ['required', 'in:groq,adacode'],
-            'feature_providers.quote' => ['required', 'in:groq,adacode'],
+            'feature_providers.chat' => ['required', $providerRule],
+            'feature_providers.journal' => ['required', $providerRule],
+            'feature_providers.quote' => ['required', $providerRule],
         ]);
 
         $featureProviders = $data['feature_providers'];
@@ -483,6 +550,38 @@ class ConfigurationController extends Controller
         // lies about model/provider alignment.
         $model = $this->resolveModelForProvider($chatProvider, $aiConfig);
 
+        // Build the provider registry payload so the frontend can render a
+        // dropdown instead of letting admins type free-text model names.
+        // Keys here match config/ai.php, so this stays in sync with the
+        // allowlists enforced by saveAiConfig/saveFeatureProviders.
+        $providerRegistry = [];
+        foreach ((array) config('ai.providers', []) as $key => $cfg) {
+            $allowed = (array) ($cfg['allowed_models'] ?? []);
+            $models = array_map(
+                fn (string $model) => ['id' => $model, 'label' => $model],
+                $allowed
+            );
+            $providerRegistry[] = [
+                'id' => $key,
+                'label' => $cfg['name'] ?? ucfirst((string) $key),
+                'models' => $models,
+            ];
+        }
+
+        // Surface which provider keys the admin has set. The backend
+        // stores actual keys encrypted; the UI only needs a "set / not set"
+        // hint so it can render the "Already saved" label.
+        $providerKeysSet = [];
+        if (! empty($aiConfig['groq_api_key'] ?? null)) {
+            $providerKeysSet['groq'] = true;
+        }
+        if (! empty($aiConfig['api_key'] ?? null)) {
+            $providerKeysSet['adacode'] = true;
+        }
+        foreach ((array) ($aiConfig['provider_keys'] ?? []) as $providerId => $_) {
+            $providerKeysSet[(string) $providerId] = true;
+        }
+
         return [
             'provider' => $chatProvider,
             'model' => $model,
@@ -493,6 +592,8 @@ class ConfigurationController extends Controller
                 'journal' => $journalProvider,
                 'quote' => $quoteProvider,
             ],
+            'providers' => $providerRegistry,
+            'provider_keys_set' => $providerKeysSet,
         ];
     }
 
