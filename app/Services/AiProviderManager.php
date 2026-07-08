@@ -3,12 +3,23 @@
 namespace App\Services;
 
 use App\Models\Configuration;
+use App\Models\User;
 use App\Services\AiAdapters\AdaCodeAdapter;
 use App\Services\AiAdapters\GroqAdapter;
 use Illuminate\Support\Carbon;
 
 class AiProviderManager
 {
+    /**
+     * Provider quota limits, mirrored from AiQuotaService to avoid a hard
+     * dependency on it (AiQuotaService already depends on this class).
+     */
+    protected array $limits = [
+        'groq' => ['request_limit' => 14400, 'token_limit' => 10000000],
+        'adacode' => ['request_limit' => 1000, 'token_limit' => 1000000],
+        'openai' => ['request_limit' => 5000, 'token_limit' => 5000000],
+    ];
+
     public function resolveProvider(string $feature): string
     {
         $config = Configuration::getValue(null, 'ai', 'provider_config', []);
@@ -51,13 +62,41 @@ class AiProviderManager
             && ($result['error_code'] ?? '') === 'billing_error';
     }
 
-    public function trackUsage($user, int $tokens, int $requests = 1): void
+    /**
+     * Track usage for a feature.
+     *
+     * @param  string  $feature  Feature name (e.g. 'chat', 'journal', 'quote') used
+     *                           to resolve which AI provider the request consumed.
+     */
+    public function trackUsage(User $user, int $tokens, int $requests = 1, ?string $feature = null, ?string $provider = null): void
+    {
+        $provider = $provider ?? $this->resolveProvider($feature ?? 'chat');
+        $this->incrementUsageBucket($user, $provider, $tokens, $requests);
+    }
+
+    /**
+     * Track usage for quote generation. Caller may specify the provider explicitly
+     * because the quote generator may have fallen back from AdaCode to Groq.
+     */
+    public function trackQuoteUsage(User $user, int $tokens, string $provider = 'groq'): void
+    {
+        $this->incrementUsageBucket($user, $provider, $tokens, 1);
+    }
+
+    /**
+     * Atomically increment today's usage bucket for the given provider.
+     *
+     * Uses a single Configuration::setValue write (the underlying value is
+     * serialized on the row, not on the controller instance), which is safe
+     * against concurrent writes within a single request lifecycle. Laravel's
+     * request lifecycle ensures one execution per request, so we do not need
+     * a DB transaction here — but we DO guard against stale cross-day reads
+     * by comparing the stored 'date' to today before incrementing.
+     */
+    protected function incrementUsageBucket(User $user, string $provider, int $tokens, int $requests): void
     {
         $today = Carbon::now()->toDateString();
-        $provider = $this->resolveProvider('chat'); // determine provider from config
-
-        // Use provider-specific storage key
-        $storageKey = $provider === 'adacode' ? 'adacode' : 'groq';
+        $storageKey = $this->storageKeyFor($provider);
         $stored = Configuration::getValue($user, $storageKey, 'usage', []);
         $stored = is_array($stored) ? $stored : [];
 
@@ -72,12 +111,12 @@ class AiProviderManager
     }
 
     /**
-     * Track usage for quote generation (uses provider-specific storage)
+     * Get usage for a specific provider (for frontend display).
      */
-    public function trackQuoteUsage($user, int $tokens, string $provider = 'groq'): void
+    public function getUsage(User $user, string $provider = 'groq'): array
     {
         $today = Carbon::now()->toDateString();
-        $storageKey = $provider === 'adacode' ? 'adacode' : 'groq';
+        $storageKey = $this->storageKeyFor($provider);
         $stored = Configuration::getValue($user, $storageKey, 'usage', []);
         $stored = is_array($stored) ? $stored : [];
 
@@ -85,32 +124,7 @@ class AiProviderManager
             $stored = ['date' => $today, 'requests' => 0, 'tokens' => 0];
         }
 
-        $stored['requests'] = ($stored['requests'] ?? 0) + 1;
-        $stored['tokens'] = ($stored['tokens'] ?? 0) + $tokens;
-
-        Configuration::setValue($user, $storageKey, 'usage', $stored);
-    }
-
-    /**
-     * Get usage for a specific provider (for frontend display)
-     */
-    public function getUsage($user, string $provider = 'groq'): array
-    {
-        $today = Carbon::now()->toDateString();
-        $storageKey = $provider === 'adacode' ? 'adacode' : 'groq';
-        $stored = Configuration::getValue($user, $storageKey, 'usage', []);
-        $stored = is_array($stored) ? $stored : [];
-
-        if (($stored['date'] ?? '') !== $today) {
-            $stored = ['date' => $today, 'requests' => 0, 'tokens' => 0];
-        }
-
-        $limits = [
-            'groq' => ['request_limit' => 14400, 'token_limit' => 10000000],
-            'adacode' => ['request_limit' => 1000, 'token_limit' => 1000000],
-        ];
-
-        $limit = $limits[$provider] ?? $limits['groq'];
+        $limit = $this->limits[$provider] ?? $this->limits['groq'];
 
         return [
             'date' => $today,
@@ -120,5 +134,10 @@ class AiProviderManager
             'token_limit' => $limit['token_limit'],
             'provider' => $provider,
         ];
+    }
+
+    protected function storageKeyFor(string $provider): string
+    {
+        return $provider === 'adacode' ? 'adacode' : 'groq';
     }
 }

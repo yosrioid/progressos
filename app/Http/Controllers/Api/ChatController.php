@@ -8,6 +8,7 @@ use App\Models\ChatSession;
 use App\Models\Configuration;
 use App\Models\Journal;
 use App\Models\Project;
+use App\Models\User;
 use App\Services\AiProviderManager;
 use App\Services\QuotaNotificationService;
 use App\Support\ApiResponse;
@@ -83,24 +84,17 @@ class ChatController extends Controller
         $aiConfig = Configuration::getValue(null, 'ai', 'provider_config', []);
         $aiConfig = is_array($aiConfig) ? $aiConfig : [];
 
-        $apiKey = null;
-        $model = 'llama-3.1-8b-instant';
+        [$apiKey, $model] = $this->resolveProviderCredentials($provider, $aiConfig);
 
-        if ($provider === 'adacode') {
-            $apiKey = $aiConfig['api_key'] ?? null;
-            $model = $aiConfig['model'] ?? config('ai.providers.adacode.chat_model', 'claude-sonnet-4-6');
-        }
-
-        if (! $apiKey && $provider === 'adacode') {
-            $provider = 'groq';
-            $groqConfig = Configuration::getValue(null, 'quote', 'groq', []);
-            $groqConfig = is_array($groqConfig) ? $groqConfig : [];
-            $apiKey = $groqConfig['api_key'] ?? null;
-            $model = config('ai.providers.groq.chat_model', 'llama-3.1-8b-instant');
-        }
-
+        // No silent fallback: if the configured provider has no API key, surface a
+        // clear configuration error instead of transparently switching provider.
+        // That would (a) surprise the user, (b) bypass quota expectations, and
+        // (c) make usage telemetry point to the wrong bucket.
         if (! $apiKey) {
-            return ApiResponse::ok(['error' => 'no_api_key'], 'AI API key belum dikonfigurasi.', 422);
+            return ApiResponse::ok([
+                'error' => 'no_api_key',
+                'provider' => $provider,
+            ], "AI provider '{$provider}' belum dikonfigurasi. Hubungi admin.", 422);
         }
 
         $userMsg = ChatMessage::create([
@@ -125,6 +119,7 @@ class ChatController extends Controller
 
         $systemPrompt = $this->buildSystemPrompt($chatSession->context_type, $user);
 
+        $executedProvider = $provider;
         $result = $this->aiManager->call($provider, [
             'apiKey' => $apiKey,
             'model' => $model,
@@ -139,21 +134,25 @@ class ChatController extends Controller
             $userMsg->delete();
 
             return ApiResponse::ok(
-                ['error' => 'quota_exceeded'],
+                ['error' => 'quota_exceeded', 'provider' => $provider],
                 "Kuota {$provider} habis. Silakan upgrade atau beralih provider.",
                 403
             );
         }
 
+        // Transparent fallback to Groq is gated behind an explicit configured
+        // credential: only attempt it if Groq also has its own api key set.
         if (! $result['success'] && $provider === 'adacode') {
             $groqConfig = Configuration::getValue(null, 'quote', 'groq', []);
             $groqConfig = is_array($groqConfig) ? $groqConfig : [];
             $groqApiKey = $groqConfig['api_key'] ?? null;
+            $groqModel = config('ai.providers.groq.chat_model', 'llama-3.1-8b-instant');
 
             if ($groqApiKey) {
+                $executedProvider = 'groq';
                 $result = $this->aiManager->call('groq', [
                     'apiKey' => $groqApiKey,
-                    'model' => config('ai.providers.groq.chat_model', 'llama-3.1-8b-instant'),
+                    'model' => $groqModel,
                     'messages' => $history,
                     'maxTokens' => 600,
                     'temperature' => 0.8,
@@ -165,7 +164,10 @@ class ChatController extends Controller
         if (! $result['success']) {
             $userMsg->delete();
 
-            return ApiResponse::ok(['error' => 'ai_failed'], 'Gagal mendapat respons dari AI. Coba lagi.', 503);
+            return ApiResponse::ok([
+                'error' => 'ai_failed',
+                'provider' => $executedProvider,
+            ], 'Gagal mendapat respons dari AI. Coba lagi.', 503);
         }
 
         $assistantMsg = ChatMessage::create([
@@ -176,7 +178,11 @@ class ChatController extends Controller
         ]);
 
         $chatSession->touch();
-        $this->aiManager->trackUsage($user, $result['tokens']);
+
+        // Track usage against the provider that actually served the request, not
+        // the configured default. Pass $feature=null and explicit $provider so
+        // we never accidentally resolve a different feature's provider.
+        $this->aiManager->trackUsage($user, $result['tokens'], 1, null, $executedProvider);
 
         return ApiResponse::ok([
             'message' => $this->formatMessage($assistantMsg),
@@ -184,7 +190,31 @@ class ChatController extends Controller
         ]);
     }
 
-    private function buildSystemPrompt(string $contextType, $user): ?string
+    /**
+     * @return array{0: ?string, 1: string} [api_key, model]
+     */
+    private function resolveProviderCredentials(string $provider, array $aiConfig): array
+    {
+        if ($provider === 'adacode') {
+            return [
+                $aiConfig['api_key'] ?? null,
+                $aiConfig['model'] ?? config('ai.providers.adacode.chat_model', 'claude-sonnet-4-6'),
+            ];
+        }
+
+        // Default 'groq': pull api_key from the dedicated quote/groq bucket, but
+        // fall back to the admin-configured ai/provider_config.groq_api_key if
+        // available. Model defaults to Groq's env-backed chat model.
+        $groqBucket = Configuration::getValue(null, 'quote', 'groq', []);
+        $groqBucket = is_array($groqBucket) ? $groqBucket : [];
+
+        $apiKey = $groqBucket['api_key'] ?? $aiConfig['groq_api_key'] ?? null;
+        $model = config('ai.providers.groq.chat_model', 'llama-3.1-8b-instant');
+
+        return [$apiKey, $model];
+    }
+
+    private function buildSystemPrompt(string $contextType, User $user): ?string
     {
         $base = 'Kamu adalah asisten pribadi yang cerdas dan suportif untuk pengguna ini. Balas dalam bahasa Indonesia kecuali diminta lain. Jawab dengan ringkas dan natural, tidak perlu terlalu formal.';
 

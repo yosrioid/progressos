@@ -24,21 +24,21 @@ class AiQuotaService
     ];
 
     /**
-     * Check if user has exceeded their AI quota
+     * Check if user has exceeded their AI quota.
+     *
+     * Reads usage from the same storage key as {@see AiProviderManager::trackUsage()}
+     * so that quotas are enforced against the live counter, not a stale snapshot.
      */
     public function checkQuota(User $user, string $provider = 'groq'): array
     {
-        // Get usage from provider-specific storage (same as AiProviderManager)
-        $storageKey = $provider === 'adacode' ? 'adacode' : 'groq';
-        $stored = Configuration::getValue($user, $storageKey, 'usage', []);
-        $stored = is_array($stored) ? $stored : [];
+        // Source of truth: AiProviderManager (writes to ${provider}/usage, keys 'requests' & 'tokens').
+        // Fetch via the manager so we never duplicate storage conventions.
+        $usage = app(AiProviderManager::class)->getUsage($user, $provider);
 
-        $limits = $this->limits[$provider] ?? $this->limits['groq'];
-
-        $usageRequests = $stored['requests'] ?? 0;
-        $usageTokens = $stored['tokens'] ?? 0;
-        $requestLimit = $limits['request_limit'];
-        $tokenLimit = $limits['token_limit'];
+        $usageRequests = $usage['requests'];
+        $usageTokens = $usage['tokens'];
+        $requestLimit = $usage['request_limit'];
+        $tokenLimit = $usage['token_limit'];
 
         $isExceeded = $usageRequests >= $requestLimit || $usageTokens >= $tokenLimit;
 
@@ -55,27 +55,31 @@ class AiQuotaService
     }
 
     /**
-     * Increment usage counters
+     * Increment usage counters for a provider.
+     *
+     * Delegates to {@see AiProviderManager::trackUsage()} so writes go to the
+     * same storage key that {@see checkQuota()} reads from.
      */
     public function incrementUsage(User $user, string $provider, int $tokensUsed = 0): void
     {
-        $config = $this->getUserConfig($user);
-
-        $config['usage_requests'] = ($config['usage_requests'] ?? 0) + 1;
-        $config['usage_tokens'] = ($config['usage_tokens'] ?? 0) + $tokensUsed;
-
-        $this->saveUserConfig($user, $config);
+        app(AiProviderManager::class)->trackUsage($user, $tokensUsed, 1, $provider);
     }
 
     /**
-     * Reset usage counters (for billing cycle)
+     * Reset usage counters (for billing cycle).
+     *
+     * Resets both per-provider buckets so a quota refresh does not leave stale
+     * counters for the provider that is no longer active.
      */
     public function resetUsage(User $user): void
     {
-        $config = $this->getUserConfig($user);
-        $config['usage_requests'] = 0;
-        $config['usage_tokens'] = 0;
-        $this->saveUserConfig($user, $config);
+        foreach (['groq', 'adacode'] as $provider) {
+            Configuration::setValue($user, $provider, 'usage', [
+                'date' => now()->toDateString(),
+                'requests' => 0,
+                'tokens' => 0,
+            ]);
+        }
     }
 
     /**
@@ -118,17 +122,5 @@ class AiQuotaService
         if ($quota['is_exceeded']) {
             throw new \RuntimeException('AI API quota exceeded. Please configure a different provider or wait for your next billing cycle.');
         }
-    }
-
-    protected function getUserConfig(User $user): array
-    {
-        $config = Configuration::getValue($user, 'ai', 'settings', []);
-
-        return is_array($config) ? $config : [];
-    }
-
-    protected function saveUserConfig(User $user, array $config): void
-    {
-        Configuration::setValue($user, 'ai', 'settings', $config);
     }
 }

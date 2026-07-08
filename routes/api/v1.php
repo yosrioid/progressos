@@ -44,7 +44,7 @@ Route::middleware(['auth:sanctum'])->prefix('v1')->group(function () {
 
     Route::middleware(['throttle:api-write'])->group(function () {
         Route::put('quote/config', [QuoteController::class, 'saveConfig']);
-        Route::put('ai/config', [QuoteController::class, 'saveAiConfig']);
+        // AI configuration write removed — admin-only via /api/admin/configuration/ai
     });
 });
 

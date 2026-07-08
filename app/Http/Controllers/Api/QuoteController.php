@@ -125,34 +125,6 @@ class QuoteController extends Controller
         return ApiResponse::ok(['quote_config' => $this->buildPayload($this->quoteConfig($request->user()))], 'Quote settings saved.');
     }
 
-    public function saveAiConfig(Request $request)
-    {
-        $data = $request->validate([
-            'provider' => ['required', 'in:groq,adacode'],
-            'model' => ['nullable', 'string', 'max:100'],
-            'api_key' => ['nullable', 'string', 'max:200'],
-            'groq_api_key' => ['nullable', 'string', 'max:200'],
-        ]);
-
-        $existing = Configuration::getValue(null, 'ai', 'provider_config', []);
-        $existing = is_array($existing) ? $existing : [];
-
-        $config = [
-            'provider' => $data['provider'],
-            'model' => $data['model'] ?? ($existing['model'] ?? 'claude-sonnet-4-6'),
-            'api_key' => $data['provider'] === 'adacode'
-                ? (filled($data['api_key'] ?? null) ? $data['api_key'] : ($existing['api_key'] ?? null))
-                : ($existing['api_key'] ?? null),
-            'groq_api_key' => $data['provider'] === 'groq'
-                ? (filled($data['groq_api_key'] ?? null) ? $data['groq_api_key'] : ($existing['groq_api_key'] ?? null))
-                : ($existing['groq_api_key'] ?? null),
-        ];
-
-        Configuration::setValue(null, 'ai', 'provider_config', $config, encrypted: true);
-
-        return ApiResponse::ok(['ai_config' => $config], 'AI settings saved.');
-    }
-
     private function generate(string $apiKey, array $themes, ?string $provider = null): ?array
     {
         $themeList = implode(', ', $themes);
