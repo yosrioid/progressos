@@ -37,7 +37,7 @@ class QuoteController extends Controller
         // Get provider and API key from quote config
         $provider = $config['provider'] ?? 'groq';
         $apiKey = $this->getApiKeyForProvider($provider);
-        
+
         if (! $apiKey) {
             return ApiResponse::ok(['quote' => null]);
         }
@@ -69,7 +69,7 @@ class QuoteController extends Controller
     {
         $user = $request->user();
         $config = $this->quoteConfig($user);
-        
+
         // Get provider and API key from quote config
         $provider = $config['provider'] ?? 'groq';
         $apiKey = $this->getApiKeyForProvider($provider);
@@ -140,7 +140,7 @@ class QuoteController extends Controller
         $config = [
             'provider' => $data['provider'],
             'model' => $data['model'] ?? ($existing['model'] ?? 'claude-sonnet-4-6'),
-            'api_key' => $data['provider'] === 'adacode' 
+            'api_key' => $data['provider'] === 'adacode'
                 ? (filled($data['api_key'] ?? null) ? $data['api_key'] : ($existing['api_key'] ?? null))
                 : ($existing['api_key'] ?? null),
             'groq_api_key' => $data['provider'] === 'groq'

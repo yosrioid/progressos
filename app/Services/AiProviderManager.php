@@ -55,7 +55,7 @@ class AiProviderManager
     {
         $today = Carbon::now()->toDateString();
         $provider = $this->resolveProvider('chat'); // determine provider from config
-        
+
         // Use provider-specific storage key
         $storageKey = $provider === 'adacode' ? 'adacode' : 'groq';
         $stored = Configuration::getValue($user, $storageKey, 'usage', []);
@@ -70,7 +70,7 @@ class AiProviderManager
 
         Configuration::setValue($user, $storageKey, 'usage', $stored);
     }
-    
+
     /**
      * Track usage for quote generation (uses provider-specific storage)
      */
@@ -90,7 +90,7 @@ class AiProviderManager
 
         Configuration::setValue($user, $storageKey, 'usage', $stored);
     }
-    
+
     /**
      * Get usage for a specific provider (for frontend display)
      */
@@ -109,7 +109,7 @@ class AiProviderManager
             'groq' => ['request_limit' => 14400, 'token_limit' => 10000000],
             'adacode' => ['request_limit' => 1000, 'token_limit' => 1000000],
         ];
-        
+
         $limit = $limits[$provider] ?? $limits['groq'];
 
         return [
