@@ -35,24 +35,35 @@ class AiProviderManager
 
     public function call(string $provider, array $payload): array
     {
+        $adapter = $this->adapterFor($provider);
+        if ($adapter === null) {
+            throw new \InvalidArgumentException("Unknown provider: {$provider}");
+        }
+
+        // Resolve adapter-specific default max_tokens by inspecting the adapter
+        // base class, so a future provider can declare its own default without
+        // touching this manager.
+        return $adapter::chat(
+            $payload['apiKey'] ?? config("ai.providers.{$provider}.api_key_env"),
+            $payload['model'] ?? config("ai.providers.{$provider}.chat_model"),
+            $payload['messages'],
+            $payload['maxTokens'] ?? null,
+            $payload['temperature'] ?? 0.8,
+            $payload['systemPrompt'] ?? null,
+        );
+    }
+
+    /**
+     * Map a provider identifier to the adapter class that owns its
+     * OpenAI-compatible endpoint. Returns null for unknown providers so
+     * the caller can throw a domain-specific error.
+     */
+    protected function adapterFor(string $provider): ?string
+    {
         return match ($provider) {
-            'groq' => GroqAdapter::chat(
-                $payload['apiKey'] ?? config('ai.providers.groq.api_key_env'),
-                $payload['model'] ?? config('ai.providers.groq.chat_model', 'llama-3.1-8b-instant'),
-                $payload['messages'],
-                $payload['maxTokens'] ?? 600,
-                $payload['temperature'] ?? 0.8,
-                $payload['systemPrompt'] ?? null,
-            ),
-            'adacode' => AdaCodeAdapter::chat(
-                $payload['apiKey'] ?? config('ai.providers.adacode.api_key_env'),
-                $payload['model'] ?? config('ai.providers.adacode.chat_model', 'claude-sonnet-4-6'),
-                $payload['messages'],
-                $payload['maxTokens'] ?? 600,
-                $payload['temperature'] ?? 0.8,
-                $payload['systemPrompt'] ?? null,
-            ),
-            default => throw new \InvalidArgumentException("Unknown provider: {$provider}"),
+            'groq' => GroqAdapter::class,
+            'adacode' => AdaCodeAdapter::class,
+            default => null,
         };
     }
 
