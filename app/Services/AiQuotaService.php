@@ -8,21 +8,6 @@ use Illuminate\Support\Facades\Http;
 
 class AiQuotaService
 {
-    protected array $limits = [
-        'groq' => [
-            'request_limit' => 14400,
-            'token_limit' => 10000000,
-        ],
-        'adacode' => [
-            'request_limit' => 1000,
-            'token_limit' => 1000000,
-        ],
-        'openai' => [
-            'request_limit' => 5000,
-            'token_limit' => 5000000,
-        ],
-    ];
-
     /**
      * Check if user has exceeded their AI quota.
      *
@@ -62,19 +47,35 @@ class AiQuotaService
      */
     public function incrementUsage(User $user, string $provider, int $tokensUsed = 0): void
     {
-        app(AiProviderManager::class)->trackUsage($user, $tokensUsed, 1, $provider);
+        // Argument order matters: AiProviderManager::trackUsage signature is
+        // (user, tokens, requests=1, feature=null, provider=null).
+        // Passing $provider as the 3rd positional argument previously
+        // overwrote $requests=1 silently and dropped the provider hint,
+        // which routed the write to whatever provider resolved from
+        // resolveProvider('chat'). That bug is fixed here by passing it
+        // positionally as the 5th argument.
+        app(AiProviderManager::class)->trackUsage(
+            $user,
+            $tokensUsed,
+            1,
+            null,
+            $provider,
+        );
     }
 
     /**
      * Reset usage counters (for billing cycle).
      *
-     * Resets both per-provider buckets so a quota refresh does not leave stale
-     * counters for the provider that is no longer active.
+     * Resets buckets for every registered provider so a quota refresh
+     * does not leave stale counters for an inactive provider.
      */
     public function resetUsage(User $user): void
     {
-        foreach (['groq', 'adacode'] as $provider) {
-            Configuration::setValue($user, $provider, 'usage', [
+        $providers = array_keys((array) config('ai.providers', []));
+
+        foreach ($providers as $provider) {
+            $storageKey = config("ai.providers.{$provider}.storage_key", $provider);
+            Configuration::setValue($user, $storageKey, 'usage', [
                 'date' => now()->toDateString(),
                 'requests' => 0,
                 'tokens' => 0,

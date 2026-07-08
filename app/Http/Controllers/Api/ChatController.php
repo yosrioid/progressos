@@ -13,6 +13,7 @@ use App\Services\AiProviderManager;
 use App\Services\QuotaNotificationService;
 use App\Support\ApiResponse;
 use Illuminate\Http\Request;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ChatController extends Controller
 {
@@ -188,6 +189,250 @@ class ChatController extends Controller
             'message' => $this->formatMessage($assistantMsg),
             'session' => $this->formatSession($chatSession->fresh()),
         ]);
+    }
+
+    /**
+     * Streaming variant of {@see sendMessage()}. Emits Server-Sent Events
+     * so the client can render each token as it arrives instead of waiting
+     * for the whole reply. Wire format:
+     *
+     *   event: chunk
+     *   data: {"content":"..."}
+     *
+     *   event: done
+     *   data: {"message_id":42,"tokens":123,"session":{...}}
+     *
+     *   event: error
+     *   data: {"code":"quota_exceeded","message":"...","status":403}
+     *
+     * Usage tracking happens AFTER the full message lands so partial /
+     * failed streams never get billed. Quota pre-check happens before the
+     * upstream connection is opened so quota-exhausted users fail fast
+     * instead of getting a half-reply.
+     */
+    public function streamMessage(Request $request, ChatSession $chatSession): StreamedResponse
+    {
+        abort_unless($chatSession->user_id === $request->user()->id, 403);
+
+        $data = $request->validate([
+            'content' => ['required', 'string', 'max:4000'],
+        ]);
+
+        $user = $request->user();
+        $provider = $this->aiManager->resolveProvider('chat');
+        $aiConfig = Configuration::getValue(null, 'ai', 'provider_config', []);
+        $aiConfig = is_array($aiConfig) ? $aiConfig : [];
+
+        [$apiKey, $model] = $this->resolveProviderCredentials($provider, $aiConfig);
+
+        // Persistence: save user message + history BEFORE the upstream
+        // request opens so that the assistant message can reference the
+        // user's existing message id (foreign key is on ChatMessage).
+        $userMsg = ChatMessage::create([
+            'session_id' => $chatSession->id,
+            'role' => 'user',
+            'content' => $data['content'],
+            'tokens' => 0,
+        ]);
+
+        if ($chatSession->messages()->count() === 1) {
+            $chatSession->update(['title' => mb_substr($data['content'], 0, 60)]);
+        }
+
+        $history = $chatSession->messages()
+            ->orderByDesc('created_at')
+            ->limit(self::HISTORY_LIMIT)
+            ->get()
+            ->reverse()
+            ->map(fn (ChatMessage $m) => ['role' => $m->role, 'content' => $m->content])
+            ->values()
+            ->toArray();
+
+        $systemPrompt = $this->buildSystemPrompt($chatSession->context_type, $user);
+
+        // SSE needs an open buffer. PHP's default output_buffering buffers
+        // everything; disabling it here ensures each echo+flush reaches
+        // the client immediately. ini_set only affects the current request.
+        $response = new StreamedResponse(function () use ($user, $userMsg, $chatSession, $provider, $apiKey, $model, $history, $systemPrompt) {
+            @ini_set('output_buffering', '0');
+            @ini_set('implicit_flush', '1');
+            while (ob_get_level() > 0) {
+                ob_end_flush();
+            }
+
+            $send = function (string $event, array $payload): void {
+                echo 'event: '.$event."\n";
+                echo 'data: '.json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)."\n\n";
+                if (function_exists('flush')) {
+                    @flush();
+                }
+            };
+
+            // Surface config error early: no point opening an SSE connection
+            // that will just emit a quota error 4 seconds in.
+            if (! $apiKey) {
+                $send('error', [
+                    'code' => 'no_api_key',
+                    'provider' => $provider,
+                    'message' => "AI provider '{$provider}' belum dikonfigurasi. Hubungi admin.",
+                    'status' => 422,
+                ]);
+                $userMsg->delete();
+
+                return;
+            }
+
+            // Quota pre-check: prevents half-replies and avoids wasting
+            // the upstream request budget on a user who can't pay for it.
+            $quota = $this->aiManager->getUsage($user, $provider);
+            if ($quota['requests'] >= $quota['request_limit']) {
+                $this->quotaNotifier->notifyQuotaExceeded($user, $provider);
+                $send('error', [
+                    'code' => 'quota_exceeded',
+                    'provider' => $provider,
+                    'message' => "Kuota {$provider} habis.",
+                    'status' => 403,
+                ]);
+                $userMsg->delete();
+
+                return;
+            }
+
+            $send('start', ['provider' => $provider, 'model' => $model, 'user_message_id' => $userMsg->id]);
+
+            $assembled = '';
+            $totalTokens = 0;
+            $errored = false;
+            $executedProvider = $provider;
+
+            try {
+                foreach ($this->aiManager->stream($provider, [
+                    'apiKey' => $apiKey,
+                    'model' => $model,
+                    'messages' => $history,
+                    'maxTokens' => 600,
+                    'temperature' => 0.8,
+                    'systemPrompt' => $systemPrompt,
+                ]) as $event) {
+                    if (($event['type'] ?? null) === 'chunk') {
+                        $assembled .= $event['content'];
+                        $send('chunk', ['content' => $event['content']]);
+                    } elseif (($event['type'] ?? null) === 'done') {
+                        $totalTokens = (int) ($event['tokens'] ?? 0);
+                        // The adapter may have yielded a 'done' from the
+                        // initial response even if it errored mid-stream;
+                        // the 'error' branch below supersedes in that case.
+                        if (! $errored) {
+                            break;
+                        }
+                    } elseif (($event['type'] ?? null) === 'error') {
+                        // Transparent fallback mirrors the non-streaming
+                        // path: if AdaCode fails and Groq is configured,
+                        // try Groq before surfacing the failure.
+                        if ($provider === 'adacode' && ! $errored) {
+                            $errored = true;
+                            $groqConfig = Configuration::getValue(null, 'quote', 'groq', []);
+                            $groqConfig = is_array($groqConfig) ? $groqConfig : [];
+                            $groqApiKey = $groqConfig['api_key'] ?? null;
+                            $groqModel = config('ai.providers.groq.chat_model', 'llama-3.1-8b-instant');
+
+                            if ($groqApiKey) {
+                                $send('fallback', ['from' => 'adacode', 'to' => 'groq']);
+                                $executedProvider = 'groq';
+                                $assembled = '';
+                                $totalTokens = 0;
+
+                                foreach ($this->aiManager->stream('groq', [
+                                    'apiKey' => $groqApiKey,
+                                    'model' => $groqModel,
+                                    'messages' => $history,
+                                    'maxTokens' => 600,
+                                    'temperature' => 0.8,
+                                    'systemPrompt' => $systemPrompt,
+                                ]) as $fallbackEvent) {
+                                    if (($fallbackEvent['type'] ?? null) === 'chunk') {
+                                        $assembled .= $fallbackEvent['content'];
+                                        $send('chunk', ['content' => $fallbackEvent['content']]);
+                                    } elseif (($fallbackEvent['type'] ?? null) === 'done') {
+                                        $totalTokens = (int) ($fallbackEvent['tokens'] ?? 0);
+                                        break 2;
+                                    } elseif (($fallbackEvent['type'] ?? null) === 'error') {
+                                        $send('error', [
+                                            'code' => 'ai_failed',
+                                            'provider' => 'groq',
+                                            'message' => $fallbackEvent['error_message'] ?? 'AI fallback failed',
+                                            'status' => $fallbackEvent['status'] ?? 502,
+                                        ]);
+                                        $userMsg->delete();
+
+                                        return;
+                                    }
+                                }
+                                $errored = false;
+                                break;
+                            }
+                        }
+
+                        $send('error', [
+                            'code' => 'ai_failed',
+                            'provider' => $executedProvider,
+                            'message' => $event['error_message'] ?? 'Gagal mendapat respons dari AI.',
+                            'status' => $event['status'] ?? 502,
+                        ]);
+                        $userMsg->delete();
+
+                        return;
+                    }
+                }
+            } catch (\Throwable $e) {
+                $send('error', [
+                    'code' => 'stream_exception',
+                    'provider' => $executedProvider,
+                    'message' => $e->getMessage(),
+                    'status' => 500,
+                ]);
+                $userMsg->delete();
+
+                return;
+            }
+
+            // Empty-content guard: if the upstream returned nothing (rare,
+            // but possible on certain configs), don't persist an empty
+            // assistant row — that's worse than no row.
+            if (trim($assembled) === '') {
+                $send('error', [
+                    'code' => 'empty_response',
+                    'provider' => $executedProvider,
+                    'message' => 'AI mengembalikan respons kosong.',
+                    'status' => 502,
+                ]);
+                $userMsg->delete();
+
+                return;
+            }
+
+            $assistantMsg = ChatMessage::create([
+                'session_id' => $chatSession->id,
+                'role' => 'assistant',
+                'content' => $assembled,
+                'tokens' => $totalTokens,
+            ]);
+
+            $chatSession->touch();
+            $this->aiManager->trackUsage($user, $totalTokens, 1, null, $executedProvider);
+
+            $send('done', [
+                'message' => $this->formatMessage($assistantMsg),
+                'session' => $this->formatSession($chatSession->fresh()),
+            ]);
+        });
+
+        $response->headers->set('Content-Type', 'text/event-stream');
+        $response->headers->set('Cache-Control', 'no-cache, no-transform');
+        $response->headers->set('X-Accel-Buffering', 'no');
+        $response->headers->set('Connection', 'keep-alive');
+
+        return $response;
     }
 
     /**

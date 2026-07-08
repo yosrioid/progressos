@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { nextTick, onMounted, ref, watch } from 'vue';
+import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { api, unwrap } from '../api';
 import { confirmAction, toast } from '../feedback';
@@ -18,6 +18,7 @@ interface Message {
   content: string;
   tokens: number;
   created_at: string;
+  streaming?: boolean;
 }
 
 const route = useRoute();
@@ -32,6 +33,15 @@ const sending = ref(false);
 const input = ref('');
 const messagesEnd = ref<HTMLElement | null>(null);
 const inputRef = ref<HTMLTextAreaElement | null>(null);
+
+const aiConfig = ref<{ provider: string; model: string }>({ provider: 'groq', model: 'llama-3.1-8b-instant' });
+
+// Streaming state — separated from `sending` so the UI can show a
+// "Stop" button only while the upstream connection is still open.
+// `streamController` lets the user abort mid-flight; we also abort
+// it on unmount so a navigation away can't leak an open SSE handle.
+let streamController: AbortController | null = null;
+let streamAborted = false;
 
 const showNewModal = ref(false);
 const newContextType = ref<'general' | 'journal' | 'project'>('general');
@@ -116,26 +126,187 @@ async function send() {
   input.value = '';
   if (inputRef.value) { inputRef.value.style.height = 'auto'; }
   sending.value = true;
+  streamAborted = false;
 
-  const tempMsg: Message = { id: Date.now(), role: 'user', content, tokens: 0, created_at: new Date().toISOString() };
-  messages.value.push(tempMsg);
+  const tempUserId = Date.now();
+  const userMsg: Message = {
+    id: tempUserId,
+    role: 'user',
+    content,
+    tokens: 0,
+    created_at: new Date().toISOString(),
+  };
+  // Placeholder for the assistant's reply. Its `id` is a temporary
+  // negative-ish number so Vue can track it while streaming — we
+  // replace it with the real DB id when 'done' arrives.
+  const assistantMsg: Message = {
+    id: -Date.now(),
+    role: 'assistant',
+    content: '',
+    tokens: 0,
+    created_at: new Date().toISOString(),
+    streaming: true,
+  };
+  messages.value.push(userMsg, assistantMsg);
   await scrollToBottom();
 
+  streamController = new AbortController();
+
   try {
-    const res = await api.post(`/api/v1/chat-sessions/${activeSession.value.id}/messages`, { content }).then(unwrap);
-    messages.value[messages.value.length - 1] = { ...tempMsg };
-    messages.value.push(res.message);
-    const idx = sessions.value.findIndex(s => s.id === activeSession.value?.id);
-    if (idx >= 0) sessions.value[idx] = res.session;
-    activeSession.value = res.session;
-    await scrollToBottom();
+    const response = await fetch(`/api/v1/chat-sessions/${activeSession.value.id}/messages/stream`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'text/event-stream',
+      },
+      body: JSON.stringify({ content }),
+      credentials: 'include',
+      signal: streamController.signal,
+    });
+
+    if (!response.ok || !response.body) {
+      // Streaming endpoint is unavailable (e.g. nginx buffering the SSE
+      // response, or a misconfigured proxy). Fall back to the regular
+      // non-streaming POST so the user still gets a reply.
+      await fallbackNonStreaming(content, userMsg, assistantMsg);
+      return;
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    // SSE parsing: events are terminated by a blank line ("\n\n"),
+    // so we accumulate chunks and split on that boundary. We also
+    // tolerate CRLF line endings (per the SSE spec).
+    const dispatchLine = (line: string) => {
+      if (line.startsWith('event:')) {
+        (assistantMsg as any).__nextEvent = line.slice(6).trim();
+      } else if (line.startsWith('data:')) {
+        const data = line.slice(5).trim();
+        if (!data) return;
+        try {
+          const payload = JSON.parse(data);
+          handleStreamEvent((assistantMsg as any).__nextEvent ?? 'message', payload, assistantMsg);
+        } catch {
+          // Non-JSON payloads are ignored; the protocol guarantees JSON.
+        }
+      }
+    };
+
+    const handleStreamEvent = (event: string, payload: any, target: Message) => {
+      switch (event) {
+        case 'start':
+          // Optional metadata about provider/model. No UI side-effect
+          // today but we keep the hook so we can show "(via Groq · llama)"
+          // in a future iteration without re-plumbing.
+          break;
+        case 'chunk':
+          target.content = (target.content || '') + (payload.content ?? '');
+          scrollToBottom();
+          break;
+        case 'fallback':
+          toast({ tone: 'info', title: `Beralih ke ${payload.to}`, message: `${payload.from} gagal, mencoba ulang.` });
+          break;
+        case 'done':
+          if (payload.message) {
+            target.id = payload.message.id;
+            target.tokens = payload.message.tokens ?? 0;
+            target.created_at = payload.message.created_at ?? target.created_at;
+          }
+          target.streaming = false;
+          if (payload.session) {
+            activeSession.value = payload.session;
+            const idx = sessions.value.findIndex(s => s.id === payload.session.id);
+            if (idx >= 0) sessions.value[idx] = payload.session;
+          }
+          scrollToBottom();
+          break;
+        case 'error':
+          // Remove the empty assistant placeholder so the user doesn't
+          // see an empty bubble next to their question.
+          const errIdx = messages.value.indexOf(target);
+          if (errIdx >= 0) messages.value.splice(errIdx, 1);
+          toast({
+            tone: 'error',
+            title: 'AI tidak bisa menjawab',
+            message: payload.message ?? 'Coba lagi nanti.',
+          });
+          // Put the user's text back so they can retry.
+          input.value = content;
+          break;
+      }
+    };
+
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+
+      // Split on the SSE event boundary. We keep the trailing partial
+      // event in the buffer for the next chunk.
+      const parts = buffer.split(/\r?\n\r?\n/);
+      buffer = parts.pop() ?? '';
+      for (const part of parts) {
+        const lines = part.split(/\r?\n/);
+        (assistantMsg as any).__nextEvent = null;
+        for (const line of lines) {
+          dispatchLine(line);
+        }
+      }
+    }
   } catch (e: any) {
-    messages.value.pop();
-    input.value = content;
-    toast({ tone: 'error', title: 'Gagal mengirim', message: e?.response?.data?.message ?? 'Coba lagi.' });
+    if (e?.name === 'AbortError') {
+      // User pressed Stop — don't toast, just mark the assistant
+      // placeholder as finished and keep whatever streamed in.
+      streamAborted = true;
+      assistantMsg.streaming = false;
+      assistantMsg.content = (assistantMsg.content || '') + (assistantMsg.content ? '' : '\n_[dihentikan]_');
+      toast({ tone: 'info', title: 'Dihentikan', message: 'Generasi AI dihentikan.' });
+    } else {
+      // Network or parse error — fall back to the non-streaming POST
+      // so the user isn't stuck staring at a half-rendered bubble.
+      await fallbackNonStreaming(content, userMsg, assistantMsg);
+    }
   } finally {
     sending.value = false;
+    streamController = null;
     nextTick(() => inputRef.value?.focus());
+  }
+}
+
+// Non-streaming fallback used when the SSE endpoint errors or the
+// browser blocks streaming (some proxies / corporate firewalls do).
+// The semantics mirror the streaming path: optimistic message added,
+// then replaced with the real response, errors restore the input.
+async function fallbackNonStreaming(content: string, userMsg: Message, assistantMsg: Message) {
+  try {
+    const res = await api
+      .post(`/api/v1/chat-sessions/${activeSession.value!.id}/messages`, { content })
+      .then(unwrap);
+    const idx = messages.value.indexOf(assistantMsg);
+    if (idx >= 0) messages.value[idx] = res.message;
+    if (res.session) {
+      activeSession.value = res.session;
+      const sIdx = sessions.value.findIndex(s => s.id === res.session.id);
+      if (sIdx >= 0) sessions.value[sIdx] = res.session;
+    }
+    await scrollToBottom();
+  } catch (e: any) {
+    const idx = messages.value.indexOf(assistantMsg);
+    if (idx >= 0) messages.value.splice(idx, 1);
+    toast({
+      tone: 'error',
+      title: 'Gagal mengirim',
+      message: e?.response?.data?.message ?? 'Coba lagi.',
+    });
+    input.value = content;
+  }
+}
+
+function stopStream() {
+  if (streamController) {
+    streamController.abort();
   }
 }
 
@@ -170,6 +341,14 @@ function formatDate(iso: string) {
 
 onMounted(async () => {
   await loadSessions();
+  // Fetch the active provider/model so the footer caption matches
+  // reality. Failures here are silent — the footer just keeps the
+  // default label.
+  try {
+    const res = await api.get('/api/v1/ai/config').then(unwrap);
+    if (res?.provider) aiConfig.value.provider = res.provider;
+    if (res?.model) aiConfig.value.model = res.model;
+  } catch { /* keep defaults */ }
   const sessionId = route.query.session;
   if (sessionId) {
     const found = sessions.value.find(s => s.id === Number(sessionId));
@@ -181,6 +360,15 @@ watch(() => route.query.session, async (id) => {
   if (!id) return;
   const found = sessions.value.find(s => s.id === Number(id));
   if (found && found.id !== activeSession.value?.id) await openSession(found);
+});
+
+// If the user navigates away mid-stream, abort the in-flight request
+// so we don't leak server-side connections or accumulate orphaned
+// sockets on the upstream provider.
+onBeforeUnmount(() => {
+  if (streamController) {
+    streamController.abort();
+  }
 });
 </script>
 
@@ -311,7 +499,15 @@ watch(() => route.query.session, async (id) => {
                         : 'rounded-tl-sm bg-slate-100 text-slate-800 dark:bg-zinc-800 dark:text-zinc-200',
                     ]"
                   >
-                    <p class="whitespace-pre-wrap">{{ msg.content }}</p>
+                    <!-- Empty streaming bubble shows typing dots so the
+                         user gets feedback that the request is in-flight
+                         even before the first token arrives. -->
+                    <p v-if="msg.role === 'assistant' && msg.streaming && !msg.content" class="flex items-center gap-1.5">
+                      <span v-for="i in 3" :key="i" class="h-1.5 w-1.5 rounded-full bg-slate-400 dark:bg-zinc-500 animate-bounce" :style="{ animationDelay: `${(i - 1) * 160}ms` }" />
+                    </p>
+                    <p v-else class="whitespace-pre-wrap">
+                      {{ msg.content }}<span v-if="msg.streaming" class="ml-0.5 inline-block h-3 w-1.5 -mb-0.5 bg-teal-500 animate-pulse align-middle" />
+                    </p>
                   </div>
                   <p :class="['text-[10px] text-slate-400 dark:text-zinc-600', msg.role === 'user' ? 'text-right' : 'pl-1']">
                     {{ formatTime(msg.created_at) }}<span v-if="msg.role === 'assistant' && msg.tokens"> · {{ msg.tokens }} token</span>
@@ -323,14 +519,6 @@ watch(() => route.query.session, async (id) => {
                   v-if="msg.role === 'user'"
                   class="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-teal-600 text-[10px] font-extrabold text-white mt-0.5"
                 >U</div>
-              </div>
-
-              <!-- Typing indicator -->
-              <div v-if="sending" class="flex gap-3 justify-start">
-                <div class="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-teal-100 text-[10px] font-extrabold text-teal-700 dark:bg-teal-900/40 dark:text-teal-400 mt-0.5">AI</div>
-                <div class="flex items-center gap-1.5 rounded-2xl rounded-tl-sm bg-slate-100 px-4 py-3 dark:bg-zinc-800">
-                  <span v-for="i in 3" :key="i" class="h-1.5 w-1.5 rounded-full bg-slate-400 dark:bg-zinc-500 animate-bounce" :style="{ animationDelay: `${(i - 1) * 160}ms` }" />
-                </div>
               </div>
 
               <div ref="messagesEnd" />
@@ -353,20 +541,28 @@ watch(() => route.query.session, async (id) => {
               @input="autoResize"
             />
             <button
+              v-if="!sending"
               :class="[
                 'grid h-8 w-8 shrink-0 place-items-center rounded-lg transition-colors',
-                input.trim() && !sending
+                input.trim()
                   ? 'bg-teal-600 text-white hover:bg-teal-700'
                   : 'bg-slate-200 text-slate-400 dark:bg-zinc-700 dark:text-zinc-500 cursor-not-allowed',
               ]"
-              :disabled="sending || !input.trim()"
+              :disabled="!input.trim()"
               @click="send"
             >
-              <svg v-if="sending" class="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
-              <svg v-else class="h-4 w-4" fill="currentColor" viewBox="0 0 24 24"><path d="M2.01 21 23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+              <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 24 24"><path d="M2.01 21 23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+            </button>
+            <button
+              v-else
+              class="grid h-8 w-8 shrink-0 place-items-center rounded-lg transition-colors bg-red-500 text-white hover:bg-red-600"
+              @click="stopStream"
+              title="Stop generasi"
+            >
+              <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 24 24"><path d="M6 6h12v12H6z"/></svg>
             </button>
           </div>
-          <p class="mt-1.5 text-center text-[10px] text-slate-300 dark:text-zinc-700">Groq · llama-3.1-8b-instant · 12 pesan terakhir dikirim ke AI</p>
+          <p class="mt-1.5 text-center text-[10px] text-slate-300 dark:text-zinc-700">{{ aiConfig.provider }} · {{ aiConfig.model }} · 12 pesan terakhir dikirim ke AI</p>
         </div>
       </template>
     </div>

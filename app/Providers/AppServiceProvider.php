@@ -56,5 +56,10 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('api-capture', fn (Request $request) => Limit::perMinute(60)->by($request->user()?->id ?: $request->ip()));
         RateLimiter::for('api-export', fn (Request $request) => Limit::perMinute(20)->by($request->user()?->id ?: $request->ip()));
         RateLimiter::for('api-tokens', fn (Request $request) => Limit::perMinute(20)->by($request->user()?->id ?: $request->ip()));
+        // AI stream: long-lived SSE connection, so we cap concurrent streams
+        // rather than per-minute requests. 30 concurrent streams per user is
+        // enough for any realistic chat use (typically 1) while preventing
+        // a runaway client from saturating the upstream provider quota.
+        RateLimiter::for('ai-stream', fn (Request $request) => Limit::perMinute(60)->by($request->user()?->id ?: $request->ip()));
     }
 }
