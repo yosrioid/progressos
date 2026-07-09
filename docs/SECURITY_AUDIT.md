@@ -1,4 +1,4 @@
-# Security Audit & Adjustment — 2026-07-09
+# Security Audit — 2026-07-09
 
 Scan menyeluruh terhadap keamanan frontend, backend, role-based access control, dan hacker attack surface.
 

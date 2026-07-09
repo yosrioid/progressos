@@ -179,6 +179,7 @@ export PATH="/Users/oirsoy/Library/Application Support/Herd/config/nvm/versions/
 - Tidak ada gap kritis. Proyek siap digunakan sehari-hari.
 - Opsional jangka panjang: deeper per-record activity history tab, richer milestone source linking by tag (saat ini hanya by text keyword).
 - Security hardening (see `docs/SECURITY_AUDIT.md`): fix ReferenceController IDOR, add CSRF 419 interceptor, remove hardcoded admin password default.
+- Frontend improvements (see `docs/FRONTEND_AUDIT.md`): lazy-load routes, split Configuration.vue, add global error handler, reduce `any` usage.
 
 ## Security Audit (2026-07-09)
 
