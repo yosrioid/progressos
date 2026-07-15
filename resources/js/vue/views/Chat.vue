@@ -346,8 +346,9 @@ onMounted(async () => {
   // default label.
   try {
     const res = await api.get('/api/v1/ai/config').then(unwrap);
-    if (res?.provider) aiConfig.value.provider = res.provider;
-    if (res?.model) aiConfig.value.model = res.model;
+    const aiCfg = res?.ai_config || res;
+    if (aiCfg?.provider) aiConfig.value.provider = aiCfg.provider;
+    if (aiCfg?.model) aiConfig.value.model = aiCfg.model;
   } catch { /* keep defaults */ }
   const sessionId = route.query.session;
   if (sessionId) {

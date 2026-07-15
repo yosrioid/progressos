@@ -36,6 +36,7 @@ class AiQuotaService
             'request_percentage' => $requestLimit > 0 ? round(($usageRequests / $requestLimit) * 100, 2) : 0,
             'token_percentage' => $tokenLimit > 0 ? round(($usageTokens / $tokenLimit) * 100, 2) : 0,
             'is_exceeded' => $isExceeded,
+            'allowed' => ! $isExceeded,
         ];
     }
 

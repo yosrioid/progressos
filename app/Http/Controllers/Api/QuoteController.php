@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Controller;
 use App\Models\Configuration;
+use App\Models\User;
 use App\Services\AiProviderManager;
+use App\Services\AiQuotaService;
 use App\Services\QuotaNotificationService;
+use App\Http\Controllers\Controller;
 use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -23,6 +25,7 @@ class QuoteController extends Controller
     public function __construct(
         private AiProviderManager $aiManager,
         private QuotaNotificationService $quotaNotifier,
+        private AiQuotaService $quotaService,
     ) {}
 
     public function daily(Request $request)
@@ -36,6 +39,17 @@ class QuoteController extends Controller
 
         // Get provider and API key from quote config
         $provider = $config['provider'] ?? 'groq';
+
+        // Quota pre-check so users can't drain their daily budget without warning.
+        $quota = $this->quotaService->checkQuota($user, $provider);
+        if ($quota['is_exceeded'] ?? false) {
+            return ApiResponse::ok(
+                ['quote' => null, 'quota_exceeded' => true, 'quota' => $quota],
+                'Kuota AI harian telah habis.',
+                429,
+            );
+        }
+
         $apiKey = $this->getApiKeyForProvider($provider);
 
         if (! $apiKey) {
@@ -45,22 +59,9 @@ class QuoteController extends Controller
         $today = Carbon::now($user->timezone ?? 'Asia/Jakarta')->toDateString();
         $cacheKey = "daily_quote_{$user->id}_{$today}";
 
-        $quote = Cache::remember($cacheKey, Carbon::now()->endOfDay(), function () use ($apiKey, $config, $provider) {
-            return $this->generate($apiKey, $config['themes'] ?? ['motivation'], $provider);
+        $quote = Cache::remember($cacheKey, Carbon::now()->endOfDay(), function () use ($apiKey, $config, $provider, $user) {
+            return $this->generate($user, $apiKey, $config['themes'] ?? ['motivation'], $provider);
         });
-
-        // Track usage if quote was generated (approximate - 1 request)
-        if ($quote) {
-            $storageKey = $provider === 'adacode' ? 'adacode' : 'groq';
-            $today = Carbon::now()->toDateString();
-            $stored = Configuration::getValue($user, $storageKey, 'usage', []);
-            $stored = is_array($stored) ? $stored : [];
-            if (($stored['date'] ?? '') !== $today) {
-                $stored = ['date' => $today, 'requests' => 0, 'tokens' => 0];
-            }
-            $stored['requests'] = ($stored['requests'] ?? 0) + 1;
-            Configuration::setValue($user, $storageKey, 'usage', $stored);
-        }
 
         return ApiResponse::ok(['quote' => $quote]);
     }
@@ -72,6 +73,17 @@ class QuoteController extends Controller
 
         // Get provider and API key from quote config
         $provider = $config['provider'] ?? 'groq';
+
+        // Quota pre-check. Manual refresh deserves the same guard as daily.
+        $quota = $this->quotaService->checkQuota($user, $provider);
+        if ($quota['is_exceeded'] ?? false) {
+            return ApiResponse::ok(
+                ['quote' => null, 'quota_exceeded' => true, 'quota' => $quota],
+                'Kuota AI harian telah habis.',
+                429,
+            );
+        }
+
         $apiKey = $this->getApiKeyForProvider($provider);
 
         if (! ($config['enabled'] ?? false) || ! $apiKey) {
@@ -82,21 +94,8 @@ class QuoteController extends Controller
         $cacheKey = "daily_quote_{$user->id}_{$today}";
         Cache::forget($cacheKey);
 
-        $quote = $this->generate($apiKey, $config['themes'] ?? ['motivation'], $provider);
+        $quote = $this->generate($user, $apiKey, $config['themes'] ?? ['motivation'], $provider);
         Cache::put($cacheKey, $quote, Carbon::now()->endOfDay());
-
-        // Track usage for manual refresh
-        if ($quote) {
-            $storageKey = $provider === 'adacode' ? 'adacode' : 'groq';
-            $today = Carbon::now()->toDateString();
-            $stored = Configuration::getValue($user, $storageKey, 'usage', []);
-            $stored = is_array($stored) ? $stored : [];
-            if (($stored['date'] ?? '') !== $today) {
-                $stored = ['date' => $today, 'requests' => 0, 'tokens' => 0];
-            }
-            $stored['requests'] = ($stored['requests'] ?? 0) + 1;
-            Configuration::setValue($user, $storageKey, 'usage', $stored);
-        }
 
         return ApiResponse::ok(['quote' => $quote]);
     }
@@ -119,13 +118,21 @@ class QuoteController extends Controller
             'provider' => $data['provider'],
         ];
 
-        Configuration::setValue(null, 'quote', 'groq', $config);
+        Configuration::setValue(null, 'quote', 'groq', $config, encrypted: true);
         $this->bustQuoteCache($request->user());
 
         return ApiResponse::ok(['quote_config' => $this->buildPayload($this->quoteConfig($request->user()))], 'Quote settings saved.');
     }
 
-    private function generate(string $apiKey, array $themes, ?string $provider = null): ?array
+    /**
+     * Generate a quote for a user, tracking usage back to the caller.
+     *
+     * Previously usage tracking was a no-op because the call site wrapped
+     * generate() in Cache::remember() and had no access to the user model.
+     * By passing $user through, AiProviderManager can now increment today's
+     * bucket correctly.
+     */
+    private function generate(User $user, string $apiKey, array $themes, ?string $provider = null): ?array
     {
         $themeList = implode(', ', $themes);
         $provider = $provider ?? config('ai.default_provider', 'groq');
@@ -148,13 +155,13 @@ class QuoteController extends Controller
                 'temperature' => 0.9,
             ]);
 
-            if (! $result['success']) {
+            if (! $result['success'] ?? false) {
                 return null;
             }
 
-            $this->trackUsage($result['tokens'], $provider);
+            $this->aiManager->trackQuoteUsage($user, (int) ($result['tokens'] ?? 0), $provider);
 
-            $content = $result['content'];
+            $content = (string) ($result['content'] ?? '');
             if (preg_match('/\{[^}]+\}/', $content, $matches)) {
                 $parsed = json_decode($matches[0], true);
                 if (isset($parsed['quote'], $parsed['author'])) {
@@ -174,19 +181,31 @@ class QuoteController extends Controller
 
     public function usage(Request $request): JsonResponse
     {
+        $user = $request->user();
         $today = Carbon::now()->toDateString();
-        $stored = Configuration::getValue($request->user(), 'groq', 'usage', []);
-        $stored = is_array($stored) ? $stored : [];
 
-        if (($stored['date'] ?? '') !== $today) {
-            $stored = ['date' => $today, 'requests' => 0, 'tokens' => 0];
+        // Aggregate usage across quote-relevant providers (groq, adacode).
+        $groqStored = Configuration::getValue($user, 'groq', 'usage', []);
+        $groqStored = is_array($groqStored) ? $groqStored : [];
+        if (($groqStored['date'] ?? '') !== $today) {
+            $groqStored = ['date' => $today, 'requests' => 0, 'tokens' => 0];
+        }
+
+        $adacodeStored = Configuration::getValue($user, 'adacode', 'usage', []);
+        $adacodeStored = is_array($adacodeStored) ? $adacodeStored : [];
+        if (($adacodeStored['date'] ?? '') !== $today) {
+            $adacodeStored = ['date' => $today, 'requests' => 0, 'tokens' => 0];
         }
 
         return ApiResponse::ok([
             'usage' => [
                 'date' => $today,
-                'requests' => $stored['requests'] ?? 0,
-                'tokens' => $stored['tokens'] ?? 0,
+                'groq_requests' => $groqStored['requests'] ?? 0,
+                'groq_tokens' => $groqStored['tokens'] ?? 0,
+                'adacode_requests' => $adacodeStored['requests'] ?? 0,
+                'adacode_tokens' => $adacodeStored['tokens'] ?? 0,
+                'total_requests' => ($groqStored['requests'] ?? 0) + ($adacodeStored['requests'] ?? 0),
+                'total_tokens' => ($groqStored['tokens'] ?? 0) + ($adacodeStored['tokens'] ?? 0),
                 'request_limit' => 14400,
             ],
         ]);
@@ -195,11 +214,6 @@ class QuoteController extends Controller
     public static function trackUsageFor($user, int $tokens, string $provider = 'groq'): void
     {
         app(AiProviderManager::class)->trackQuoteUsage($user, $tokens, $provider);
-    }
-
-    private function trackUsage(int $tokens, string $provider = 'groq'): void
-    {
-        // no-op here — quote generation runs inside Cache::remember (no user context)
     }
 
     public function configPayload(Request $request): JsonResponse
@@ -246,6 +260,13 @@ class QuoteController extends Controller
         ];
     }
 
+    /**
+     * Read the API key for a feature provider from the encrypted provider_config.
+     *
+     * The old implementation called getValue() without the encrypted: true flag,
+     * which always returned null because saveAiConfig() stored provider_config
+     * encrypted (line 489 of ConfigurationController).
+     */
     private function getApiKeyForProvider(string $provider): ?string
     {
         $aiConfig = Configuration::getValue(null, 'ai', 'provider_config', []);
