@@ -238,10 +238,10 @@ function choiceClass(ch: string) {
   if (lastResult.value === null) {
     return 'border-slate-200 dark:border-zinc-600 hover:border-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/20 hover:text-rose-600 dark:hover:text-rose-400 cursor-pointer';
   }
-  if (ch === lastCorrectNote) {
+  if (ch === lastCorrectNote.value) {
     return 'border-green-500 bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400 cursor-default';
   }
-  if (ch === selectedChoice && lastResult.value === 'wrong') {
+  if (ch === selectedChoice.value && lastResult.value === 'wrong') {
     return 'border-red-400 bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400 cursor-default';
   }
   return 'border-slate-100 dark:border-zinc-700 text-slate-300 dark:text-zinc-600 cursor-default';

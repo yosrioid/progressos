@@ -218,7 +218,6 @@ function avatarInitial(name: string) {
             </div>
             <div class="min-w-0 flex-1">
               <p class="truncate font-semibold text-slate-800 dark:text-zinc-200">{{ u.name }}</p>
-              <p class="truncate text-sm text-slate-400">{{ u.email }}</p>
             </div>
           </button>
         </div>
@@ -306,6 +305,7 @@ function avatarInitial(name: string) {
                   v-else-if="msg.type === 'file'"
                   :href="msg.file_url ?? '#'"
                   target="_blank"
+                  rel="noopener noreferrer"
                   class="flex items-center gap-2 underline opacity-90"
                 >
                   <svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>

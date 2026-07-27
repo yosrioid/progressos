@@ -22,7 +22,7 @@ async function toggleShare() {
     } else {
       const data = await api.post(`/api/v1/docs/${doc.value.id}/share`).then(unwrap);
       doc.value = data.doc;
-      await navigator.clipboard.writeText(doc.value.share_url);
+await window.navigator.clipboard.writeText(doc.value.share_url);
       toast({ tone: 'success', title: 'Link copied', message: 'Share link copied to clipboard.' });
     }
   } finally {
@@ -31,8 +31,13 @@ async function toggleShare() {
 }
 
 async function copyShareLink() {
-  await navigator.clipboard.writeText(doc.value.share_url);
+  await window.navigator.clipboard.writeText(doc.value.share_url);
   toast({ tone: 'success', title: 'Copied', message: 'Share link copied.' });
+}
+
+async function copyRefUrl(url: string) {
+  await window.navigator.clipboard.writeText(url);
+  toast({ tone: 'success', title: 'Copied', message: 'URL copied to clipboard.' });
 }
 const safeDescription = computed(() =>
   doc.value?.description ? DOMPurify.sanitize(doc.value.description) : ''
@@ -119,7 +124,7 @@ onMounted(load);
           <span v-else class="font-semibold text-slate-400">{{ ref.title || ref.url || ref }}</span>
           <p v-if="ref.title" class="truncate text-xs text-slate-400 dark:text-zinc-600">{{ ref.url }}</p>
         </div>
-        <button class="shrink-0 rounded p-0.5 text-slate-400 hover:text-slate-700 dark:hover:text-zinc-200" title="Copy URL" @click="navigator.clipboard.writeText(ref.url ?? ref)">
+        <button class="shrink-0 rounded p-0.5 text-slate-400 hover:text-slate-700 dark:hover:text-zinc-200" title="Copy URL" @click="copyRefUrl(ref.url ?? String(ref))">
           <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>
         </button>
       </div>

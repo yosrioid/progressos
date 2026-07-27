@@ -456,7 +456,7 @@ onMounted(load);
         <p class="label mb-2">{{ key.replaceAll('_', ' ') }}</p>
         <p class="whitespace-pre-wrap text-sm leading-6 text-slate-700">
           <template v-for="(part, index) in linkParts(renderValue(key, value))" :key="index">
-            <a v-if="part.href" class="font-semibold text-teal-700 underline" :href="part.href" target="_blank" rel="noreferrer">{{ part.text }}</a>
+            <a v-if="part.href" class="font-semibold text-teal-700 underline" :href="part.href" target="_blank" rel="noopener noreferrer">{{ part.text }}</a>
             <span v-else>{{ part.text }}</span>
           </template>
         </p>

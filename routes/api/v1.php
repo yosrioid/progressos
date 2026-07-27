@@ -233,7 +233,7 @@ Route::middleware(['auth:sanctum', 'not.admin'])->prefix('v1')->group(function (
         Route::delete('messages/{message}', [InboxController::class, 'deleteMessage'])->middleware(['ability:write', 'throttle:api-write']);
         Route::get('messages/{message}/file', [InboxController::class, 'serveFile'])->middleware('throttle:api-read');
         Route::get('unread', [InboxController::class, 'unread'])->middleware('throttle:api-read');
-        Route::get('users', [InboxController::class, 'searchUsers'])->middleware('throttle:api-read');
+        Route::get('users', [InboxController::class, 'searchUsers'])->middleware('throttle:api-search-users');
         Route::get('gif', [InboxController::class, 'searchGif'])->middleware('throttle:api-read');
     });
 });

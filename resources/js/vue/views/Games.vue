@@ -75,6 +75,36 @@ import { RouterLink } from 'vue-router';
         </span>
       </RouterLink>
 
+      <!-- Melody Memory -->
+      <RouterLink to="/games/melody-memory" class="card group flex flex-col gap-4 p-6 transition hover:border-rose-300 dark:hover:border-rose-700 hover:shadow-md">
+        <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-rose-50 text-rose-600 group-hover:bg-rose-100 dark:bg-rose-900/20 dark:text-rose-400">
+          <span class="text-3xl leading-none">🎵</span>
+        </div>
+        <div>
+          <h2 class="text-lg font-extrabold">Melody Memory</h2>
+          <p class="mt-1 text-sm font-medium text-slate-500 dark:text-zinc-400">Repeat the melody · Tone-deafen friendly</p>
+        </div>
+        <span class="mt-auto inline-flex items-center gap-1 text-sm font-bold text-rose-600 group-hover:text-rose-700 dark:text-rose-400">
+          Play now
+          <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>
+        </span>
+      </RouterLink>
+
+      <!-- Pitch Trainer -->
+      <RouterLink to="/games/pitch-trainer" class="card group flex flex-col gap-4 p-6 transition hover:border-violet-300 dark:hover:border-violet-700 hover:shadow-md">
+        <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-violet-50 text-violet-600 group-hover:bg-violet-100 dark:bg-violet-900/20 dark:text-violet-400">
+          <span class="text-3xl leading-none">🎤</span>
+        </div>
+        <div>
+          <h2 class="text-lg font-extrabold">Pitch Trainer</h2>
+          <p class="mt-1 text-sm font-medium text-slate-500 dark:text-zinc-400">Match the note · Cents accuracy · Streak counter</p>
+        </div>
+        <span class="mt-auto inline-flex items-center gap-1 text-sm font-bold text-violet-600 group-hover:text-violet-700 dark:text-violet-400">
+          Play now
+          <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>
+        </span>
+      </RouterLink>
+
     </div>
   </div>
 </template>

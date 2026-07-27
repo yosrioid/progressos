@@ -212,11 +212,10 @@ class InboxController extends Controller
             }))
             ->orderBy('name')
             ->limit(15)
-            ->get(['id', 'name', 'email', 'avatar_path'])
+            ->get(['id', 'name', 'avatar_path'])
             ->map(fn ($u) => [
                 'id' => $u->id,
                 'name' => $u->name,
-                'email' => $u->email,
                 'avatar_url' => $u->avatar_path ? '/storage/'.$u->avatar_path : null,
             ]);
 
@@ -226,7 +225,7 @@ class InboxController extends Controller
     private function assertParticipant(InboxConversation $conv, int $userId): void
     {
         if ($conv->user_one_id !== $userId && $conv->user_two_id !== $userId) {
-            abort(403);
+            abort(403, 'Anda tidak memiliki akses ke percakapan ini.');
         }
     }
 

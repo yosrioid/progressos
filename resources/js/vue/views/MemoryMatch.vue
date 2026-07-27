@@ -312,7 +312,7 @@ onUnmounted(() => {
         <div>
           <p class="text-sm font-extrabold text-indigo-600 dark:text-indigo-400">Game in progress</p>
           <p class="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">
-            {{ LEVEL_LABELS[pendingResume.level as Level] }} · {{ pendingResume.user_state?.matched?.length / 2 ?? 0 }} pairs found · {{ formatTime(pendingResume.elapsed_seconds) }}
+            {{ LEVEL_LABELS[pendingResume.level as Level] }} · {{ (pendingResume.user_state?.matched?.length ?? 0) / 2 }} pairs found · {{ formatTime(pendingResume.elapsed_seconds) }}
           </p>
         </div>
         <button class="btn btn-primary shrink-0" @click="resumeGame(pendingResume)">Resume</button>

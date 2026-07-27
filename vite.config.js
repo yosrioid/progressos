@@ -18,6 +18,8 @@ export default defineConfig({
         },
     },
     build: {
+        minify: 'esbuild',
+        cssMinify: true,
         rollupOptions: {
             output: {
                 manualChunks(id) {
@@ -33,5 +35,8 @@ export default defineConfig({
                 },
             },
         },
+    },
+    esbuild: {
+        drop: process.env.NODE_ENV === 'production' ? ['console', 'debugger'] : [],
     },
 });

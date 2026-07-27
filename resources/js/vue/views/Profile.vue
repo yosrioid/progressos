@@ -10,7 +10,7 @@ import { usePrivacyStore } from '../stores/privacy';
 const auth = useAuthStore();
 const route = useRoute();
 const configuration = useConfigurationStore();
-const profile = ref({ name: auth.user?.name || '', email: auth.user?.email || '', timezone: auth.user?.timezone || configuration.timezone || 'Asia/Jakarta' });
+const profile = ref({ name: auth.user?.name || '', email: auth.user?.email || '', timezone: auth.user?.timezone || configuration.timezone || 'Asia/Jakarta', theme: configuration.theme || 'light' });
 const password = ref({ current_password: '', password: '', password_confirmation: '' });
 const showCurrentPassword = ref(false);
 const showNewPassword = ref(false);
