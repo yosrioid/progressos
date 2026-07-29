@@ -1,10 +1,29 @@
 import { expect, test, type Page } from '@playwright/test';
 
+/**
+ * End-to-end smoke tests for ProgressOS.
+ *
+ * These tests verify the high-traffic user journeys after a release: login,
+ * record creation via Quick Add, search, dashboard widgets, paste-to-link,
+ * avatar crop, delete confirmation, and mobile navigation.
+ *
+ * NOTE: the login button text is Indonesian ("Masuk"). Other surface text
+ * (record titles, button labels like "Save"/"Cancel"/"Delete"/"Edit",
+ * headings like "Work Logs"/"Tasks"/"Learning"/"Daily Progress") is
+ * English — see Login.vue and the views in resources/js/vue/views/.
+ *
+ * The previous Playwright suite assumed an all-English UI and never ran in
+ * CI (see .github/workflows), so the Indonesian login drift went unnoticed
+ * for several releases. These selectors are kept explicit so future drift
+ * is caught at test time rather than silently rotting.
+ */
+
 async function login(page: Page) {
   await page.goto('/login');
+  await expect(page.getByRole('heading', { name: 'Welcome back' })).toBeVisible();
   await page.locator('input[type="email"]').fill('e2e@example.com');
   await page.locator('input[type="password"]').fill('password');
-  await page.getByRole('button', { name: /log in/i }).click();
+  await page.getByRole('button', { name: 'Masuk', exact: true }).click();
   await expect(page).toHaveURL(/\/dashboard/);
   await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
 }
@@ -64,7 +83,7 @@ test('global search and record filters are navigable', async ({ page }) => {
   await page.goto('/work-logs?search=baseline&category=feature');
   await expect(page.getByRole('heading', { name: 'Work Logs' })).toBeVisible();
   await expect(page.locator('article').first()).toBeVisible();
-  await expect(page.getByText(/1 records/)).toBeVisible();
+  await expect(page.getByText(/\b1\b records? in this workspace/i)).toBeVisible();
 });
 
 test('command palette supports keyboard navigation shortcuts', async ({ page }) => {
@@ -119,7 +138,9 @@ test('profile avatar crop upload updates the header avatar', async ({ page }) =>
 test('pasting a URL over selected textarea text preserves label as markdown link', async ({ page }) => {
   test.skip((page.viewportSize()?.width ?? 999) < 768, 'desktop paste flow');
   const title = `E2E link paste ${Date.now()}`;
-  const textarea = page.locator('textarea').nth(4);
+  // RecordForm renders the "Notes" textarea (placeholder-driven). Avoid nth() which is
+  // fragile when sections are added/removed — select by visible placeholder instead.
+  const textarea = page.locator('textarea[placeholder*="notes" i]').first();
 
   await login(page);
   await page.goto('/daily-progress/create');
@@ -127,7 +148,7 @@ test('pasting a URL over selected textarea text preserves label as markdown link
   await textarea.fill('Spec');
   await textarea.focus();
   await textarea.evaluate((node: HTMLTextAreaElement) => node.select());
-  await pastePlainText(page, 'textarea >> nth=4', 'https://example.com/spec');
+  await pastePlainText(page, 'textarea[placeholder*="notes" i]', 'https://example.com/spec');
   await expect(textarea).toHaveValue('[Spec](https://example.com/spec)');
   await page.getByRole('button', { name: 'Save' }).click();
 
@@ -158,8 +179,8 @@ test('creates, edits, and opens a daily progress record through Vue forms', asyn
   await page.goto('/daily-progress/create');
   await expect(page.getByRole('heading', { name: 'New Daily Progress' })).toBeVisible();
   await page.getByRole('textbox', { name: 'Title' }).fill(title);
-  await page.locator('textarea').nth(0).fill('Created from Vue form');
-  await page.locator('textarea').last().fill('e2e, vue');
+  await page.locator('textarea[placeholder*="notes" i]').fill('Created from Vue form');
+  await page.locator('textarea[placeholder*="comma" i]').fill('e2e, vue');
   await page.getByRole('button', { name: 'Save' }).click();
 
   await expect(page.getByRole('heading', { name: title })).toBeVisible();
@@ -187,6 +208,7 @@ test('delete uses themed confirmation and success notification', async ({ page }
   await expect(page.getByRole('heading', { name: /Delete daily progress/i })).toBeVisible();
   await page.getByRole('button', { name: 'Cancel' }).click();
   await expect(page.getByRole('heading', { name: title })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Delete daily progress/i })).not.toBeVisible();
 
   await page.getByRole('button', { name: 'Delete' }).click();
   await page.getByRole('button', { name: 'Delete', exact: true }).last().click();
@@ -202,7 +224,7 @@ test('mobile layout exposes compact navigation and usable quick capture', async 
   await page.getByRole('button', { name: 'Open menu' }).click();
   await expect(page.getByRole('dialog', { name: 'Navigation menu' })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Dashboard' })).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Work Logs' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Daily Progress' })).toBeVisible();
   await page.getByRole('button', { name: 'Close menu' }).last().click();
 
   await page.getByRole('button', { name: /quick add/i }).click();

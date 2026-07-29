@@ -1,14 +1,20 @@
 <script setup lang="ts">
-import { ref, watch, onMounted, onUnmounted, nextTick } from 'vue';
-import { useRouter } from 'vue-router';
+import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import { useInboxStore, type InboxUser } from '../stores/inbox';
 import { useAuthStore } from '../stores/auth';
 import { useConversationSession } from '../composables/useConversationSession';
 
 const inbox = useInboxStore();
 const auth = useAuthStore();
+const route = useRoute();
 const router = useRouter();
 const session = useConversationSession();
+
+// Hide the floating chat bubble on routes that have their own bottom-fixed
+// action bar (form create/edit pages) so the FAB doesn't intercept clicks on
+// the primary Save/Cancel buttons.
+const isFormRoute = computed(() => /\/(create|edit|edit\/.+)$/.test(route.path));
 
 const searchQuery = ref('');
 const searching = ref(false);
@@ -192,7 +198,7 @@ function closeAll() {
 </script>
 
 <template>
-  <div class="hidden md:block" @click.self="closeAll">
+  <div class="hidden md:block" :style="isFormRoute ? 'display:none !important;' : ''" @click.self="closeAll">
     <!-- Floating bubble -->
     <button
       class="fixed bottom-5 right-5 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-teal-600 text-white shadow-lg transition hover:bg-teal-700 active:scale-95 md:bottom-6 md:right-6"
