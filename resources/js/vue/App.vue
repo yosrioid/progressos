@@ -95,12 +95,21 @@ const navGroups = [
     label: 'Review',
     items: [
       { label: 'Reports', href: '/reports/weekly', icon: 'chart', hint: 'Review mingguan dan bulanan — ringkasan work, learning, habits, dan produktivitas keseluruhan' },
+      { label: 'Weekly Review', href: '/weekly-review', icon: 'check', hint: 'Review mingguan terstruktur — refleksi progress, pelajaran, dan rencana minggu depan' },
+      { label: 'Analytics', href: '/activity/analytics', icon: 'chart', hint: 'Analisis mendalam aktivitas dan produktivitas Anda' },
     ],
   },
   {
     label: 'Games',
     items: [
       { label: 'Games', href: '/games', icon: 'games', hint: 'Mini-games untuk istirahat otak — Sudoku, Minesweeper, 2048, Memory Match, Pitch Trainer' },
+    ],
+  },
+  {
+    label: 'Communication',
+    items: [
+      { label: 'Inbox', href: '/inbox', icon: 'mail', hint: 'Kotak masuk pesan dan notifikasi' },
+      { label: 'Chat', href: '/chat', icon: 'chat', hint: 'Chat dengan AI assistant untuk bantuan cepat' },
     ],
   },
 ];
@@ -141,8 +150,10 @@ const icons: Record<string, string[]> = {
   docs: ['M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z', 'M14 2v6h6M16 13H8M16 17H8M10 9H8'],
   billing: ['M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2M9 12h6M9 16h4'],
   money: ['M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2', 'M12 6v12M9 9a3 3 0 0 1 6 0c0 1.5-1.5 2-3 3-1.5 1-3 1.5-3 3a3 3 0 0 0 6 0'],
+  mail: ['M4 4h16v16H4z M4 10l8 6 8-6'],
+  chat: ['M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z'],
 };
-const initials = computed(() => (auth.user?.name || 'U').split(' ').map((part) => part[0]).join('').slice(0, 2).toUpperCase());
+const initials = computed(() => (auth.user?.name || 'U').split(' ').map((part: string) => part[0]).join('').slice(0, 2).toUpperCase());
 // Local override so the icon and classList reflect the user's click
 // immediately, even before the server round-trip lands. This is the
 // single source of truth for the toggle UI.
@@ -620,7 +631,7 @@ onUnmounted(() => {
                   :class="['w-full text-left px-4 py-3 transition hover:bg-slate-50 dark:hover:bg-zinc-800/60', !n.read_at ? 'bg-amber-50 dark:bg-amber-900/10' : '']"
                 >
                   <div class="flex items-start gap-2">
-                    <span class="mt-0.5 text-base leading-none">{{ { task_overdue: '⚠️', task_due_soon: '📅', milestone_completed: '🎉', habit_streak: '🔥' }[n.type] || '🔔' }}</span>
+                    <span class="mt-0.5 text-base leading-none">{{ ({ task_overdue: '⚠️', task_due_soon: '📅', milestone_completed: '🎉', habit_streak: '🔥' } as Record<string, string>)[n.type] || '🔔' }}</span>
                     <div class="flex-1 min-w-0">
                       <p class="text-xs font-bold text-slate-800 dark:text-zinc-200">{{ n.title }}</p>
                       <p v-if="n.body" class="text-xs text-slate-500 dark:text-zinc-400 mt-0.5 truncate">{{ n.body }}</p>

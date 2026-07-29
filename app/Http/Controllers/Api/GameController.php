@@ -90,7 +90,7 @@ class GameController extends Controller
     public function saveProgress(Request $request, GameSession $session): JsonResponse
     {
         if ($session->user_id !== $request->user()->id) {
-            abort(403);
+            abort(403, 'This session does not belong to you.');
         }
 
         $data = $request->validate([
@@ -108,7 +108,7 @@ class GameController extends Controller
     public function completeSession(Request $request, GameSession $session): JsonResponse
     {
         if ($session->user_id !== $request->user()->id) {
-            abort(403);
+            abort(403, 'This session does not belong to you.');
         }
 
         $data = $request->validate([
@@ -281,7 +281,7 @@ class GameController extends Controller
     public function completeMinesweeperSession(Request $request, GameSession $session): JsonResponse
     {
         if ($session->user_id !== $request->user()->id) {
-            abort(403);
+            abort(403, 'This session does not belong to you.');
         }
 
         $data = $request->validate([
@@ -457,7 +457,7 @@ class GameController extends Controller
     public function complete2048Session(Request $request, GameSession $session): JsonResponse
     {
         if ($session->user_id !== $request->user()->id) {
-            abort(403);
+            abort(403, 'This session does not belong to you.');
         }
 
         $data = $request->validate([
@@ -607,7 +607,7 @@ class GameController extends Controller
     public function completeMemorySession(Request $request, GameSession $session): JsonResponse
     {
         if ($session->user_id !== $request->user()->id) {
-            abort(403);
+            abort(403, 'This session does not belong to you.');
         }
 
         $data = $request->validate([
@@ -705,7 +705,7 @@ class GameController extends Controller
     public function completeMelodySession(Request $request, GameSession $session): JsonResponse
     {
         if ($session->user_id !== $request->user()->id) {
-            abort(403);
+            abort(403, 'This session does not belong to you.');
         }
 
         $data = $request->validate([
@@ -801,7 +801,7 @@ class GameController extends Controller
     public function completePitchSession(Request $request, GameSession $session): JsonResponse
     {
         if ($session->user_id !== $request->user()->id) {
-            abort(403);
+            abort(403, 'This session does not belong to you.');
         }
 
         $data = $request->validate([

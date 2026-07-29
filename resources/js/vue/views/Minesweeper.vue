@@ -568,9 +568,8 @@ onUnmounted(() => {
 
       <!-- Level selection -->
       <div class="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <template v-for="(preset, lv) in PRESETS" :key="lv">
         <button
-          v-for="(preset, lv) in PRESETS"
-          :key="lv"
           v-if="lv !== 'daily'"
           class="card flex flex-col gap-2 p-4 text-left transition hover:border-teal-300"
           :class="level === lv ? 'border-teal-400 ring-1 ring-teal-300' : ''"
@@ -580,6 +579,7 @@ onUnmounted(() => {
           <p class="text-xs font-medium text-slate-500">{{ preset.desc }}</p>
           <p v-if="totals[lv] > 0" class="text-xs font-bold text-slate-400">{{ totals[lv] }}× menang</p>
         </button>
+        </template>
         <button
           class="card flex flex-col gap-2 p-4 text-left transition hover:border-teal-300"
           :class="level === 'custom' ? 'border-teal-400 ring-1 ring-teal-300' : ''"

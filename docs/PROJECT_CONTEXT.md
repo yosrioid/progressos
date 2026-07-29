@@ -6,7 +6,7 @@ This file is the handoff source of truth for continuing ProgressOS when chat con
 
 - Never push directly to `main`.
 - Always work on a feature branch.
-- Current active branch: `feature/configuration-registry` (bisa berubah setiap sesi — cek `git branch` dulu).
+- Current active branch: `feature/security-hardening-audit-2026-07-09` (bisa berubah setiap sesi — cek `git branch` dulu).
 - Push only the feature branch, then provide a PR description.
 - Before push, run the relevant verification commands and mention the result.
 - If changing frontend behavior, run Playwright when practical.
@@ -178,6 +178,33 @@ export PATH="/Users/oirsoy/Library/Application Support/Herd/config/nvm/versions/
 
 - Tidak ada gap kritis. Proyek siap digunakan sehari-hari.
 - Opsional jangka panjang: deeper per-record activity history tab, richer milestone source linking by tag (saat ini hanya by text keyword).
+- Security hardening (see `docs/SECURITY_AUDIT.md`): fix ReferenceController IDOR, add CSRF 419 interceptor, remove hardcoded admin password default.
+- Frontend improvements (see `docs/FRONTEND_AUDIT.md`): lazy-load routes, split Configuration.vue, add global error handler, reduce `any` usage.
+
+## Security Audit (2026-07-09)
+
+Full security scan completed — see `docs/SECURITY_AUDIT.md` for details.
+
+### Critical Fixes Needed
+1. **Default admin password `changeme123`** in `config/app.php:50` — remove hardcoded default
+2. **ReferenceController IDOR** — missing ownership check on `findOrFail($referenceable_id)`
+
+### High Priority Fixes
+3. **CSRF 419 interceptor** — `api.ts` needs auto-retry on 419
+4. **Global error handler** — `api.ts` needs catch-all for stuck loading states
+5. **`abort(403)` without messages** — GameController, InboxController, DocFileController (7 places)
+
+### Low Priority
+6. **`target="_blank"` without `rel="noopener noreferrer"`** — ChatBubble, Reports, Inbox, RecordDetail
+7. **`searchUsers` rate limit** — InboxController needs stricter throttle (10/min)
+8. **Console log stripping** — vite config production build
+
+### Overall Security Rating: **A-**
+- Authentication: A+ (Sanctum stateful, bcrypt, session regeneration)
+- RBAC: A (admin/user separation solid, self-protection intact)
+- IDOR Protection: B+ (most models protected, ReferenceController needs fix)
+- Security Headers: A+ (comprehensive CSP, HSTS, COOP)
+- File Upload: A (MIME whitelist, UUID storage, filename sanitization)
 
 ## PR Description Template
 

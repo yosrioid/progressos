@@ -36,7 +36,7 @@ function buildChart() {
         legend: { display: false },
         tooltip: {
           callbacks: {
-            label: (ctx) => props.formatValue ? props.formatValue(ctx.parsed.y) : String(ctx.parsed.y),
+            label: (ctx) => props.formatValue ? props.formatValue(ctx.parsed.y ?? 0) : String(ctx.parsed.y ?? 0),
           },
         },
       },

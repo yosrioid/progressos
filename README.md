@@ -26,6 +26,9 @@ Package choices: the original Inertia/React client was replaced with a Vue SPA b
 
 ## Local Setup
 
+> ⚠️ **DISCLAIMER: Project ini terdaftar di Laravel Herd. JANGAN gunakan `php artisan serve` untuk project ini.**
+> Gunakan Herd untuk menjalankan project ini. Akses melalui `http://progressos.test` atau domain Herd yang sesuai.
+
 ```bash
 cd /Users/oirsoy/Downloads/Laravel/progressos
 cp .env.example .env
@@ -36,7 +39,6 @@ npm install
 php artisan migrate --seed
 npx playwright install chromium
 npm run build
-php artisan serve --host=127.0.0.1 --port=8000
 ```
 
 If Node is installed through Laravel Herd but not on PATH, use:
@@ -54,7 +56,6 @@ Demo login after seeding:
 
 ```bash
 npm run dev
-php artisan serve
 php artisan test
 composer lint
 composer analyse

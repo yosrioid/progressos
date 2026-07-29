@@ -72,6 +72,9 @@ export const useConfigurationStore = defineStore('configuration', {
     timezone(): string {
       return this.general.timezone || 'Asia/Jakarta';
     },
+    theme(): string {
+      return this.appearance.theme || 'light';
+    },
     aiProvider(state) {
       return state.groups.ai?.provider || 'groq';
     },

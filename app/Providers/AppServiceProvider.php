@@ -61,5 +61,7 @@ class AppServiceProvider extends ServiceProvider
         // enough for any realistic chat use (typically 1) while preventing
         // a runaway client from saturating the upstream provider quota.
         RateLimiter::for('ai-stream', fn (Request $request) => Limit::perMinute(60)->by($request->user()?->id ?: $request->ip()));
+        // Search users: stricter limit — prevents enumeration attacks
+        RateLimiter::for('api-search-users', fn (Request $request) => Limit::perMinute(30)->by($request->user()?->id ?: $request->ip()));
     }
 }

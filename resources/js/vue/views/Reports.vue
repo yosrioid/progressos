@@ -131,7 +131,7 @@ onMounted(async () => { await load(); loadSnapshots(); });
         </template>
         <button class="btn btn-muted" :disabled="savingSnapshot" @click="saveSnapshot">{{ savingSnapshot ? 'Saving…' : 'Save Snapshot' }}</button>
         <a class="btn btn-muted" :href="exportHref()">Export CSV</a>
-        <a class="btn btn-muted" :href="exportPdfHref()" target="_blank">Export PDF</a>
+        <a class="btn btn-muted" :href="exportPdfHref()" target="_blank" rel="noopener noreferrer">Export PDF</a>
       </div>
     </div>
 

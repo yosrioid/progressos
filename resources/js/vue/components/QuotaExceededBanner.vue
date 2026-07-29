@@ -62,7 +62,7 @@ async function switchToGroq() {
           <button v-if="config.aiProvider !== 'groq'" class="rounded-lg bg-white/20 px-3 py-1.5 text-xs font-bold text-white hover:bg-white/30" @click="switchToGroq">
             Switch to Groq
           </button>
-          <a v-if="config.aiProvider === 'adacode'" href="https://adacode.ai/billing" target="_blank" class="rounded-lg bg-white/20 px-3 py-1.5 text-xs font-bold text-white hover:bg-white/30">
+          <a v-if="config.aiProvider === 'adacode'" href="https://adacode.ai/billing" target="_blank" rel="noopener noreferrer" class="rounded-lg bg-white/20 px-3 py-1.5 text-xs font-bold text-white hover:bg-white/30">
             Upgrade Plan
           </a>
           <button class="text-white/70 hover:text-white text-lg leading-none" @click="dismiss">×</button>

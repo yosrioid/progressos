@@ -115,7 +115,7 @@ class DocFileController extends Controller
         $this->authorize('update', $doc);
 
         if ($docFile->doc_id !== $doc->id || $docFile->user_id !== $request->user()->id) {
-            abort(403);
+            abort(403, 'File tidak dapat diakses.');
         }
 
         Storage::disk('local')->delete($docFile->path);
