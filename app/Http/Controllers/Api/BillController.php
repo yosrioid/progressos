@@ -97,7 +97,7 @@ class BillController extends Controller
 
     public function history(Request $request, Bill $bill): JsonResponse
     {
-        abort_if($bill->user_id !== $request->user()->id, 403);
+        $this->authorize('view', $bill);
 
         $payments = BillPayment::where('bill_id', $bill->id)
             ->where('skipped', false)
@@ -127,7 +127,12 @@ class BillController extends Controller
 
         $user = $request->user();
 
-        $payments = BillPayment::where('user_id', $user->id)
+        // Get payments ONLY through the user's own bills (not just any payment with matching user_id)
+        $billIds = Bill::ownedBy($user)
+            ->where('is_active', true)
+            ->pluck('id');
+
+        $payments = BillPayment::whereIn('bill_id', $billIds)
             ->where('skipped', false)
             ->where('month', 'like', $year.'-%')
             ->get();
@@ -174,7 +179,7 @@ class BillController extends Controller
 
     public function update(Request $request, Bill $bill): JsonResponse
     {
-        abort_if($bill->user_id !== $request->user()->id, 403);
+        $this->authorize('view', $bill);
 
         $data = $request->validate([
             'name' => 'sometimes|string|max:255',
@@ -193,7 +198,7 @@ class BillController extends Controller
 
     public function destroy(Request $request, Bill $bill): JsonResponse
     {
-        abort_if($bill->user_id !== $request->user()->id, 403);
+        $this->authorize('view', $bill);
         $bill->delete();
 
         return ApiResponse::ok([], 'Bill deleted.');
@@ -201,7 +206,7 @@ class BillController extends Controller
 
     public function pay(Request $request, Bill $bill): JsonResponse
     {
-        abort_if($bill->user_id !== $request->user()->id, 403);
+        $this->authorize('view', $bill);
 
         $data = $request->validate([
             'month' => 'required|date_format:Y-m',
@@ -230,7 +235,7 @@ class BillController extends Controller
 
     public function unpay(Request $request, Bill $bill, string $month): JsonResponse
     {
-        abort_if($bill->user_id !== $request->user()->id, 403);
+        $this->authorize('view', $bill);
         validator(['month' => $month], ['month' => 'required|date_format:Y-m'])->validate();
 
         BillPayment::where('bill_id', $bill->id)->where('month', $month)->delete();
@@ -240,7 +245,7 @@ class BillController extends Controller
 
     public function skip(Request $request, Bill $bill): JsonResponse
     {
-        abort_if($bill->user_id !== $request->user()->id, 403);
+        $this->authorize('view', $bill);
 
         $data = $request->validate(['month' => 'required|date_format:Y-m']);
 
@@ -260,7 +265,7 @@ class BillController extends Controller
 
     public function unskip(Request $request, Bill $bill, string $month): JsonResponse
     {
-        abort_if($bill->user_id !== $request->user()->id, 403);
+        $this->authorize('view', $bill);
         validator(['month' => $month], ['month' => 'required|date_format:Y-m'])->validate();
 
         BillPayment::where('bill_id', $bill->id)->where('month', $month)->where('skipped', true)->delete();

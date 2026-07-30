@@ -26,7 +26,7 @@ class NotificationController extends Controller
 
     public function markRead(Request $request, InAppNotification $notification)
     {
-        abort_if($notification->user_id !== $request->user()->id, 403);
+        $this->authorize('update', $notification);
         $notification->update(['read_at' => now()]);
 
         return ApiResponse::ok(['read' => true]);
@@ -43,7 +43,7 @@ class NotificationController extends Controller
 
     public function destroy(Request $request, InAppNotification $notification)
     {
-        abort_if($notification->user_id !== $request->user()->id, 403);
+        $this->authorize('delete', $notification);
         $notification->delete();
 
         return response()->noContent();

@@ -79,7 +79,7 @@ class GoalController extends Controller
     public function updateKeyResult(KeyResultRequest $request, Goal $goal, KeyResult $keyResult)
     {
         $this->authorize('update', $goal);
-        abort_if($keyResult->goal_id !== $goal->id, 403);
+        abort_if($keyResult->goal_id !== $goal->id, 403, 'Key result does not belong to this goal.');
         $keyResult->update($request->validated());
 
         // Auto-complete goal when all KRs done
@@ -94,7 +94,7 @@ class GoalController extends Controller
     public function destroyKeyResult(Goal $goal, KeyResult $keyResult)
     {
         $this->authorize('update', $goal);
-        abort_if($keyResult->goal_id !== $goal->id, 403);
+        abort_if($keyResult->goal_id !== $goal->id, 403, 'Key result does not belong to this goal.');
         $keyResult->delete();
 
         return response()->noContent();

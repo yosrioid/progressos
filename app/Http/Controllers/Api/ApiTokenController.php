@@ -44,6 +44,7 @@ class ApiTokenController extends Controller
             $token->tokenable_id === $request->user()->id
                 && $token->tokenable_type === $request->user()::class,
             403,
+            'Token does not belong to this user.'
         );
 
         $token->delete();

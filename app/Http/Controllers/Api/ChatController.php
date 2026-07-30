@@ -38,7 +38,7 @@ class ChatController extends Controller
 
     public function show(Request $request, ChatSession $chatSession)
     {
-        abort_unless($chatSession->user_id === $request->user()->id, 403);
+        $this->authorize('view', $chatSession);
 
         $messages = $chatSession->messages()->get()->map(fn ($m) => $this->formatMessage($m));
 
@@ -66,7 +66,7 @@ class ChatController extends Controller
 
     public function destroy(Request $request, ChatSession $chatSession)
     {
-        abort_unless($chatSession->user_id === $request->user()->id, 403);
+        $this->authorize('delete', $chatSession);
         $chatSession->delete();
 
         return ApiResponse::ok([], 'Sesi dihapus.');
@@ -74,7 +74,7 @@ class ChatController extends Controller
 
     public function sendMessage(Request $request, ChatSession $chatSession)
     {
-        abort_unless($chatSession->user_id === $request->user()->id, 403);
+        $this->authorize('update', $chatSession);
 
         $data = $request->validate([
             'content' => ['required', 'string', 'max:4000'],
@@ -212,7 +212,7 @@ class ChatController extends Controller
      */
     public function streamMessage(Request $request, ChatSession $chatSession): StreamedResponse
     {
-        abort_unless($chatSession->user_id === $request->user()->id, 403);
+        $this->authorize('update', $chatSession);
 
         $data = $request->validate([
             'content' => ['required', 'string', 'max:4000'],

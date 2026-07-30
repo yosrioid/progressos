@@ -15,14 +15,14 @@ class ReportController extends Controller
 {
     public function show(Request $request, ReportBuilder $builder, string $period)
     {
-        abort_unless(in_array($period, ['weekly', 'monthly'], true), 404);
+        $this->ensureValidPeriod($period);
 
         return ApiResponse::item('report', $builder->build($request->user(), $period, $request->query('date')));
     }
 
     public function snapshots(Request $request, string $period)
     {
-        abort_unless(in_array($period, ['weekly', 'monthly'], true), 404);
+        $this->ensureValidPeriod($period);
 
         return ApiResponse::collection('snapshots', $request->user()->reportSnapshots()
             ->where('period_type', $period)
@@ -33,14 +33,14 @@ class ReportController extends Controller
 
     public function storeSnapshot(Request $request, ReportSnapshotService $snapshots, string $period)
     {
-        abort_unless(in_array($period, ['weekly', 'monthly'], true), 404);
+        $this->ensureValidPeriod($period);
 
         return ApiResponse::item('snapshot', $snapshots->store($request->user(), $period, $request->query('date'), $request->input('reflection')), 201, 'Report snapshot saved.');
     }
 
     public function exportPdf(Request $request, ReportBuilder $builder, string $period)
     {
-        abort_unless(in_array($period, ['weekly', 'monthly'], true), 404);
+        $this->ensureValidPeriod($period);
         $report = $builder->build($request->user(), $period, $request->query('date'));
         $user = $request->user();
 
@@ -54,7 +54,7 @@ class ReportController extends Controller
 
     public function export(Request $request, ReportBuilder $builder, string $period): StreamedResponse
     {
-        abort_unless(in_array($period, ['weekly', 'monthly'], true), 404);
+        $this->ensureValidPeriod($period);
         $report = $builder->build($request->user(), $period, $request->query('date'));
 
         return response()->streamDownload(function () use ($report) {
@@ -70,5 +70,10 @@ class ReportController extends Controller
             }
             fclose($out);
         }, "progressos-{$period}-{$report['start']}.csv", ['Content-Type' => 'text/csv']);
+    }
+
+    private function ensureValidPeriod(string $period): void
+    {
+        abort_unless(in_array($period, ['weekly', 'monthly'], true), 404, 'Unsupported report period.');
     }
 }
