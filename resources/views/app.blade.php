@@ -14,6 +14,6 @@
         @vite(['resources/css/app.css', 'resources/js/app.ts'])
     </head>
     <body class="bg-white dark:bg-[#0a0a0a] text-[#1b1b18]">
-        {{ $slot }}
+        <div id="app"></div>
     </body>
 </html>

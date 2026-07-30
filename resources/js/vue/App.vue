@@ -185,6 +185,7 @@ function writeStoredTheme(value: string) {
 const commandItems = computed(() => [
   ...navGroups.flatMap((group) => group.items.map((item) => ({ ...item, group: group.label, action: 'navigate' }))),
   { label: 'New Daily Progress', href: '/daily-progress/create', icon: 'calendar', group: 'Create', action: 'navigate' },
+  { label: 'New Work Log', href: '/work-logs/create', icon: 'briefcase', group: 'Create', action: 'navigate' },
   { label: 'New Task', href: '/tasks/create', icon: 'check', group: 'Create', action: 'navigate' },
   { label: 'New Learning Entry', href: '/learning/create', icon: 'book', group: 'Create', action: 'navigate' },
   { label: 'New Milestone', href: '/milestones/create', icon: 'target', group: 'Create', action: 'navigate' },
@@ -804,6 +805,7 @@ onUnmounted(() => {
               <select v-model="quickForm.type" class="field" @change="quickForm.type === 'habit_log' && loadHabits()">
                 <option value="task">Task</option>
                 <option value="blocker">Blocker</option>
+                <option value="work_log">Work log</option>
                 <option value="daily_progress">Daily progress</option>
                 <option value="learning">Learning</option>
                 <option value="habit_log">Habit log</option>
@@ -836,7 +838,7 @@ onUnmounted(() => {
     </Transition>
 
     <!-- Chat bubble (mobile: navigates to /inbox; desktop: floating panel) -->
-    <ChatBubble v-if="auth.user && !isAdmin" />
+    <ChatBubble v-if="auth.user && !isAdmin" :key="route.fullPath" />
 
     <!-- Command palette -->
     <div v-if="commandOpen && !isAdmin" class="fixed inset-0 z-50 grid place-items-start bg-slate-950/50 p-3 pt-20 backdrop-blur-[2px] sm:p-6 sm:pt-24" role="dialog" aria-modal="true" aria-labelledby="command-title">
@@ -931,7 +933,7 @@ onUnmounted(() => {
             <p class="text-sm leading-6 text-slate-600 dark:text-zinc-400">{{ feedback.confirm.message }}</p>
           </div>
           <div class="flex justify-end gap-2 border-t border-slate-100 bg-slate-50/70 px-5 py-4 pb-[calc(1rem+env(safe-area-inset-bottom))] dark:border-zinc-800 dark:bg-zinc-900/60 sm:pb-4">
-            <button ref="confirmCancelRef" class="btn btn-muted" @click="resolveConfirm(false)">Batal</button>
+            <button ref="confirmCancelRef" class="btn btn-muted" @click="resolveConfirm(false)">Cancel</button>
             <button class="btn" :class="feedback.confirm.danger ? 'btn-danger' : 'btn-primary'" @click="resolveConfirm(true)">{{ feedback.confirm.confirmLabel }}</button>
           </div>
         </section>

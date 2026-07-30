@@ -21,7 +21,7 @@ export default defineConfig({
     video: 'retain-on-failure',
   },
   webServer: {
-    command: 'php artisan serve --host=127.0.0.1 --port=8010',
+    command: 'PROGRESSOS_RELAX_RATE_LIMITS=1 php artisan serve --host=127.0.0.1 --port=8010',
     url: baseURL,
     reuseExistingServer: true,
     timeout: 120_000,
