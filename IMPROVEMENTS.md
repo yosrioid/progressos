@@ -28,7 +28,7 @@ Trafik daftar semua improvement / feature yang ditargetkan, status tiap item, da
 
 | # | Area | Issue | Status | PR/Commit | Notes |
 |---|------|-------|--------|-----------|-------|
-| 7 | **Loading States** | Quick Capture submit has no spinner during async call; auth errors silently logged | ⏳ IN PROGRESS | `feature/quick-capture-loading-spinner` (branch in progress) | Added loading spinner to Quick Capture modal during async submission, disabled button while loading |
+| 7 | **Loading States** | Quick Capture submit has no spinner during async call; auth errors silently logged | ✅ DONE | #82 (`ecb1e0e`) | Added loading spinner to Quick Capture modal during async submission, disable button while loading, prevent double-click via disabling during capture |
 | 8 | **Centralized API Interceptor** | Try/catch scattered across stores/views without unified handling | 🔍 TODO | - Create `/src/services/api.ts` wrapper that handles 401 redirect, 422 field errors, 5xx generic toast |
 | 9 | **Keyboard Shortcuts** | No help overlay listing shortcuts; no Esc support for closing modals | 🔍 TODO | - Add Cmd+K → help overlay; add `@keydown.escape` handler with focus trap |
 
@@ -59,6 +59,7 @@ Trafik daftar semua improvement / feature yang ditargetkan, status tiap item, da
 | PR # | Title | Merged To | Date | Commit Hash | Description |
 |------|-------|-----------|------|-------------|-------------|
 | #89 | `test(e2e): stabilize Playwright suite + fix FAB over form action bars` | main | 2026-07-29 | `67e3638` | Stabilized Playwright e2e suite, fixed ChatBubble FAB on form routes, added work_log quick-add, updated Cancel button label, tightened delete confirmation test, aligned mobile nav assertion |
+| #82 | `ui(quick-capture): add loading spinner during async capture` | main | 2026-07-30 | `ecb1e0e` | Added loading spinner to Quick Capture modal during async submission (animate-spin SVG). Disabled Capture button while loading to prevent double submission. Added IMPROVEMENTS.md tracker at project root |
 
 ---
 
