@@ -7,10 +7,45 @@ use App\Rules\SafeHttpUrl;
 use Illuminate\Support\Facades\Validator;
 
 it('adds security headers to SPA responses', function () {
-    $this->get('/login')
-        ->assertHeader('X-Frame-Options', 'SAMEORIGIN')
-        ->assertHeader('X-Content-Type-Options', 'nosniff')
-        ->assertHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    $response = $this->get('/login');
+    $response->assertHeader('X-Frame-Options', 'SAMEORIGIN');
+    $response->assertHeader('X-Content-Type-Options', 'nosniff');
+    $response->assertHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    // CSP must be present with at least one directive (default-src 'self')
+    expect($response->headers->get('Content-Security-Policy'))
+        ->toContain("default-src 'self'")
+        ->toContain("frame-ancestors 'none'");
+});
+
+it('disables sensitive browser features via Permissions-Policy', function () {
+    $response = $this->get('/login');
+
+    $permissionsPolicy = $response->headers->get('Permissions-Policy');
+    expect($permissionsPolicy)
+        ->toContain('camera=()')
+        ->toContain('microphone=()')
+        ->toContain('geolocation=()');
+});
+
+it('prevents API responses from being cached by browsers or proxies', function () {
+    $user = User::factory()->create();
+    $response = $this->actingAs($user)->getJson('/api/v1/tasks');
+
+    $cacheControl = $response->headers->get('Cache-Control');
+    expect($cacheControl)
+        ->toContain('no-store')
+        ->toContain('no-cache')
+        ->toContain('must-revalidate')
+        ->toContain('private');
+    expect($response->headers->get('Pragma'))->toBe('no-cache');
+});
+
+it('disallows embedding the app in a frame from another origin', function () {
+    $response = $this->get('/login');
+
+    expect($response->headers->get('Content-Security-Policy'))
+        ->toContain("frame-ancestors 'none'");
+    expect($response->headers->get('X-Frame-Options'))->toBe('SAMEORIGIN');
 });
 
 it('blocks unsafe reference urls and allows public http urls', function () {
