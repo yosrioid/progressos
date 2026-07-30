@@ -2,12 +2,12 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Http\Controllers\Controller;
 use App\Models\Configuration;
 use App\Models\User;
 use App\Services\AiProviderManager;
 use App\Services\AiQuotaService;
 use App\Services\QuotaNotificationService;
-use App\Http\Controllers\Controller;
 use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;

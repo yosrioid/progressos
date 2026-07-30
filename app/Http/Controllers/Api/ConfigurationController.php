@@ -415,7 +415,7 @@ class ConfigurationController extends Controller
      */
     public function getAiUsage(Request $request)
     {
-        $today = \Illuminate\Support\Carbon::now()->toDateString();
+        $today = Carbon::now()->toDateString();
         $providers = array_keys((array) config('ai.providers', []));
 
         $rows = Configuration::query()

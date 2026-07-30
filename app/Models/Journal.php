@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Database\Factories\JournalFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -12,7 +13,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon $date
  * @property Carbon|null $analyzed_at
  *
- * @use HasFactory<\Database\Factories\JournalFactory>
+ * @use HasFactory<JournalFactory>
  */
 class Journal extends Model
 {

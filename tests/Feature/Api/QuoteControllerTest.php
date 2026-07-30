@@ -3,6 +3,7 @@
 use App\Models\Configuration;
 use App\Models\User;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Http;
 
 beforeEach(function () {
     Cache::flush();
@@ -17,8 +18,8 @@ it('saves and retrieves quote config encrypted', function () {
         'themes' => ['motivation', 'stoic'],
         'provider' => 'groq',
     ])->assertOk()
-      ->assertJsonPath('quote_config.enabled', true)
-      ->assertJsonPath('quote_config.themes.0', 'motivation');
+        ->assertJsonPath('quote_config.enabled', true)
+        ->assertJsonPath('quote_config.themes.0', 'motivation');
 });
 
 it('rejects daily quote when quota is exceeded', function () {
@@ -52,8 +53,8 @@ it('generates a quote and tracks usage', function () {
         'adacode_api_key' => '', 'adacode_base_url' => '', 'model' => '',
     ], encrypted: true);
 
-    \Illuminate\Support\Facades\Http::fake([
-        'api.groq.com/*' => \Illuminate\Support\Facades\Http::response([
+    Http::fake([
+        'api.groq.com/*' => Http::response([
             'choices' => [[
                 'message' => ['content' => '{"quote":"Be yourself.","author":"Anonymous"}'],
             ]],
