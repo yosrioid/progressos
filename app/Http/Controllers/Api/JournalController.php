@@ -28,7 +28,7 @@ class JournalController extends Controller
 
     public function show(Request $request, Journal $journal)
     {
-        abort_unless($journal->user_id === $request->user()->id, 403);
+        $this->authorize('view', $journal);
 
         return ApiResponse::ok(['journal' => $this->format($journal)]);
     }
@@ -50,7 +50,7 @@ class JournalController extends Controller
 
     public function update(Request $request, Journal $journal)
     {
-        abort_unless($journal->user_id === $request->user()->id, 403);
+        $this->authorize('update', $journal);
 
         $data = $request->validate([
             'body' => ['sometimes', 'string', 'max:10000'],
@@ -66,7 +66,7 @@ class JournalController extends Controller
 
     public function destroy(Request $request, Journal $journal)
     {
-        abort_unless($journal->user_id === $request->user()->id, 403);
+        $this->authorize('delete', $journal);
         $journal->delete();
 
         return ApiResponse::ok([], 'Journal dihapus.');
@@ -85,7 +85,7 @@ class JournalController extends Controller
 
     public function analyze(Request $request, Journal $journal)
     {
-        abort_unless($journal->user_id === $request->user()->id, 403);
+        $this->authorize('update', $journal);
 
         $user = $request->user();
         $config = Configuration::getValue(null, 'quote', 'groq', []);
