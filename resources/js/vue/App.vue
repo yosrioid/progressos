@@ -25,6 +25,7 @@ const route = useRoute();
 const quick = ref(false);
 const mobileMenu = ref(false);
 const overdueCount = ref(0);
+const capturingQuick = ref(false);
 const projectNames = ref<string[]>([]);
 const shortcutsOpen = ref(false);
 const notifOpen = ref(false);
@@ -199,21 +200,22 @@ const filteredCommands = computed(() => {
 });
 
 async function submitQuick() {
-  if (quickForm.value.type === 'habit_log') {
-    if (!selectedHabitId.value) return;
-    try {
-      await api.post(`/api/v1/habits/${selectedHabitId.value}/log`, { date: quickForm.value.date });
-      const name = habitList.value.find((h) => h.id === selectedHabitId.value)?.name ?? '';
-      quick.value = false;
-      selectedHabitId.value = null;
-      quickForm.value = { type: 'task', title: '', project_name: '', duration_minutes: 30, notes: '', date: new Date().toISOString().slice(0, 10) };
-      toast({ tone: 'success', title: 'Habit logged', message: name });
-    } catch {
-      toast({ tone: 'error', title: 'Error', message: 'Could not log habit. Please try again.' });
-    }
-    return;
-  }
+  capturingQuick.value = true;
   try {
+    if (quickForm.value.type === 'habit_log') {
+      if (!selectedHabitId.value) return;
+      try {
+        await api.post(`/api/v1/habits/${selectedHabitId.value}/log`, { date: quickForm.value.date });
+        const name = habitList.value.find((h) => h.id === selectedHabitId.value)?.name ?? '';
+        quick.value = false;
+        selectedHabitId.value = null;
+        quickForm.value = { type: 'task', title: '', project_name: '', duration_minutes: 30, notes: '', date: new Date().toISOString().slice(0, 10) };
+        toast({ tone: 'success', title: 'Habit logged', message: name });
+      } catch {
+        toast({ tone: 'error', title: 'Error', message: 'Could not log habit. Please try again.' });
+      }
+      return;
+    }
     const res = await api.post('/api/v1/quick-capture', quickForm.value).then(unwrap);
     const path: string | null = res.record_path ?? null;
     quick.value = false;
@@ -227,6 +229,8 @@ async function submitQuick() {
     else await router.push('/dashboard');
   } catch (e: any) {
     toast({ tone: 'error', title: 'Gagal menyimpan', message: e?.response?.data?.message ?? 'Terjadi kesalahan.' });
+  } finally {
+    capturingQuick.value = false;
   }
 }
 
@@ -787,7 +791,7 @@ onUnmounted(() => {
 
     <!-- Quick add modal -->
     <Transition name="quick-modal">
-      <div v-if="quick" class="fixed inset-0 z-40 flex items-end justify-center bg-slate-950/50 backdrop-blur-[2px] sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby="quick-add-title" @click.self="quick = false">
+      <div v-if="quick" class="fixed inset-0 z-40 flex items-end justify-center bg-slate-950/50 backdrop-blur-[2px] sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby="quick-add-title" @click.self="!capturingQuick && (quick = false)">
         <form class="quick-panel w-full overflow-hidden rounded-t-3xl border border-slate-200 bg-white shadow-2xl dark:border-zinc-800 dark:bg-zinc-900 sm:max-w-xl sm:rounded-2xl" @submit.prevent="submitQuick">
           <div class="border-b border-slate-100 bg-slate-50/70 px-5 py-4 dark:border-zinc-800 dark:bg-zinc-900/60">
             <div class="flex items-center justify-between gap-3">
@@ -831,7 +835,20 @@ onUnmounted(() => {
             </div>
           </div>
           <div class="flex justify-end border-t border-slate-100 bg-slate-50/70 px-5 py-4 pb-[calc(1rem+env(safe-area-inset-bottom))] dark:border-zinc-800 dark:bg-zinc-900/60 sm:pb-4">
-            <button class="btn btn-primary">Capture</button>
+            <button
+              class="btn btn-primary"
+              :disabled="capturingQuick"
+              @click="submitQuick"
+            >
+              <span v-if="capturingQuick" class="flex items-center gap-2">
+                <svg class="h-4 w-4 animate-spin" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <polyline points="6 8 6 14 12 14"></polyline>
+                </svg>
+                Capturing...
+              </span>
+              <span v-else>Capture</span>
+            </button>
           </div>
         </form>
       </div>
