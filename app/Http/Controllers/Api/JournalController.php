@@ -5,15 +5,19 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Configuration;
 use App\Models\Journal;
+use App\Models\User;
 use App\Services\AiProviderManager;
+use App\Services\AiQuotaService;
 use App\Support\ApiResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 class JournalController extends Controller
 {
-    private $currentUser = null;
+    public function __construct(
+        private AiProviderManager $aiManager,
+        private AiQuotaService $quotaService,
+    ) {}
 
     public function index(Request $request)
     {
@@ -88,11 +92,34 @@ class JournalController extends Controller
         $this->authorize('update', $journal);
 
         $user = $request->user();
-        $config = Configuration::getValue(null, 'quote', 'groq', []);
-        $apiKey = is_array($config) ? ($config['api_key'] ?? null) : null;
+        $provider = $this->aiManager->resolveProvider('journal');
+
+        // Quota pre-check so a user can't drain their daily budget on a
+        // single long journal without warning.
+        $quota = $this->quotaService->checkQuota($user, $provider);
+        if ($quota['is_exceeded'] ?? false) {
+            return ApiResponse::ok(
+                ['error' => 'quota_exceeded', 'quota' => $quota],
+                'Kuota AI harian telah habis.',
+                429,
+            );
+        }
+
+        // Read API key from the encrypted provider_config (the single source
+        // of truth for AI credentials). The legacy quote/groq bucket no
+        // longer holds the AI key.
+        $aiConfig = Configuration::getValue(null, 'ai', 'provider_config', []);
+        $aiConfig = is_array($aiConfig) ? $aiConfig : [];
+        $apiKey = $aiConfig['groq_api_key']
+            ?? ($aiConfig['provider_keys'][$provider] ?? null)
+            ?? null;
 
         if (! $apiKey) {
-            return ApiResponse::ok(['error' => 'no_api_key'], 'Groq API key belum dikonfigurasi.', 422);
+            return ApiResponse::ok(
+                ['error' => 'no_api_key'],
+                'AI API key belum dikonfigurasi.',
+                422,
+            );
         }
 
         // 14 hari terakhir dengan detail lebih banyak
@@ -108,11 +135,14 @@ class JournalController extends Controller
         $profileData = Configuration::getValue($user, 'journal', 'ai_profile', []);
         $profileText = is_array($profileData) ? ($profileData['text'] ?? '') : '';
 
-        $this->currentUser = $user;
-        $result = $this->callGroq($apiKey, $journal->body, $history, $profileText);
+        $result = $this->callAi($user, $provider, $apiKey, $journal->body, $history, $profileText);
 
         if (! $result) {
-            return ApiResponse::ok(['error' => 'ai_failed'], 'Gagal mendapatkan analisa dari AI. Coba lagi nanti.', 503);
+            return ApiResponse::ok(
+                ['error' => 'ai_failed'],
+                'Gagal mendapatkan analisa dari AI. Coba lagi nanti.',
+                503,
+            );
         }
 
         $journal->update([
@@ -136,8 +166,14 @@ class JournalController extends Controller
         return ApiResponse::ok(['journal' => $this->format($journal)], 'Analisa selesai.');
     }
 
-    private function callGroq(string $apiKey, string $body, array $history = [], string $profileText = ''): ?array
-    {
+    private function callAi(
+        User $user,
+        string $provider,
+        string $apiKey,
+        string $body,
+        array $history = [],
+        string $profileText = ''
+    ): ?array {
         // Bangun konteks riwayat 14 hari
         $historyContext = '';
         if (! empty($history)) {
@@ -189,47 +225,41 @@ Analisa jurnal hari ini secara mendalam. Balas HANYA dengan JSON berikut — tid
 {$body}{$profileContext}{$historyContext}
 PROMPT;
 
-        try {
-            $response = Http::timeout(45)
-                ->withHeaders([
-                    'Authorization' => "Bearer {$apiKey}",
-                    'Content-Type' => 'application/json',
-                ])
-                ->post('https://api.groq.com/openai/v1/chat/completions', [
-                    'model' => 'llama-3.3-70b-versatile',
-                    'max_tokens' => 1500,
-                    'temperature' => 0.75,
-                    'messages' => [
-                        ['role' => 'system', 'content' => $systemPrompt],
-                        ['role' => 'user',   'content' => $userPrompt],
-                    ],
-                ]);
+        $result = $this->aiManager->call($provider, [
+            'apiKey' => $apiKey,
+            'model' => config("ai.providers.{$provider}.chat_model") ?: 'llama-3.3-70b-versatile',
+            'messages' => [
+                ['role' => 'user', 'content' => $userPrompt],
+            ],
+            'maxTokens' => 1500,
+            'temperature' => 0.75,
+            'systemPrompt' => $systemPrompt,
+        ]);
 
-            if (! $response->successful()) {
-                Log::error('Groq journal analyze failed', [
-                    'status' => $response->status(),
-                    'body' => $response->body(),
-                ]);
+        if (! ($result['success'] ?? false)) {
+            Log::warning('Journal analyze AI call failed', [
+                'provider' => $provider,
+                'status' => $result['status'] ?? null,
+                'error_code' => $result['error_code'] ?? null,
+            ]);
 
-                return null;
-            }
-
-            app(AiProviderManager::class)->trackUsage($this->currentUser, $response->json('usage.total_tokens', 0), 1);
-
-            $content = $response->json('choices.0.message.content', '');
-
-            // Ekstrak JSON dari response (kadang ada teks sebelum/sesudah)
-            if (preg_match('/\{.*\}/s', $content, $matches)) {
-                $parsed = json_decode($matches[0], true);
-                if (isset($parsed['mood'], $parsed['tema'], $parsed['content'], $parsed['insight'], $parsed['saran'])) {
-                    return $parsed;
-                }
-            }
-
-            Log::warning('Groq journal: failed to parse JSON', ['content' => $content]);
-        } catch (\Throwable $e) {
-            Log::error('Groq journal analyze exception', ['error' => $e->getMessage()]);
+            return null;
         }
+
+        // Track usage for this user/provider.
+        $this->aiManager->trackUsage($user, (int) ($result['tokens'] ?? 0), 1, 'journal', $provider);
+
+        $content = (string) ($result['content'] ?? '');
+
+        // Ekstrak JSON dari response (kadang ada teks sebelum/sesudah)
+        if (preg_match('/\{.*\}/s', $content, $matches)) {
+            $parsed = json_decode($matches[0], true);
+            if (isset($parsed['mood'], $parsed['tema'], $parsed['content'], $parsed['insight'], $parsed['saran'])) {
+                return $parsed;
+            }
+        }
+
+        Log::warning('Journal analyze: failed to parse JSON', ['content' => $content]);
 
         return null;
     }

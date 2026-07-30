@@ -3,6 +3,7 @@ import { onMounted, ref } from 'vue';
 import { RouterLink, useRouter } from 'vue-router';
 import { api, unwrap } from '../api';
 import { confirmAction, toast } from '../feedback';
+import { useConfigurationStore } from '../stores/configuration';
 import PinGate from '../components/PinGate.vue';
 
 const props = defineProps<{ id: string | 'new' }>();
@@ -20,6 +21,7 @@ interface Journal {
   analyzed_at: string | null;
 }
 
+const config = useConfigurationStore();
 const journal = ref<Journal | null>(null);
 const loading = ref(true);
 const analyzing = ref(false);
@@ -81,7 +83,21 @@ async function analyze() {
     journal.value = res.journal;
     toast({ tone: 'success', title: 'Analisa selesai' });
   } catch (e: any) {
-    toast({ tone: 'error', title: 'Analisa gagal', message: e?.response?.data?.message ?? 'Coba lagi nanti.' });
+    // 422 -> no_api_key, 429 -> quota_exceeded, 503 -> ai_failed. Fall through
+    // to the backend message; otherwise keep a generic "try again" prompt.
+    const errMsg =
+      e?.response?.data?.message ??
+      e?.response?.data?.data?.message ??
+      'Coba lagi nanti.';
+    const errCode = e?.response?.data?.error ?? e?.response?.data?.data?.error;
+    if (errCode === 'quota_exceeded') {
+      toast({ tone: 'warning', title: 'Kuota AI habis', message: errMsg });
+      config.checkQuota(); // Refresh quota in store so banner shows
+    } else if (errCode === 'no_api_key') {
+      toast({ tone: 'warning', title: 'API key belum dikonfigurasi', message: errMsg });
+    } else {
+      toast({ tone: 'error', title: 'Analisa gagal', message: errMsg });
+    }
   } finally {
     analyzing.value = false;
   }

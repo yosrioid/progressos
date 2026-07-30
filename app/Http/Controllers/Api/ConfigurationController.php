@@ -382,6 +382,15 @@ class ConfigurationController extends Controller
         return $value instanceof Carbon ? $value->toISOString() : null;
     }
 
+    /**
+     * Return the current AI configuration payload plus the requesting user's
+     * usage for the requested provider.
+     *
+     * Previously this returned only `usage`. The frontend's
+     * AiConfigPanel.vue consumes `data.configuration.ai_config` (the same shape
+     * produced by `show()`), so we now expose the full payload via
+     * `aiConfigPayload()` while keeping the `usage` block for backward compat.
+     */
     public function getAiConfig(Request $request)
     {
         $user = $request->user();
@@ -391,8 +400,77 @@ class ConfigurationController extends Controller
         $usage = app(AiProviderManager::class)->getUsage($user, $provider);
 
         return ApiResponse::ok([
+            'ai_config' => $this->aiConfigPayload(),
             'usage' => $usage,
         ]);
+    }
+
+    /**
+     * Aggregate today's AI usage across all users, broken down per provider.
+     *
+     * The frontend admin panel calls GET /api/admin/configuration/ai/usage to
+     * render a "who is using the budget" dashboard. Previously this route
+     * returned a 404 because the method was missing — implemented now by
+     * reading the per-user Configuration buckets directly.
+     */
+    public function getAiUsage(Request $request)
+    {
+        $today = Carbon::now()->toDateString();
+        $providers = array_keys((array) config('ai.providers', []));
+
+        $rows = Configuration::query()
+            ->whereIn('group', $providers)
+            ->where('key', 'usage')
+            ->get();
+
+        $perUser = [];
+        foreach ($rows as $row) {
+            $stored = $this->safeDecrypt($row->value);
+            if (! is_array($stored)) {
+                continue;
+            }
+            if (($stored['date'] ?? '') !== $today) {
+                continue;
+            }
+            $userId = (int) $row->user_id;
+            $perUser[$userId] ??= [
+                'user_id' => $userId,
+                'providers' => [],
+                'total_requests' => 0,
+                'total_tokens' => 0,
+            ];
+            $perUser[$userId]['providers'][$row->group] = [
+                'requests' => (int) ($stored['requests'] ?? 0),
+                'tokens' => (int) ($stored['tokens'] ?? 0),
+            ];
+            $perUser[$userId]['total_requests'] += (int) ($stored['requests'] ?? 0);
+            $perUser[$userId]['total_tokens'] += (int) ($stored['tokens'] ?? 0);
+        }
+
+        return ApiResponse::ok([
+            'date' => $today,
+            'users' => array_values($perUser),
+            'providers' => $providers,
+        ]);
+    }
+
+    /**
+     * Configuration rows may be encrypted at rest. The model casts the
+     * `value` column automatically, but if for any reason it comes back as
+     * a JSON string we normalise it here before aggregating.
+     */
+    private function safeDecrypt(mixed $value): mixed
+    {
+        if (is_array($value)) {
+            return $value;
+        }
+        if (is_string($value) && $value !== '') {
+            $decoded = json_decode($value, true);
+
+            return is_array($decoded) ? $decoded : null;
+        }
+
+        return null;
     }
 
     public function saveAiConfig(Request $request)
